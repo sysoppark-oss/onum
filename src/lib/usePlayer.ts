@@ -22,6 +22,7 @@ export function usePlayer(tracks: Track[]) {
   const [time, setTime] = useState(0)
   const [duration, setDuration] = useState(0)
   const [shuffle, setShuffle] = useState<boolean>(() => load('shuffle', false))
+  const [gain, setGainState] = useState<number>(() => load('gain', 1)) // PC·브라우저용 앱 자체 음량
   const [resume] = useState<Resume | null>(() => load<Resume | null>('resume', null))
   // "시간 동안"은 앱을 다시 켜면 "계속"으로 시작한다. 예전 저장값(끄기)은 "모두 한 번만"으로 읽는다.
   const [repeat, setRepeatState] = useState<Repeat>(() => {
@@ -190,12 +191,69 @@ export function usePlayer(tracks: Track[]) {
     navigator.mediaSession.setActionHandler('previoustrack', () => go(-1))
   }, [current, toggle, go])
 
+  // ── 재생 목록(대기열) 고치기 ──
+  const queueTracks = queue.map((id) => byId.current.get(id)).filter((t): t is Track => !!t)
+
+  const jump = useCallback((i: number) => {
+    const t = byId.current.get(queue[i])
+    if (!t) return
+    setIndex(i)
+    start(t)
+  }, [queue, start])
+
+  /** 지금 듣는 곡은 뺄 수 없다 */
+  const removeAt = useCallback((i: number) => {
+    if (i === index || i < 0 || i >= queue.length) return
+    setQueue(queue.filter((_, k) => k !== i))
+    if (i < index) setIndex(index - 1)
+  }, [queue, index])
+
+  const move = useCallback((i: number, dir: 1 | -1) => {
+    const j = i + dir
+    if (j < 0 || j >= queue.length) return
+    const q = [...queue]
+    ;[q[i], q[j]] = [q[j], q[i]]
+    setQueue(q)
+    if (index === i) setIndex(j)
+    else if (index === j) setIndex(i)
+  }, [queue, index])
+
+  /** 맨 뒤에 붙인다. 이미 있는 곡은 다시 넣지 않는다. */
+  const enqueue = useCallback((list: Track[]) => {
+    const add = list.map((t) => t.id).filter((id) => !queue.includes(id))
+    if (!add.length) return
+    if (!queue.length) { playFrom(list, list[0].id, 0, true); return }
+    setQueue([...queue, ...add])
+  }, [queue, playFrom])
+
+  const setGain = useCallback((v: number) => {
+    const g = Math.min(1, Math.max(0, v))
+    audio.current.volume = g
+    setGainState(g)
+    save('gain', g)
+  }, [])
+  useEffect(() => { audio.current.volume = gain }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── 다음 곡 미리 알림 ──
+  let next: Track | undefined
+  let nextNote = ''
+  const timeUp = repeat.limit === 'timed' && repeatLeft <= 0
+  if (current) {
+    if (timeUp || (repeat.scope === 'one' && repeat.limit === 'once')) nextNote = '이 곡이 끝나면 멈춰요'
+    else if (repeat.scope === 'one') { next = current; nextNote = '같은 곡을 다시 틀어요' }
+    else if (index + 1 < queue.length) next = byId.current.get(queue[index + 1])
+    else if (repeat.limit === 'once') nextNote = '마지막 곡이에요'
+    else if (shuffle && queue.length > 1) nextNote = '다시 섞어서 이어 틀어요'
+    else next = byId.current.get(queue[0])
+  }
+
   const resumeTrack = resume ? byId.current.get(resume.id) : undefined
 
   return {
     current, playing, time, duration, shuffle, repeat, repeatLeft,
     resumeTrack, resumePos: resume?.pos ?? 0,
-    playFrom, go, toggle, pause, seek, toggleShuffle, setRepeat,
+    queueTracks, index, next, nextNote, gain,
+    playFrom, go, toggle, pause, seek, toggleShuffle, setRepeat, jump, removeAt, move, enqueue, setGain,
   }
 }
 

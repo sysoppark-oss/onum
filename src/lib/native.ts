@@ -9,12 +9,18 @@ interface NativeTrack {
 /** 소리가 나가는 곳 */
 export interface Output { kind: 'speaker' | 'wired' | 'bluetooth'; name?: string }
 
+/** 휴대폰 미디어 음량: value는 0~max 단계 */
+export interface Volume { value: number; max: number }
+
 interface MusicScanPlugin {
   scan(opts: { minMs: number }): Promise<{ tracks: NativeTrack[]; skippedFolder: number }>
   art(opts: { id: number; albumId: number; size: number }): Promise<{ dataUrl?: string }>
   nowPlaying(opts: { playing: boolean; title?: string; artist?: string }): Promise<void>
   output(): Promise<Output>
   fontScale(): Promise<{ scale: number }>
+  volume(): Promise<Volume>
+  setVolume(opts: { value: number }): Promise<Volume>
+  addListener(event: 'volumeChanged', fn: (v: Volume) => void): Promise<PluginListenerHandle>
   addListener(event: 'outputChanged', fn: (o: Output) => void): Promise<PluginListenerHandle>
 }
 
@@ -71,4 +77,19 @@ export function onOutput(fn: (o: Output) => void): () => void {
 /** 휴대폰 설정의 글자 크기 배율 (보통 1, 크게 하면 1.3~2) */
 export function getFontScale(): Promise<number | null> {
   return isNative ? MusicScan.fontScale().then((r) => r.scale).catch(() => null) : Promise.resolve(null)
+}
+
+export function getVolume(): Promise<Volume | null> {
+  return isNative ? MusicScan.volume().catch(() => null) : Promise.resolve(null)
+}
+
+export function setVolume(value: number): void {
+  if (isNative) MusicScan.setVolume({ value }).catch(() => {})
+}
+
+/** 휴대폰 옆의 음량 버튼을 눌렀을 때도 불린다 */
+export function onVolume(fn: (v: Volume) => void): () => void {
+  if (!isNative) return () => {}
+  const h = MusicScan.addListener('volumeChanged', fn)
+  return () => { h.then((x) => x.remove()).catch(() => {}) }
 }

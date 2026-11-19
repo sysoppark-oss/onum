@@ -187,3 +187,47 @@ h1, h2, .verse-text { text-wrap: balance; }
 .stepper { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; }
 .stepper p { flex: 1; white-space: nowrap; text-align: center; }
 .tick { font-size: .8125rem; font-variant-numeric: tabular-nums; }
+
+/* ── 음량 ── */
+:root { --danger: #ff8a80; }
+.danger { color: var(--danger); }
+.vol { display: flex; align-items: center; gap: 4px; margin-top: 8px; }
+.vol .vol-range { flex: 1; min-width: 0; margin-top: 0; }
+.vol-num { min-width: 3.2em; text-align: right; }
+.vol.over .vol-range { accent-color: var(--danger); }
+.vol.over .vol-num { color: var(--danger); }
+.toast { position: fixed; z-index: 6; left: 50%; transform: translateX(-50%); top: calc(16px + var(--sat)); max-width: calc(100% - 32px); padding: 10px 18px; border-radius: 22px; background: var(--surface-2); box-shadow: 0 0 0 1px var(--off); font-weight: 700; font-variant-numeric: tabular-nums; text-align: center; }
+.toast.over { color: var(--danger); box-shadow: 0 0 0 2px var(--danger); }
+
+/* ── 다음 곡 ── */
+.next { display: flex; flex-direction: column; gap: 2px; margin-top: 18px; padding: 12px 16px; border-radius: 14px; background: var(--surface); }
+
+/* ── 재생 목록·내 목록 ── */
+.page { position: fixed; inset: 0; z-index: 4; background: var(--bg); overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 12px; padding: calc(12px + var(--sat)) 20px calc(28px + var(--sab)); transition: transform 280ms var(--ease-out), opacity 200ms ease-out; }
+.page:focus { outline: none; }
+.page > * { flex-shrink: 0; width: 100%; max-width: 480px; margin-left: auto; margin-right: auto; }
+@starting-style { .page { transform: translateY(6%); opacity: 0; } }
+.page .h-sec, .sheet-head .h-sec { margin-bottom: 0; }
+.erow { display: flex; align-items: center; }
+.erow-main { flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; gap: 10px; text-align: left; border-radius: 12px; padding: 0 4px; }
+.erow-main.on .one:first-child { color: var(--tint); font-weight: 700; }
+.erow-n { min-width: 1.6em; text-align: right; }
+.erow .icon { width: 44px; height: 44px; }
+button:disabled { opacity: .35; cursor: default; }
+.row:disabled { opacity: 1; }
+.sheet.tall { height: 92dvh; }
+.sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.sheet .list { margin: 0 -8px; }
+.field { min-height: 52px; border-radius: 14px; border: 1px solid var(--off); background: var(--bg); padding: 0 14px; font-size: 1rem; }
+.field:focus-visible { outline: 3px solid var(--tint); outline-offset: 2px; }
+.field[aria-invalid='true'] { border-color: var(--danger); }
+.field::placeholder { color: var(--ink-2); }
+.opt.wide { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 16px; text-align: left; min-height: 52px; }
+.list-name { margin-bottom: 0; overflow-wrap: anywhere; }
+.confirm { display: flex; flex-direction: column; gap: 12px; padding: 16px; border-radius: 14px; background: var(--surface); }
+.danger-bg { background: var(--danger); color: var(--bg); }
+.link { align-self: flex-start; min-height: 44px; text-decoration: underline; text-underline-offset: 4px; }
+.seg { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.pickbar .secondary { min-height: 48px; padding: 0 16px; font-size: .9375rem; }
+@media (prefers-reduced-motion: reduce) { @starting-style { .page { transform: none; } } }
+.page { width: auto; max-width: none !important; margin: 0; }

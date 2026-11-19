@@ -1,10 +1,12 @@
 package org.onum.player;
 
 import android.Manifest;
+import android.content.BroadcastReceiver;
 import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -18,6 +20,8 @@ import android.os.Looper;
 import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Size;
+
+import androidx.core.content.ContextCompat;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
@@ -44,6 +48,7 @@ import java.io.InputStream;
 public class MusicScanPlugin extends Plugin {
 
     private AudioDeviceCallback deviceCallback;
+    private BroadcastReceiver volumeReceiver;
 
     @Override
     public void load() {
@@ -60,10 +65,27 @@ public class MusicScanPlugin extends Plugin {
             }
         };
         am.registerAudioDeviceCallback(deviceCallback, new Handler(Looper.getMainLooper()));
+
+        // 휴대폰 옆 음량 버튼을 누르면 화면에도 알려 준다
+        volumeReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                notifyListeners("volumeChanged", currentVolume());
+            }
+        };
+        ContextCompat.registerReceiver(
+            getContext(),
+            volumeReceiver,
+            new IntentFilter("android.media.VOLUME_CHANGED_ACTION"),
+            ContextCompat.RECEIVER_EXPORTED
+        );
     }
 
     @Override
     protected void handleOnDestroy() {
+        if (volumeReceiver != null) {
+            try { getContext().unregisterReceiver(volumeReceiver); } catch (Exception ignored) {}
+        }
         if (deviceCallback != null) {
             AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
             am.unregisterAudioDeviceCallback(deviceCallback);
@@ -96,6 +118,33 @@ public class MusicScanPlugin extends Plugin {
         o.put("kind", kind);
         if (name != null) o.put("name", name);
         return o;
+    }
+
+    private JSObject currentVolume() {
+        AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+        JSObject o = new JSObject();
+        o.put("value", am.getStreamVolume(AudioManager.STREAM_MUSIC));
+        o.put("max", am.getStreamMaxVolume(AudioManager.STREAM_MUSIC));
+        return o;
+    }
+
+    @PluginMethod
+    public void volume(PluginCall call) {
+        call.resolve(currentVolume());
+    }
+
+    /** 미디어 음량을 바꾼다. 화면에 우리 표시가 있으니 시스템 음량 창은 띄우지 않는다. */
+    @PluginMethod
+    public void setVolume(PluginCall call) {
+        AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+        int max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
+        int v = Math.max(0, Math.min(max, call.getInt("value", 0)));
+        try {
+            am.setStreamVolume(AudioManager.STREAM_MUSIC, v, 0);
+            call.resolve(currentVolume());
+        } catch (SecurityException e) {
+            call.reject("volume_blocked", e);
+        }
     }
 
     /** 휴대폰 설정의 글자 크기 배율 */

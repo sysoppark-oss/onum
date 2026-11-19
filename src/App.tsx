@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fmt, scanFiles, type ScanResult, type Track } from './lib/library'
 import { matches } from './lib/hangul'
 import { usePlayer, type Player, type Repeat } from './lib/usePlayer'
-import { getFontScale, getOutput, isNative, nativeArt, onOutput, scanDevice, type Output } from './lib/native'
+import { getFontScale, getOutput, getVolume, isNative, nativeArt, onOutput, onVolume, scanDevice, setVolume, type Output, type Volume } from './lib/native'
+import { usePlaylists, type Playlist, type Playlists } from './lib/playlists'
 import { App as CapApp } from '@capacitor/app'
 import { load, save } from './lib/store'
 
@@ -59,6 +60,10 @@ export default function App() {
   const tracks = scan?.tracks ?? []
   const player = usePlayer(tracks)
   const output = useOutput(player)
+  const lists = usePlaylists()
+  const vol = useVolume(player)
+  // 휴대폰의 실제 음량을 알 때만, 이어폰·블루투스로 들을 때만 경고한다
+  const loud = vol.native && vol.percent > SAFE_VOLUME && output?.kind !== 'speaker'
   const openFull = useCallback(() => setFull(true), [])
   const closeFull = useCallback(() => setFull(false), [])
 
@@ -84,13 +89,18 @@ export default function App() {
     <div className="app">
       <main className="screen" inert={full}>
         {tab === 'home' && <Home tracks={tracks} player={player} onOpen={openFull} />}
-        {tab === 'library' && <Library tracks={tracks} scan={scan} player={player} />}
+        {tab === 'library' && <Library tracks={tracks} scan={scan} player={player} lists={lists} />}
         {tab === 'practice' && <Later title="연습" what="구간 반복, 음 높이를 유지한 빠르기 조절, 키 바꾸기" />}
         {tab === 'worship' && <Later title="찬양·묵상" what="찬송가 반주 무료 팩, 묵상 모드" />}
       </main>
       {player.current && !full && <Mini player={player} onOpen={openFull} />}
       <TabBar tab={tab} setTab={setTab} hidden={full} />
-      {full && player.current && <Full player={player} output={output} onClose={closeFull} />}
+      {vol.flash && !full && (
+        <p className={'toast' + (loud ? ' over' : '')} role="status">
+          음량 {vol.percent}%{loud && ' · 권장 음량을 넘었어요'}
+        </p>
+      )}
+      {full && player.current && <Full player={player} output={output} tracks={tracks} lists={lists} vol={vol} loud={loud} onClose={closeFull} />}
     </div>
   )
 }
@@ -205,8 +215,10 @@ function Home({ tracks, player, onOpen }: { tracks: Track[]; player: Player; onO
 }
 
 /* ───────── 내 음악 ───────── */
-type View = 'songs' | 'artists' | 'folders'
-function Library({ tracks, scan, player }: { tracks: Track[]; scan: ScanResult; player: Player }) {
+type View = 'songs' | 'artists' | 'folders' | 'lists'
+function Library({ tracks, scan, player, lists }: { tracks: Track[]; scan: ScanResult; player: Player; lists: Playlists }) {
+  const [saving, setSaving] = useState(false)
+  const closeSaving = useCallback(() => setSaving(false), [])
   const [q, setQ] = useState('')
   const [view, setView] = useState<View>('songs')
   const [group, setGroup] = useState<string | null>(null)
@@ -248,10 +260,11 @@ function Library({ tracks, scan, player }: { tracks: Track[]; scan: ScanResult; 
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="곡·가수 찾기 (초성도 돼요)" autoComplete="off" enterKeyHint="search" />
       </label>
       <div className="seg" role="tablist" aria-label="보기">
-        {([['songs', '곡'], ['artists', '가수'], ['folders', '폴더']] as const).map(([v, l]) => (
+        {([['songs', '곡'], ['artists', '가수'], ['folders', '폴더'], ['lists', '내 목록']] as const).map(([v, l]) => (
           <button key={v} role="tab" aria-selected={view === v} onClick={() => { setView(v); setGroup(null) }}>{l}</button>
         ))}
       </div>
+      {view === 'lists' ? <Lists tracks={tracks} lists={lists} player={player} /> : (<>
       <p className="small muted" role="status">
         {nf.format(filtered.length)}곡{hidden > 0 && ` · 짧은 소리·녹음 ${nf.format(hidden)}개는 숨겼어요`}
       </p>
@@ -293,12 +306,15 @@ function Library({ tracks, scan, player }: { tracks: Track[]; scan: ScanResult; 
           </li>
         )} />
       )}
+      </>)}
       {picking && picked.size > 0 && (
         <div className="pickbar">
           <span className="strong" role="status">{nf.format(picked.size)}곡 골랐어요 · 고른 순서대로 틀어요</span>
+          <button className="secondary" onClick={() => setSaving(true)}>목록에 담기</button>
           <button className="primary" onClick={() => setAsk(true)}>반복 정하고 듣기</button>
         </div>
       )}
+      {saving && <ChooseListSheet lists={lists} ids={order} onClose={closeSaving} onDone={stopPicking} />}
       {ask && (
         <RepeatSheet player={player} count={picked.size} onClose={closeAsk}
           onApply={(r) => {
@@ -331,10 +347,10 @@ function VirtualList<T>({ items, render }: { items: T[]; render: (item: T) => Re
     }
     const on = () => { if (!raf) raf = requestAnimationFrame(calc) }
     calc()
-    window.addEventListener('scroll', on, { passive: true })
+    window.addEventListener('scroll', on, { passive: true, capture: true }) // 창 안에서 스크롤해도 잡는다
     window.addEventListener('resize', on)
     return () => {
-      window.removeEventListener('scroll', on)
+      window.removeEventListener('scroll', on, true)
       window.removeEventListener('resize', on)
       if (raf) cancelAnimationFrame(raf)
     }
@@ -366,7 +382,9 @@ function Mini({ player, onOpen }: { player: Player; onOpen: () => void }) {
         <Art t={t} size={44} />
         <span className="grow left">
           <span className="one strong">{t.title}</span>
-          <span className="small muted one">{t.artist}</span>
+          <span className="small muted one">
+            {player.duration - player.time < 15 && player.next && player.next !== t ? `다음 곡: ${player.next.title}` : t.artist}
+          </span>
         </span>
       </button>
       <button className="icon" onClick={player.toggle} aria-label={player.playing ? '일시 정지' : '재생'}>
@@ -377,7 +395,11 @@ function Mini({ player, onOpen }: { player: Player; onOpen: () => void }) {
   )
 }
 
-function Full({ player, output, onClose }: { player: Player; output: Output | null; onClose: () => void }) {
+function Full({ player, output, tracks, lists, vol, loud, onClose }: {
+  player: Player; output: Output | null; tracks: Track[]; lists: Playlists; vol: Vol; loud: boolean; onClose: () => void
+}) {
+  const [queue, setQueue] = useState(false)
+  const closeQueue = useCallback(() => setQueue(false), [])
   const t = player.current!
   const [sheet, setSheet] = useState(false)
   const closeSheet = useCallback(() => setSheet(false), [])
@@ -413,9 +435,275 @@ function Full({ player, output, onClose }: { player: Player; output: Output | nu
         <button className="chip" aria-pressed={player.repeat.limit !== 'once'} aria-haspopup="dialog" onClick={() => setSheet(true)}>
           {repeatLabel(player.repeat, player.repeatLeft)}
         </button>
+        <button className="chip" aria-haspopup="dialog" onClick={() => setQueue(true)}>
+          재생 목록 {nf.format(player.queueTracks.length)}곡
+        </button>
       </div>
+      <p className="next small" role="status">
+        <span className="muted">다음 곡</span>
+        <span className="one">{player.next ? `${player.next.title} · ${player.next.artist}` : player.nextNote}</span>
+        {player.next && player.nextNote && <span className="muted">{player.nextNote}</span>}
+      </p>
+      <VolumeRow vol={vol} loud={loud} />
       {sheet && <RepeatSheet player={player} onClose={closeSheet} />}
+      {queue && <QueuePage player={player} tracks={tracks} lists={lists} onClose={closeQueue} />}
     </div>
+  )
+}
+
+/* ───────── 음량 ───────── */
+const SAFE_VOLUME = 60 // 이어폰으로 들을 때 권장하는 최대 음량(%)
+
+/** 휴대폰에서는 미디어 음량을, PC·브라우저에서는 앱 자체 음량을 다룬다 */
+function useVolume(player: Player) {
+  const [sys, setSys] = useState<Volume | null>(null)
+  const [flash, setFlash] = useState(0)
+  useEffect(() => {
+    getVolume().then((v) => { if (v) setSys(v) })
+    return onVolume((v) => { setSys(v); setFlash(Date.now()) })
+  }, [])
+  useEffect(() => {
+    if (!flash) return
+    const h = setTimeout(() => setFlash(0), 1600)
+    return () => clearTimeout(h)
+  }, [flash])
+  const percent = sys ? Math.round((sys.value / sys.max) * 100) : Math.round(player.gain * 100)
+  const set = (p: number) => {
+    const q = Math.min(100, Math.max(0, p))
+    if (sys) {
+      const value = Math.round((q / 100) * sys.max)
+      setSys({ ...sys, value })
+      setVolume(value)
+    } else player.setGain(q / 100)
+  }
+  /** 버튼 한 번: 휴대폰은 한 단계, PC는 5% */
+  const step = (d: 1 | -1) => (sys ? set(((sys.value + d) / sys.max) * 100) : set(percent + d * 5))
+  return { percent, set, step, flash: flash > 0, native: sys != null }
+}
+type Vol = ReturnType<typeof useVolume>
+
+function VolumeRow({ vol, loud }: { vol: Vol; loud: boolean }) {
+  return (
+    <>
+      <div className={'vol' + (loud ? ' over' : '')}>
+        <button className="icon" onClick={() => vol.step(-1)} aria-label="음량 줄이기"><MinusIcon /></button>
+        <label className="sr" htmlFor="vol">음량</label>
+        <input id="vol" type="range" className="seek vol-range" min={0} max={100} step={1} value={vol.percent}
+          onChange={(e) => vol.set(+e.target.value)}
+          aria-valuetext={`${vol.percent}%${loud ? ', 권장 음량 초과' : ''}`} />
+        <button className="icon" onClick={() => vol.step(1)} aria-label="음량 키우기"><PlusIcon /></button>
+        <span className="vol-num strong num" aria-hidden="true">{vol.percent}%</span>
+      </div>
+      {loud && <p className="small danger" role="status">⚠ 권장 음량({SAFE_VOLUME}%)을 넘었어요. 귀를 위해 조금 줄여 보세요.</p>}
+    </>
+  )
+}
+
+/* ───────── 재생 목록·내 목록 고치기 ───────── */
+/** 순서 바꾸기·빼기 버튼이 달린 곡 줄 */
+function EditRows({ tracks, currentId, lockCurrent, onTap, onMove, onRemove }: {
+  tracks: Track[]; currentId?: string; lockCurrent?: boolean
+  onTap: (i: number) => void; onMove: (i: number, dir: 1 | -1) => void; onRemove: (i: number) => void
+}) {
+  const items = tracks.map((t, i) => ({ t, i }))
+  return (
+    <VirtualList items={items} render={({ t, i }) => (
+      <li key={t.id} className="erow">
+        <button className={'erow-main' + (t.id === currentId ? ' on' : '')} aria-current={t.id === currentId ? 'true' : undefined} onClick={() => onTap(i)}>
+          <span className="small muted num erow-n">{i + 1}</span>
+          <span className="grow left">
+            <span className="one">{t.title}</span>
+            <span className="small muted one">{t.artist}</span>
+          </span>
+        </button>
+        <button className="icon" disabled={i === 0} onClick={() => onMove(i, -1)} aria-label={`${t.title} 위로 올리기`}><UpIcon /></button>
+        <button className="icon" disabled={i === tracks.length - 1} onClick={() => onMove(i, 1)} aria-label={`${t.title} 아래로 내리기`}><DownIcon /></button>
+        <button className="icon" disabled={lockCurrent && t.id === currentId} onClick={() => onRemove(i)} aria-label={`${t.title} 빼기`}><XIcon /></button>
+      </li>
+    )} />
+  )
+}
+
+/** 지금 재생 중인 목록: 곡 바로 고르기, 추가, 빼기, 순서 바꾸기 */
+function QueuePage({ player, tracks, lists, onClose }: { player: Player; tracks: Track[]; lists: Playlists; onClose: () => void }) {
+  const box = useDialog(onClose)
+  const [adding, setAdding] = useState(false)
+  const [naming, setNaming] = useState(false)
+  const [saved, setSaved] = useState('')
+  const closeAdding = useCallback(() => setAdding(false), [])
+  const closeNaming = useCallback(() => setNaming(false), [])
+  const q = player.queueTracks
+  const inQueue = new Set(q.map((t) => t.id))
+  return (
+    <div ref={box} tabIndex={-1} className="page" role="dialog" aria-modal="true" aria-labelledby="queue-h">
+      <div className="full-head">
+        <button className="icon" onClick={onClose} aria-label="닫기"><DownIcon /></button>
+        <h2 id="queue-h" className="h-sec">재생 목록 · {nf.format(q.length)}곡</h2>
+        <span className="spacer" />
+      </div>
+      <div className="rowgap">
+        <button className="back-chip" onClick={() => setAdding(true)}>+ 곡 추가</button>
+        <button className="back-chip" onClick={() => setNaming(true)}>내 목록으로 저장</button>
+      </div>
+      {saved && <p className="small tint" role="status">✓ "{saved}" 목록으로 저장했어요</p>}
+      <p className="small muted">곡을 누르면 바로 틀어요. 지금 듣는 곡은 뺄 수 없어요.</p>
+      <EditRows tracks={q} currentId={player.current?.id} lockCurrent
+        onTap={player.jump} onMove={player.move} onRemove={player.removeAt} />
+      {adding && <AddSongs tracks={tracks} has={(id) => inQueue.has(id)} onAdd={(t) => player.enqueue([t])} onClose={closeAdding} />}
+      {naming && <NameSheet onClose={closeNaming} onDone={(name) => { lists.create(name, q.map((t) => t.id)); setSaved(name) }} />}
+    </div>
+  )
+}
+
+/** 곡을 찾아서 하나씩 담는 창 */
+function AddSongs({ tracks, has, onAdd, onClose }: { tracks: Track[]; has: (id: string) => boolean; onAdd: (t: Track) => void; onClose: () => void }) {
+  const box = useDialog(onClose)
+  const [q, setQ] = useState('')
+  const found = useMemo(() => tracks.filter((t) => matches(t.title, q) || matches(t.artist, q)), [tracks, q])
+  return (
+    <div className="sheet-wrap" onClick={onClose}>
+      <div ref={box} tabIndex={-1} className="sheet tall" role="dialog" aria-modal="true" aria-labelledby="add-h" onClick={(e) => e.stopPropagation()}>
+        <div className="sheet-head">
+          <h2 id="add-h" className="h-sec">곡 추가</h2>
+          <button className="back-chip" onClick={onClose}>다 담았어요</button>
+        </div>
+        <label className="search">
+          <SearchIcon />
+          <span className="sr">곡, 가수 찾기</span>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="곡·가수 찾기 (초성도 돼요)" autoComplete="off" enterKeyHint="search" />
+        </label>
+        {found.length === 0 && <p className="muted empty">맞는 곡이 없어요.</p>}
+        <VirtualList items={found} render={(t) => (
+          <li key={t.id}>
+            <button className="row" disabled={has(t.id)} onClick={() => onAdd(t)}>
+              <Art t={t} size={48} />
+              <span className="grow left">
+                <span className="one">{t.title}</span>
+                <span className="small muted one">{t.artist}</span>
+              </span>
+              <span className={'small ' + (has(t.id) ? 'tint' : 'strong')}>{has(t.id) ? '✓ 담김' : '+ 담기'}</span>
+            </button>
+          </li>
+        )} />
+      </div>
+    </div>
+  )
+}
+
+/** 목록 이름을 적는 창 */
+function NameSheet({ onDone, onClose }: { onDone: (name: string) => void; onClose: () => void }) {
+  const box = useDialog(onClose)
+  const [name, setName] = useState('')
+  const [err, setErr] = useState(false)
+  const input = useRef<HTMLInputElement>(null)
+  const submit = (e: React.FormEvent) => {
+    e.preventDefault()
+    const n = name.trim()
+    if (!n) { setErr(true); input.current?.focus(); return }
+    onDone(n)
+    onClose()
+  }
+  return (
+    <div className="sheet-wrap" onClick={onClose}>
+      <form ref={box as unknown as React.RefObject<HTMLFormElement>} tabIndex={-1} className="sheet" role="dialog" aria-modal="true" aria-labelledby="name-h"
+        onClick={(e) => e.stopPropagation()} onSubmit={submit}>
+        <h2 id="name-h" className="h-sec">새 목록 만들기</h2>
+        <label className="small muted" htmlFor="list-name">목록 이름</label>
+        <input id="list-name" ref={input} className="field" value={name} maxLength={30} autoComplete="off" enterKeyHint="done"
+          placeholder="예: 새벽 기도 찬양…" aria-invalid={err} aria-describedby={err ? 'name-err' : undefined}
+          onChange={(e) => { setName(e.target.value); setErr(false) }} />
+        {err && <p id="name-err" className="small danger" role="alert">이름을 적어 주세요.</p>}
+        <button className="primary" type="submit">만들기</button>
+      </form>
+    </div>
+  )
+}
+
+/** 고른 곡을 어느 목록에 담을지 고르는 창 */
+function ChooseListSheet({ lists, ids, onClose, onDone }: { lists: Playlists; ids: string[]; onClose: () => void; onDone: () => void }) {
+  const box = useDialog(onClose)
+  const [naming, setNaming] = useState(false)
+  const closeNaming = useCallback(() => setNaming(false), [])
+  const finish = () => { onDone(); onClose() }
+  return (
+    <div className="sheet-wrap" onClick={onClose}>
+      <div ref={box} tabIndex={-1} className="sheet" role="dialog" aria-modal="true" aria-labelledby="choose-h" onClick={(e) => e.stopPropagation()}>
+        <h2 id="choose-h" className="h-sec">고른 {nf.format(ids.length)}곡을 어디에 담을까요?</h2>
+        <button className="secondary" onClick={() => setNaming(true)}>+ 새 목록 만들기</button>
+        {lists.items.map((p) => (
+          <button key={p.id} className="opt wide" onClick={() => { lists.add(p.id, ids); finish() }}>
+            <span className="one">{p.name}</span>
+            <span className="small muted num">{nf.format(p.ids.length)}곡</span>
+          </button>
+        ))}
+        {naming && <NameSheet onClose={closeNaming} onDone={(name) => { lists.create(name, ids); finish() }} />}
+      </div>
+    </div>
+  )
+}
+
+/** 내 음악 › 내 목록 */
+function Lists({ tracks, lists, player }: { tracks: Track[]; lists: Playlists; player: Player }) {
+  const [open, setOpen] = useState<string | null>(null)
+  const [naming, setNaming] = useState(false)
+  const closeNaming = useCallback(() => setNaming(false), [])
+  const pl = lists.items.find((p) => p.id === open)
+  if (pl) return <ListDetail pl={pl} tracks={tracks} lists={lists} player={player} onBack={() => setOpen(null)} />
+  return (
+    <>
+      <button className="secondary" onClick={() => setNaming(true)}>+ 새 목록 만들기</button>
+      {lists.items.length === 0 && (
+        <p className="muted empty">아직 만든 목록이 없어요. 목록을 만들고 원하는 곡을 담아 보세요.</p>
+      )}
+      <ul className="list">
+        {lists.items.map((p) => (
+          <li key={p.id}>
+            <button className="row" onClick={() => setOpen(p.id)}>
+              <span className="grow left"><span className="one">{p.name}</span></span>
+              <span className="small muted num">{nf.format(p.ids.length)}곡 ›</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      {naming && <NameSheet onClose={closeNaming} onDone={(name) => setOpen(lists.create(name))} />}
+    </>
+  )
+}
+
+function ListDetail({ pl, tracks, lists, player, onBack }: { pl: Playlist; tracks: Track[]; lists: Playlists; player: Player; onBack: () => void }) {
+  const [adding, setAdding] = useState(false)
+  const [sure, setSure] = useState(false)
+  const closeAdding = useCallback(() => setAdding(false), [])
+  const byId = useMemo(() => new Map(tracks.map((t) => [t.id, t])), [tracks])
+  // 휴대폰에서 지워진 파일은 건너뛴다
+  const items = pl.ids.map((id) => byId.get(id)).filter((t): t is Track => !!t)
+  return (
+    <>
+      <div className="rowgap">
+        <button className="back-chip" onClick={onBack}>‹ 내 목록</button>
+        <button className="back-chip" onClick={() => setAdding(true)}>+ 곡 추가</button>
+      </div>
+      <h2 className="h-sec list-name">{pl.name} <span className="small muted num">{nf.format(items.length)}곡</span></h2>
+      {items.length > 0
+        ? <button className="primary" onClick={() => player.playFrom(items, items[0].id, 0, true)}>처음부터 듣기</button>
+        : <p className="muted empty">아직 담은 곡이 없어요. "+ 곡 추가"를 눌러 담아 보세요.</p>}
+      <EditRows tracks={items} currentId={player.current?.id}
+        onTap={(i) => player.playFrom(items, items[i].id, 0, true)}
+        onMove={(i, d) => lists.swap(pl.id, items[i].id, items[i + d].id)}
+        onRemove={(i) => lists.removeTrack(pl.id, items[i].id)} />
+      {sure ? (
+        <div className="confirm" role="alert">
+          <p>"{pl.name}" 목록을 지울까요? 음악 파일은 지워지지 않아요.</p>
+          <div className="rowgap">
+            <button className="back-chip danger-bg" onClick={() => { lists.remove(pl.id); onBack() }}>목록 지우기</button>
+            <button className="back-chip" onClick={() => setSure(false)}>그만두기</button>
+          </div>
+        </div>
+      ) : (
+        <button className="link danger" onClick={() => setSure(true)}>이 목록 지우기</button>
+      )}
+      {adding && <AddSongs tracks={tracks} has={(id) => pl.ids.includes(id)} onAdd={(t) => lists.add(pl.id, [t.id])} onClose={closeAdding} />}
+    </>
   )
 }
 
@@ -605,3 +893,8 @@ const NextIcon = () => <I s={32}><polygon points="6 5 16 12 6 19" /><rect x="16.
 const DownIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
 const SearchIcon = () => <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><line x1="16.5" y1="16.5" x2="21" y2="21" /></svg>
 
+const line = { width: 22, height: 22, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.4, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true }
+const UpIcon = () => <svg {...line}><polyline points="6 15 12 9 18 15" /></svg>
+const XIcon = () => <svg {...line}><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></svg>
+const MinusIcon = () => <svg {...line}><line x1="5" y1="12" x2="19" y2="12" /></svg>
+const PlusIcon = () => <svg {...line}><line x1="5" y1="12" x2="19" y2="12" /><line x1="12" y1="5" x2="12" y2="19" /></svg>
