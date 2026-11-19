@@ -97,6 +97,7 @@ export default function App() {
       </main>
       {player.current && !full && <Mini player={player} onOpen={openFull} />}
       <TabBar tab={tab} setTab={setTab} hidden={full} />
+      {player.goodnight && <Goodnight onClose={player.dismissGoodnight} />}
       {vol.flash && !full && (
         <p className={'toast' + (loud ? ' over' : '')} role="status">
           음량 {vol.percent}%{loud && ' · 권장 음량을 넘었어요'}
@@ -400,6 +401,8 @@ function Mini({ player, onOpen }: { player: Player; onOpen: () => void }) {
 function Full({ player, output, tracks, lists, vol, loud, onClose }: {
   player: Player; output: Output | null; tracks: Track[]; lists: Playlists; vol: Vol; loud: boolean; onClose: () => void
 }) {
+  const [sleeping, setSleeping] = useState(false)
+  const closeSleeping = useCallback(() => setSleeping(false), [])
   const [queue, setQueue] = useState(false)
   const closeQueue = useCallback(() => setQueue(false), [])
   const t = player.current!
@@ -437,6 +440,9 @@ function Full({ player, output, tracks, lists, vol, loud, onClose }: {
         <button className="chip" aria-pressed={player.repeat.limit !== 'once'} aria-haspopup="dialog" onClick={() => setSheet(true)}>
           {repeatLabel(player.repeat, player.repeatLeft)}
         </button>
+        <button className="chip" aria-pressed={player.sleep != null} aria-haspopup="dialog" onClick={() => setSleeping(true)}>
+          {sleepLabel(player)}
+        </button>
         <button className="chip" aria-haspopup="dialog" onClick={() => setQueue(true)}>
           재생 목록 {nf.format(player.queueTracks.length)}곡
         </button>
@@ -448,6 +454,7 @@ function Full({ player, output, tracks, lists, vol, loud, onClose }: {
       </p>
       <VolumeRow vol={vol} loud={loud} />
       {sheet && <RepeatSheet player={player} onClose={closeSheet} />}
+      {sleeping && <SleepSheet player={player} onClose={closeSleeping} />}
       {queue && <QueuePage player={player} tracks={tracks} lists={lists} onClose={closeQueue} />}
     </div>
   )
@@ -706,6 +713,51 @@ function ListDetail({ pl, tracks, lists, player, onBack }: { pl: Playlist; track
       )}
       {adding && <AddSongs tracks={tracks} has={(id) => pl.ids.includes(id)} onAdd={(t) => lists.add(pl.id, [t.id])} onClose={closeAdding} />}
     </>
+  )
+}
+
+/* ───────── 잠들기 예약 ───────── */
+function sleepLabel(player: Player): string {
+  if (!player.sleep) return '잠들기 예약'
+  if (player.sleep.endOfTrack) return '✓ 이 곡까지 듣고 잠들기'
+  return `✓ 잠들기 · ${minutesText(Math.max(1, Math.ceil(player.sleepLeft / 60000)))} 남음`
+}
+
+function SleepSheet({ player, onClose }: { player: Player; onClose: () => void }) {
+  const box = useDialog(onClose)
+  const [m, setM] = useState(45)
+  const pick = (v: number | 'track' | null) => { player.setSleep(v); onClose() }
+  return (
+    <div className="sheet-wrap" onClick={onClose}>
+      <div ref={box} tabIndex={-1} className="sheet" role="dialog" aria-modal="true" aria-labelledby="sleep-h" onClick={(e) => e.stopPropagation()}>
+        <h2 id="sleep-h" className="h-sec">잠들기 예약</h2>
+        <p className="small muted">정한 시간이 되면 음악을 멈춰요. 끝나기 30초 전부터 소리가 서서히 줄어요.</p>
+        <div className="opts" role="group" aria-label="시간">
+          {[15, 30, 60, 120].map((v) => <button key={v} className="opt" onClick={() => pick(v)}>{minutesText(v)}</button>)}
+        </div>
+        <button className="opt" onClick={() => pick('track')}>이 곡까지만 듣기</button>
+        <div className="stepper">
+          <button className="opt" onClick={() => setM(Math.max(5, m - 5))} aria-label="5분 줄이기">− 5분</button>
+          <p className="strong" role="status">{minutesText(m)}</p>
+          <button className="opt" onClick={() => setM(Math.min(720, m + 5))} aria-label="5분 늘리기">+ 5분</button>
+        </div>
+        <button className="primary" onClick={() => pick(m)}>{minutesText(m)} 뒤에 잠들기</button>
+        {player.sleep && <button className="secondary" onClick={() => pick(null)}>예약 끄기</button>}
+      </div>
+    </div>
+  )
+}
+
+/** 잠들기 예약이 끝났을 때의 밤 인사. 말씀은 개역한글 시편 4:8. */
+function Goodnight({ onClose }: { onClose: () => void }) {
+  const box = useDialog(onClose)
+  return (
+    <div ref={box} tabIndex={-1} className="night" role="dialog" aria-modal="true" aria-labelledby="night-h">
+      <h2 id="night-h" className="h-big">평안한 밤 되세요</h2>
+      <p className="verse-text">내가 평안히 눕고 자기도 하리니 나를 안전히 거하게 하시는 이는 오직 여호와시니이다</p>
+      <p className="small soft">시편 4:8 · 개역한글</p>
+      <button className="secondary" onClick={onClose}>닫기</button>
+    </div>
   )
 }
 

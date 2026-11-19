@@ -231,3 +231,11 @@ button:disabled { opacity: .35; cursor: default; }
 .pickbar .secondary { min-height: 48px; padding: 0 16px; font-size: .9375rem; }
 @media (prefers-reduced-motion: reduce) { @starting-style { .page { transform: none; } } }
 .page { width: auto; max-width: none !important; margin: 0; }
+
+/* ── 밤 인사 ── */
+.night { position: fixed; inset: 0; z-index: 7; background: var(--night); display: flex; flex-direction: column; justify-content: center; gap: 18px; padding: calc(24px + var(--sat)) 28px calc(32px + var(--sab)); transition: opacity 600ms ease-out; }
+.night:focus { outline: none; }
+.night > * { width: 100%; max-width: 440px; margin-left: auto; margin-right: auto; }
+.night .verse-text { font-weight: 500; }
+.night .secondary { margin-top: 24px; }
+@starting-style { .night { opacity: 0; } }
