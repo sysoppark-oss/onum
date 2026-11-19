@@ -31,7 +31,7 @@ function folderOf(f: File): string {
 }
 
 /** "가수 - 제목.mp3" 형태 파일 이름에서 가수와 제목을 짐작한다 */
-function fromName(name: string): { title: string; artist: string } {
+export function fromName(name: string): { title: string; artist: string } {
   const base = name.replace(/\.[^.]+$/, '').replace(/_/g, ' ').trim()
   const m = base.match(/^(?:\d+[.\s-]+)?(.+?)\s+-\s+(.+)$/)
   return m ? { artist: m[1].trim(), title: m[2].trim() } : { artist: '', title: base }
@@ -75,7 +75,7 @@ export async function scanFiles(
       added: file.lastModified,
       url: URL.createObjectURL(file),
       title,
-      artist: artist || '모르는 가수',
+      artist, // 모르면 빈 값
       album,
       folder,
       duration,

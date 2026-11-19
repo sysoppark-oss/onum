@@ -1,5 +1,5 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core'
-import type { ScanResult, Track } from './library'
+import { fromName, type ScanResult, type Track } from './library'
 
 interface NativeTrack {
   id: number; title: string; artist: string; album: string; albumId: number
@@ -30,18 +30,25 @@ export const isNative = Capacitor.isNativePlatform()
 
 export async function scanDevice(): Promise<ScanResult> {
   const r = await MusicScan.scan({ minMs: 30000 })
-  const tracks: Track[] = r.tracks.map((n) => ({
-    id: `${n.path.split('/').pop()}|${n.size}`,
-    url: Capacitor.convertFileSrc(n.path),
-    title: n.title || n.path.split('/').pop() || '',
-    artist: !n.artist || n.artist === '<unknown>' ? '모르는 가수' : n.artist,
-    album: n.album || '',
-    folder: n.folder,
-    duration: n.duration,
-    added: n.added * 1000,
-    nativeId: n.id,
-    albumId: n.albumId,
-  }))
+  const tracks: Track[] = r.tracks.map((n) => {
+    const file = n.path.split('/').pop() || ''
+    const known = !!n.artist && n.artist !== '<unknown>'
+    // 태그가 없으면 "가수 - 제목" 꼴의 이름에서 가수를 찾아본다
+    const guess = known ? null : fromName(n.title || file)
+    return {
+      id: `${file}|${n.size}`,
+      url: Capacitor.convertFileSrc(n.path),
+      title: guess?.artist ? guess.title : n.title || file,
+      artist: known ? n.artist : guess?.artist || '',
+      // 휴대폰은 앨범 태그가 없으면 폴더 이름을 앨범 자리에 넣는다. 그건 앨범이 아니다.
+      album: n.album && n.album !== n.folder && n.album !== '<unknown>' ? n.album : '',
+      folder: n.folder,
+      duration: n.duration,
+      added: n.added * 1000,
+      nativeId: n.id,
+      albumId: n.albumId,
+    }
+  })
   tracks.sort((a, b) => a.title.localeCompare(b.title, 'ko'))
   return { tracks, skippedShort: 0, skippedFolder: r.skippedFolder }
 }

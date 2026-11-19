@@ -89,8 +89,8 @@ export default function App() {
 
   return (
     <div className="app">
-      <main className="screen" inert={full}>
-        {tab === 'home' && <Home tracks={tracks} player={player} onOpen={openFull} />}
+      <main className={'screen' + (tab === 'home' ? ' flush' : '')} inert={full}>
+        {tab === 'home' && <Home tracks={tracks} player={player} lists={lists} onOpen={openFull} goLibrary={() => setTab('library')} />}
         {tab === 'library' && <Library tracks={tracks} scan={scan} player={player} lists={lists} />}
         {tab === 'practice' && <Later title="연습" what="구간 반복, 음 높이를 유지한 빠르기 조절, 키 바꾸기" />}
         {tab === 'worship' && <Later title="찬양·묵상" what="찬송가 반주 무료 팩, 묵상 모드" />}
@@ -179,41 +179,106 @@ function Import({ onDone, empty }: { onDone: (r: ScanResult) => void; empty: boo
 }
 
 /* ───────── 홈 ───────── */
-function Home({ tracks, player, onOpen }: { tracks: Track[]; player: Player; onOpen: () => void }) {
-  const r = player.resumeTrack
-  const recent = useMemo(() => [...tracks].sort((a, b) => b.added - a.added).slice(0, 8), [tracks])
+function Home({ tracks, player, lists, onOpen, goLibrary }: {
+  tracks: Track[]; player: Player; lists: Playlists; onOpen: () => void; goLibrary: () => void
+}) {
+  const cur = player.current ?? player.resumeTrack
+  const resuming = !player.current && !!player.resumeTrack
+  const [src, setEl] = useArt(cur ?? tracks[0])
+  const recent = useMemo(() => [...tracks].sort((a, b) => b.added - a.added).slice(0, 6), [tracks])
+  const top = useMemo(() => tracks.filter((t) => player.plays[t.id] > 1)
+    .sort((a, b) => player.plays[b.id] - player.plays[a.id]).slice(0, 6), [tracks, player.plays])
+  const shuffleAll = () => {
+    if (!player.shuffle) player.toggleShuffle()
+    player.playFrom(tracks, tracks[Math.floor(Math.random() * tracks.length)].id)
+  }
+  const press = () => {
+    if (player.current) player.toggle()
+    else if (cur) player.playFrom(tracks, cur.id, player.resumePos)
+    else shuffleAll()
+  }
+  const status = player.current ? (player.playing ? '지금 재생 중' : '잠시 멈춤')
+    : resuming ? `이어서 듣기 · ${fmt(player.resumePos)}부터` : `${nf.format(tracks.length)}곡이 준비됐어요`
   return (
-    <div className="pad col">
-      <p className="brand">온음</p>
-      {r && !player.current && (
-        <button className="resume" onClick={() => { player.playFrom(tracks, r.id, player.resumePos); onOpen() }}>
-          <Art t={r} size={56} />
-          <span className="grow left">
-            <span className="small tint">이어 듣기 · {fmt(player.resumePos)}부터</span>
-            <span className="strong one">{r.title}</span>
-          </span>
-          <PlayIcon />
-        </button>
-      )}
-      <section className="verse" aria-label="오늘의 한 문장">
-        <p className="small soft">오늘의 한 문장</p>
-        <p className="verse-text">{verse.text}</p>
-        <p className="small soft">{verse.ref} · 개역한글</p>
-      </section>
-      <section>
-        <h2 className="h-sec">최근 추가한 곡</h2>
-        <div className="shelf">
-          {recent.map((t) => (
-            <Card key={t.id} t={t} onPlay={() => player.playFrom(recent, t.id)} />
-          ))}
+    <>
+      <section className={'hero ' + coverClass(cur)} aria-labelledby="hero-h">
+        <div className="hero-top">
+          <p className="brand">온음</p>
+          <button className="icon" onClick={goLibrary} aria-label="곡 찾기"><SearchIcon /></button>
+        </div>
+        <div className="hero-mid" ref={setEl}>
+          {cur && src
+            ? <img className="hero-img" src={src} alt="" />
+            : <span className="glyph" aria-hidden="true">{cur ? initial(cur.title) : '♪'}</span>}
+        </div>
+        <p className="small hero-soft">{status}</p>
+        <div className="hero-row">
+          {player.current ? (
+            <button className="grow left hero-open" onClick={onOpen} aria-label={`지금 재생 화면 열기: ${cur!.title}`}>
+              <span id="hero-h" className="hero-title">{cur!.title}</span>
+              {cur!.artist && <span className="hero-soft one">{cur!.artist}</span>}
+            </button>
+          ) : (
+            <div className="grow left">
+              <h1 id="hero-h" className="hero-title">{cur ? cur.title : '모든 곡 골고루 섞어 듣기'}</h1>
+              {cur?.artist && <p className="hero-soft one">{cur.artist}</p>}
+            </div>
+          )}
+          <button className="play mid" onClick={press} aria-label={player.playing ? '일시 정지' : cur ? '재생' : '모든 곡 섞어 듣기'}>
+            {player.playing ? <PauseIcon s={28} /> : <PlayIcon s={28} />}
+          </button>
         </div>
       </section>
-      <button className="secondary" onClick={() => {
-        const first = tracks[Math.floor(Math.random() * tracks.length)]
-        if (!player.shuffle) player.toggleShuffle()
-        player.playFrom(tracks, first.id)
-      }}>모든 곡 골고루 섞어 듣기</button>
-    </div>
+      <div className="pad col home-body">
+        <p className="verse-line">{verse.text} <span className="num">· {verse.ref}</span></p>
+        {top.length >= 3 && <Shelf title="많이 들은 곡" items={top} onPlay={(t) => player.playFrom(top, t.id)} />}
+        <Shelf title="최근 추가한 곡" items={recent} onPlay={(t) => player.playFrom(recent, t.id)} />
+        {lists.items.length > 0 && (
+          <section aria-labelledby="lists-h">
+            <h2 id="lists-h" className="h-sec">내 목록</h2>
+            <ul className="list">
+              {lists.items.slice(0, 4).map((pl) => {
+                const byId = new Map(tracks.map((t) => [t.id, t]))
+                const items = pl.ids.map((id) => byId.get(id)).filter((t): t is Track => !!t)
+                return (
+                  <li key={pl.id}>
+                    <button className="row" disabled={!items.length} onClick={() => player.playFrom(items, items[0].id, 0, true)}>
+                      <span className="grow left"><span className="one">{pl.name}</span></span>
+                      <span className="small muted num">{nf.format(items.length)}곡</span>
+                      <PlayIcon s={18} />
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        )}
+        {cur && <button className="secondary" onClick={shuffleAll}>모든 곡 골고루 섞어 듣기 · {nf.format(tracks.length)}곡</button>}
+      </div>
+    </>
+  )
+}
+
+function Shelf({ title, items, onPlay }: { title: string; items: Track[]; onPlay: (t: Track) => void }) {
+  return (
+    <section>
+      <h2 className="h-sec">{title}</h2>
+      <div className="tiles">
+        {items.map((t) => <Tile key={t.id} t={t} onPlay={() => onPlay(t)} />)}
+      </div>
+    </section>
+  )
+}
+
+function Tile({ t, onPlay }: { t: Track; onPlay: () => void }) {
+  const [src, setEl] = useArt(t)
+  return (
+    <button className="tile" onClick={onPlay} aria-label={t.artist ? `${t.title}, ${t.artist}` : t.title}>
+      {src
+        ? <img className="tile-art" src={src} alt="" />
+        : <span ref={setEl} className={'tile-art ' + coverClass(t)} aria-hidden="true">{initial(t.title)}</span>}
+      <span className="tile-title">{cleanTitle(t.title)}</span>
+    </button>
   )
 }
 
@@ -272,7 +337,7 @@ function Library({ tracks, scan, player, lists }: { tracks: Track[]; scan: ScanR
         {nf.format(filtered.length)}곡{hidden > 0 && ` · 짧은 소리·녹음 ${nf.format(hidden)}개는 숨겼어요`}
       </p>
       <div className="rowgap">
-        {group != null && <button className="back-chip" onClick={() => setGroup(null)}>‹ {group}</button>}
+        {group != null && <button className="back-chip" onClick={() => setGroup(null)}>‹ {group || '가수 정보 없음'}</button>}
         {showSongs && (
           <button className="back-chip" aria-pressed={picking} onClick={() => (picking ? stopPicking() : setPicking(true))}>
             {picking ? '고르기 취소' : '곡 골라서 듣기'}
@@ -303,7 +368,7 @@ function Library({ tracks, scan, player, lists }: { tracks: Track[]; scan: ScanR
         <VirtualList items={groups} render={([name, n]) => (
           <li key={name}>
             <button className="row" onClick={() => setGroup(name)}>
-              <span className="grow left"><span className="one">{name}</span></span>
+              <span className="grow left"><span className="one">{name || '가수 정보 없음'}</span></span>
               <span className="small muted num">{nf.format(n)}곡 ›</span>
             </button>
           </li>
@@ -379,15 +444,14 @@ function Later({ title, what }: { title: string; what: string }) {
 /* ───────── 재생 ───────── */
 function Mini({ player, onOpen }: { player: Player; onOpen: () => void }) {
   const t = player.current!
+  const soon = player.duration - player.time < 15 && player.next && player.next !== t
   return (
     <div className="mini">
       <button className="mini-open" onClick={onOpen} aria-label={`지금 재생 화면 열기: ${t.title}`}>
         <Art t={t} size={44} />
         <span className="grow left">
           <span className="one strong">{t.title}</span>
-          <span className="small muted one">
-            {player.duration - player.time < 15 && player.next && player.next !== t ? `다음 곡: ${player.next.title}` : t.artist}
-          </span>
+          <span className="small muted one">{soon ? `다음 곡: ${player.next!.title}` : t.artist}</span>
         </span>
       </button>
       <button className="icon" onClick={player.toggle} aria-label={player.playing ? '일시 정지' : '재생'}>
@@ -398,6 +462,20 @@ function Mini({ player, onOpen }: { player: Player; onOpen: () => void }) {
   )
 }
 
+/** 반복 버튼 아래에 쓰는 짧은 말 */
+function repeatShort(r: Repeat, leftMs: number): string {
+  if (r.limit === 'timed') return `${minutesText(Math.ceil(leftMs / 60000))} 남음`
+  if (r.limit === 'once') return r.scope === 'one' ? '한 곡만' : '한 바퀴'
+  return r.scope === 'one' ? '한 곡 반복' : '모두 반복'
+}
+
+function sleepShort(player: Player): string {
+  if (!player.sleep) return '잠들기'
+  if (player.sleep.endOfTrack) return '이 곡까지'
+  return `${minutesText(Math.max(1, Math.ceil(player.sleepLeft / 60000)))} 뒤`
+}
+
+/** 지금 재생: 한 화면에 다 보이게. 위는 곡의 색, 아래는 조작. */
 function Full({ player, output, tracks, lists, vol, loud, onClose }: {
   player: Player; output: Output | null; tracks: Track[]; lists: Playlists; vol: Vol; loud: boolean; onClose: () => void
 }) {
@@ -409,50 +487,71 @@ function Full({ player, output, tracks, lists, vol, loud, onClose }: {
   const [sheet, setSheet] = useState(false)
   const closeSheet = useCallback(() => setSheet(false), [])
   const box = useDialog(onClose)
+  const [src, setEl] = useArt(t)
+  const sub = [t.artist, t.album].filter(Boolean).join(' · ')
+  const r = player.repeat
   return (
-    <div ref={box} tabIndex={-1} className="full" role="dialog" aria-modal="true" aria-label="지금 재생">
-      <div className="full-head">
-        <button className="icon" onClick={onClose} aria-label="닫기"><DownIcon /></button>
-        {output
-          ? <p className="out small" role="status"><OutIcon kind={output.kind} />{outputLabel(output)}</p>
-          : <p className="small muted">지금 재생</p>}
-        <span className="spacer" />
+    <div ref={box} tabIndex={-1} className={'full ' + coverClass(t)} role="dialog" aria-modal="true" aria-label="지금 재생">
+      <div className="stage" ref={setEl}>
+        <div className="full-head">
+          <button className="icon" onClick={onClose} aria-label="닫기"><DownIcon /></button>
+          {output
+            ? <p className="out small" role="status"><OutIcon kind={output.kind} />{outputLabel(output)}</p>
+            : <p className="small">지금 재생</p>}
+          <button className="icon" onClick={() => setQueue(true)} aria-haspopup="dialog" aria-label={`재생 목록 ${nf.format(player.queueTracks.length)}곡`}><ListIcon /></button>
+        </div>
+        {src ? (
+          <div className="stage-art"><img src={src} alt="" /></div>
+        ) : (
+          <div className="stage-text">
+            <div className="stage-glyph" aria-hidden="true"><span>{initial(t.title)}</span></div>
+            <h1 className="stage-title">{t.title}</h1>
+            {sub && <p className="stage-sub one">{sub}</p>}
+          </div>
+        )}
       </div>
-      <div className="full-art"><Art t={t} size={300} /></div>
-      <h1 className="full-title">{t.title}</h1>
-      <p className="muted one">{t.artist}{t.album && ` · ${t.album}`}</p>
-      <label className="sr" htmlFor="seek">재생 위치</label>
-      <input id="seek" type="range" className="seek" min={0} max={player.duration || 0} step={1}
-        value={player.time} onChange={(e) => player.seek(+e.target.value)}
-        aria-valuetext={`${fmt(player.time)} / ${fmt(player.duration)}`} />
-      <div className="times small muted"><span>{fmt(player.time)}</span><span>{fmt(player.duration)}</span></div>
-      <div className="controls">
-        <button className="icon big" onClick={() => player.go(-1)} aria-label="이전 곡"><PrevIcon /></button>
-        <button className="play" onClick={player.toggle} aria-label={player.playing ? '일시 정지' : '재생'}>
-          {player.playing ? <PauseIcon s={36} /> : <PlayIcon s={36} />}
+      <div className="deck">
+        {src && (
+          <div>
+            <h1 className="full-title">{t.title}</h1>
+            {sub && <p className="muted one">{sub}</p>}
+          </div>
+        )}
+        <div>
+          <label className="sr" htmlFor="seek">재생 위치</label>
+          <input id="seek" type="range" className="seek" min={0} max={player.duration || 0} step={1}
+            value={player.time} onChange={(e) => player.seek(+e.target.value)}
+            aria-valuetext={`${fmt(player.time)} / ${fmt(player.duration)}`} />
+          <div className="times small muted"><span>{fmt(player.time)}</span><span>{fmt(player.duration)}</span></div>
+        </div>
+        <div className="controls">
+          <button className="ctl" aria-pressed={player.shuffle} onClick={player.toggleShuffle}>
+            <ShuffleIcon /><span>{player.shuffle ? '섞는 중' : '섞기'}</span>
+          </button>
+          <button className="icon big" onClick={() => player.go(-1)} aria-label="이전 곡"><PrevIcon /></button>
+          <button className="play" onClick={player.toggle} aria-label={player.playing ? '일시 정지' : '재생'}>
+            {player.playing ? <PauseIcon s={34} /> : <PlayIcon s={34} />}
+          </button>
+          <button className="icon big" onClick={() => player.go(1)} aria-label="다음 곡"><NextIcon /></button>
+          <button className="ctl" aria-pressed={r.limit !== 'once'} aria-haspopup="dialog" onClick={() => setSheet(true)}
+            aria-label={`반복 설정: ${repeatLabel(r, player.repeatLeft).replace('✓ ', '')}`}>
+            <RepeatIcon one={r.scope === 'one'} /><span>{repeatShort(r, player.repeatLeft)}</span>
+          </button>
+        </div>
+        <div className="util">
+          <button className="ctl" aria-pressed={player.sleep != null} aria-haspopup="dialog" onClick={() => setSleeping(true)}
+            aria-label={`잠들기 예약: ${sleepLabel(player).replace('✓ ', '')}`}>
+            <MoonIcon /><span>{sleepShort(player)}</span>
+          </button>
+          <VolumeRow vol={vol} loud={loud} />
+        </div>
+        {loud && <p className="small danger" role="status">⚠ 권장 음량({SAFE_VOLUME}%)을 넘었어요. 귀를 위해 조금 줄여 보세요.</p>}
+        <button className="nextbar" onClick={() => setQueue(true)} aria-haspopup="dialog">
+          <span className="small muted">다음 곡</span>
+          <span className="one grow">{player.next && !player.nextNote ? cleanTitle(player.next.title) : player.nextNote}</span>
+          <span className="muted" aria-hidden="true">›</span>
         </button>
-        <button className="icon big" onClick={() => player.go(1)} aria-label="다음 곡"><NextIcon /></button>
       </div>
-      <div className="chips">
-        <button className="chip" aria-pressed={player.shuffle} onClick={player.toggleShuffle}>
-          {player.shuffle && '✓ '}골고루 섞기
-        </button>
-        <button className="chip" aria-pressed={player.repeat.limit !== 'once'} aria-haspopup="dialog" onClick={() => setSheet(true)}>
-          {repeatLabel(player.repeat, player.repeatLeft)}
-        </button>
-        <button className="chip" aria-pressed={player.sleep != null} aria-haspopup="dialog" onClick={() => setSleeping(true)}>
-          {sleepLabel(player)}
-        </button>
-        <button className="chip" aria-haspopup="dialog" onClick={() => setQueue(true)}>
-          재생 목록 {nf.format(player.queueTracks.length)}곡
-        </button>
-      </div>
-      <p className="next small" role="status">
-        <span className="muted">다음 곡</span>
-        <span className="one">{player.next ? `${player.next.title} · ${player.next.artist}` : player.nextNote}</span>
-        {player.next && player.nextNote && <span className="muted">{player.nextNote}</span>}
-      </p>
-      <VolumeRow vol={vol} loud={loud} />
       {sheet && <RepeatSheet player={player} onClose={closeSheet} />}
       {sleeping && <SleepSheet player={player} onClose={closeSleeping} />}
       {queue && <QueuePage player={player} tracks={tracks} lists={lists} onClose={closeQueue} />}
@@ -493,18 +592,15 @@ type Vol = ReturnType<typeof useVolume>
 
 function VolumeRow({ vol, loud }: { vol: Vol; loud: boolean }) {
   return (
-    <>
-      <div className={'vol' + (loud ? ' over' : '')}>
-        <button className="icon" onClick={() => vol.step(-1)} aria-label="음량 줄이기"><MinusIcon /></button>
-        <label className="sr" htmlFor="vol">음량</label>
-        <input id="vol" type="range" className="seek vol-range" min={0} max={100} step={1} value={vol.percent}
-          onChange={(e) => vol.set(+e.target.value)}
-          aria-valuetext={`${vol.percent}%${loud ? ', 권장 음량 초과' : ''}`} />
-        <button className="icon" onClick={() => vol.step(1)} aria-label="음량 키우기"><PlusIcon /></button>
-        <span className="vol-num strong num" aria-hidden="true">{vol.percent}%</span>
-      </div>
-      {loud && <p className="small danger" role="status">⚠ 권장 음량({SAFE_VOLUME}%)을 넘었어요. 귀를 위해 조금 줄여 보세요.</p>}
-    </>
+    <div className={'vol' + (loud ? ' over' : '')}>
+      <button className="icon" onClick={() => vol.step(-1)} aria-label="음량 줄이기"><MinusIcon /></button>
+      <label className="sr" htmlFor="vol">음량</label>
+      <input id="vol" type="range" className="seek vol-range" min={0} max={100} step={1} value={vol.percent}
+        onChange={(e) => vol.set(+e.target.value)}
+        aria-valuetext={`${vol.percent}%${loud ? ', 권장 음량 초과' : ''}`} />
+      <button className="icon" onClick={() => vol.step(1)} aria-label="음량 키우기"><PlusIcon /></button>
+      <span className="vol-num strong num" aria-hidden="true">{vol.percent}%</span>
+    </div>
   )
 }
 
@@ -725,24 +821,48 @@ function sleepLabel(player: Player): string {
 
 function SleepSheet({ player, onClose }: { player: Player; onClose: () => void }) {
   const box = useDialog(onClose)
-  const [m, setM] = useState(45)
+  const [m, setM] = useState('45')
+  const [at, setAt] = useState('')
   const pick = (v: number | 'track' | null) => { player.setSleep(v); onClose() }
+  const mins = Math.min(720, Math.max(1, Math.round(+m) || 0))
+  // "몇 시에": 지금부터 그 시각까지 남은 분. 이미 지난 시각이면 내일로 본다.
+  const until = (() => {
+    const mt = at.match(/^(\d\d):(\d\d)$/)
+    if (!mt) return 0
+    const now = new Date()
+    const target = new Date(now)
+    target.setHours(+mt[1], +mt[2], 0, 0)
+    if (target <= now) target.setDate(target.getDate() + 1)
+    return Math.max(1, Math.round((target.getTime() - now.getTime()) / 60000))
+  })()
   return (
     <div className="sheet-wrap" onClick={onClose}>
       <div ref={box} tabIndex={-1} className="sheet" role="dialog" aria-modal="true" aria-labelledby="sleep-h" onClick={(e) => e.stopPropagation()}>
         <h2 id="sleep-h" className="h-sec">잠들기 예약</h2>
-        <p className="small muted">정한 시간이 되면 음악을 멈춰요. 끝나기 30초 전부터 소리가 서서히 줄어요.</p>
-        <div className="opts" role="group" aria-label="시간">
-          {[15, 30, 60, 120].map((v) => <button key={v} className="opt" onClick={() => pick(v)}>{minutesText(v)}</button>)}
+        <p className="small muted">끝나기 30초 전부터 소리가 서서히 줄어들다 멈춰요.</p>
+        <div className="opts" role="group" aria-label="빠른 선택">
+          {[15, 30, 60].map((v) => <button key={v} className="opt" onClick={() => pick(v)}>{minutesText(v)}</button>)}
+          <button className="opt" onClick={() => pick('track')}>이 곡까지</button>
         </div>
-        <button className="opt" onClick={() => pick('track')}>이 곡까지만 듣기</button>
-        <div className="stepper">
-          <button className="opt" onClick={() => setM(Math.max(5, m - 5))} aria-label="5분 줄이기">− 5분</button>
-          <p className="strong" role="status">{minutesText(m)}</p>
-          <button className="opt" onClick={() => setM(Math.min(720, m + 5))} aria-label="5분 늘리기">+ 5분</button>
+        <div className="free">
+          <label className="small muted" htmlFor="sleep-min">몇 분 뒤에 끌까요?</label>
+          <div className="free-row">
+            <button className="icon" onClick={() => setM(String(Math.max(1, mins - 5)))} aria-label="5분 줄이기"><MinusIcon /></button>
+            <input id="sleep-min" className="field num" type="number" inputMode="numeric" min={1} max={720} value={m}
+              autoComplete="off" onChange={(e) => setM(e.target.value)} />
+            <span>분</span>
+            <button className="icon" onClick={() => setM(String(Math.min(720, mins + 5)))} aria-label="5분 늘리기"><PlusIcon /></button>
+          </div>
+          <button className="primary" onClick={() => pick(mins)}>{minutesText(mins)} 뒤에 잠들기</button>
         </div>
-        <button className="primary" onClick={() => pick(m)}>{minutesText(m)} 뒤에 잠들기</button>
-        {player.sleep && <button className="secondary" onClick={() => pick(null)}>예약 끄기</button>}
+        <div className="free">
+          <label className="small muted" htmlFor="sleep-at">또는, 몇 시에 끌까요?</label>
+          <input id="sleep-at" className="field num" type="time" value={at} onChange={(e) => setAt(e.target.value)} />
+          <button className="secondary" disabled={!until} onClick={() => pick(until)}>
+            {until ? `${at}에 잠들기 (${minutesText(until)} 뒤)` : '시각을 골라 주세요'}
+          </button>
+        </div>
+        {player.sleep && <button className="link danger" onClick={() => pick(null)}>예약 끄기</button>}
       </div>
     </div>
   )
@@ -863,19 +983,32 @@ function OutIcon({ kind }: { kind: Output['kind'] }) {
 
 /** 앨범 그림이 없을 때 보여 줄 한 글자: "[우리들의 발라드] 김…" → "김" */
 function initial(title: string): string {
-  const s = title.replace(/^(\s*[[(【][^\])】]*[\])】])+/, '')
-  const m = (s || title).match(/[가-힣A-Za-z0-9]/)
+  const m = cleanTitle(title).match(/[가-힣A-Za-z0-9]/) ?? title.match(/[가-힣A-Za-z0-9]/)
   return m ? m[0] : '♪'
+}
+
+/** 맨 앞의 [방송 이름] 같은 꼬리표를 뗀 제목 (작은 칸에 쓸 때) */
+function cleanTitle(title: string): string {
+  const s = title.replace(/^(\s*[[(【][^\])】]*[\])】])+\s*/, '')
+  return s || title
+}
+
+/** 그림이 없는 곡은 제목에서 정해지는 여덟 가지 색 가운데 하나를 늘 같게 입는다 */
+function coverClass(t?: Track): string {
+  if (!t) return 'cv0'
+  let h = 0
+  for (const ch of t.title) h = (h * 31 + ch.codePointAt(0)!) >>> 0
+  return `cv${h % 8}`
 }
 
 /* ───────── 공통 ───────── */
 /** 앨범 그림 주소. 설치형 앱에서는 화면에 보일 때만 휴대폰에 요청한다. */
-function useArt(t: Track): [string | undefined, (n: HTMLElement | null) => void] {
-  const [src, setSrc] = useState(t.art)
+function useArt(t: Track | undefined): [string | undefined, (n: HTMLElement | null) => void] {
+  const [src, setSrc] = useState(t?.art)
   const el = useRef<HTMLElement | null>(null)
   useEffect(() => {
-    setSrc(t.art)
-    if (t.art || t.nativeId == null || !el.current) return
+    setSrc(t?.art)
+    if (!t || t.art || t.nativeId == null || !el.current) return
     let alive = true
     const io = new IntersectionObserver((entries) => {
       if (!entries.some((e) => e.isIntersecting)) return
@@ -888,35 +1021,12 @@ function useArt(t: Track): [string | undefined, (n: HTMLElement | null) => void]
   return [src, (n) => { el.current = n }]
 }
 
-function ArtView({ t, size, src, setEl }: { t: Track; size: number; src?: string; setEl: (n: HTMLElement | null) => void }) {
-  if (src) return <img className="art" src={src} alt="" width={size} height={size} style={{ width: size, height: size }} />
-  if (size < 100) {
-    return <span ref={setEl} className="art art-none" aria-hidden="true" style={{ width: size, height: size, fontSize: size * 0.36 }}>{initial(t.title)}</span>
-  }
-  // 그림이 없으면 제목과 가수를 두 줄로
-  return (
-    <span ref={setEl} className="art art-none art-text" aria-hidden="true" style={{ width: size, height: size, fontSize: `min(${Math.min(24, Math.max(14, size * 0.085)) / 16}rem, ${Math.round(size * 0.125)}px)` }}>
-      <span className="art-title">{t.title}</span>
-      <span className="art-artist">{t.artist}</span>
-    </span>
-  )
-}
-
+/** 목록의 작은 그림 */
 function Art({ t, size }: { t: Track; size: number }) {
   const [src, setEl] = useArt(t)
-  return <ArtView t={t} size={size} src={src} setEl={setEl} />
-}
-
-/** 홈의 곡 카드. 그림이 없으면 카드 안에 제목·가수가 있으니 아래에 또 쓰지 않는다. */
-function Card({ t, onPlay }: { t: Track; onPlay: () => void }) {
-  const [src, setEl] = useArt(t)
-  return (
-    <button className="card" onClick={onPlay} aria-label={`${t.title}, ${t.artist}`}>
-      <ArtView t={t} size={132} src={src} setEl={setEl} />
-      {src && <span className="strong one">{t.title}</span>}
-      {src && <span className="small muted one">{t.artist}</span>}
-    </button>
-  )
+  return src
+    ? <img className="art" src={src} alt="" width={size} height={size} style={{ width: size, height: size }} />
+    : <span ref={setEl} className={'art art-none ' + coverClass(t)} aria-hidden="true" style={{ width: size, height: size, fontSize: size * 0.4 }}>{initial(t.title)}</span>
 }
 
 function TabBar({ tab, setTab, hidden }: { tab: Tab; setTab: (t: Tab) => void; hidden: boolean }) {
@@ -952,3 +1062,7 @@ const UpIcon = () => <svg {...line}><polyline points="6 15 12 9 18 15" /></svg>
 const XIcon = () => <svg {...line}><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></svg>
 const MinusIcon = () => <svg {...line}><line x1="5" y1="12" x2="19" y2="12" /></svg>
 const PlusIcon = () => <svg {...line}><line x1="5" y1="12" x2="19" y2="12" /><line x1="12" y1="5" x2="12" y2="19" /></svg>
+const ShuffleIcon = () => <svg {...line}><polyline points="16 4 20 4 20 8" /><path d="M4 18l5-5 M13 9l7-5" /><polyline points="16 20 20 20 20 16" /><path d="M4 6l16 14" /></svg>
+const RepeatIcon = ({ one }: { one: boolean }) => <svg {...line}><polyline points="17 2 21 6 17 10" /><path d="M3 11V9a3 3 0 0 1 3-3h15" /><polyline points="7 22 3 18 7 14" /><path d="M21 13v2a3 3 0 0 1-3 3H3" />{one && <path d="M11 10.5l1.5-1v5" strokeWidth="2" />}</svg>
+const MoonIcon = () => <svg {...line}><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" /></svg>
+const ListIcon = () => <svg {...line}><line x1="8" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="20" y2="12" /><line x1="8" y1="18" x2="20" y2="18" /><circle cx="4" cy="6" r="1" /><circle cx="4" cy="12" r="1" /><circle cx="4" cy="18" r="1" /></svg>

@@ -239,3 +239,81 @@ button:disabled { opacity: .35; cursor: default; }
 .night .verse-text { font-weight: 500; }
 .night .secondary { margin-top: 24px; }
 @starting-style { .night { opacity: 0; } }
+
+/* ═══════════ 2판: 곡의 색을 입는 화면 ═══════════ */
+/* 그림 없는 곡의 여덟 가지 색 (바탕, 글자). 모두 대비 4.5:1 이상. */
+.cv0 { --cv-bg: #2e5a44; --cv-ink: #cfe9d9; }
+.cv1 { --cv-bg: #24324a; --cv-ink: #d9e1ee; }
+.cv2 { --cv-bg: #4a3426; --cv-ink: #f0e1d6; }
+.cv3 { --cv-bg: #3f2c45; --cv-ink: #ecddf0; }
+.cv4 { --cv-bg: #1f4a4f; --cv-ink: #d3ecee; }
+.cv5 { --cv-bg: #4a2e33; --cv-ink: #f2dadf; }
+.cv6 { --cv-bg: #3d3f26; --cv-ink: #e9ebd0; }
+.cv7 { --cv-bg: #2b3558; --cv-ink: #dce0f5; }
+.art-none { background: var(--cv-bg); color: var(--cv-ink); }
+
+/* ── 홈 ── */
+.screen.flush { padding-top: 0; }
+.app:has(.screen.flush) { padding-top: 0; }
+.hero { background: var(--cv-bg); color: var(--ink); display: flex; flex-direction: column; height: min(54dvh, 460px); min-height: 320px; padding: calc(10px + var(--sat)) 20px 22px; transition: background-color 400ms ease-out; }
+.hero-top { display: flex; align-items: center; justify-content: space-between; margin-right: -10px; }
+.hero-mid { flex: 1; min-height: 0; display: flex; align-items: center; padding: 8px 0 12px; }
+.glyph { font-size: clamp(6rem, 42vw, 10.5rem); font-weight: 800; line-height: 1; letter-spacing: -0.06em; color: var(--cv-ink); }
+.hero-img { height: 100%; max-width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 16px; }
+.hero-soft { color: var(--cv-ink); }
+.hero-row { display: flex; align-items: flex-end; gap: 14px; margin-top: 4px; }
+.hero-open { border-radius: 10px; }
+.hero-title { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.3; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-wrap: balance; }
+.play.mid { width: 64px; height: 64px; border-radius: 32px; flex-shrink: 0; }
+.home-body { padding-top: 18px; gap: 26px; }
+.verse-line { font-size: .875rem; line-height: 1.65; color: var(--ink-2); }
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 12px; }
+.tile { display: flex; flex-direction: column; gap: 8px; text-align: left; transition: transform 140ms var(--ease-out); }
+.tile:active { transform: scale(.97); }
+.tile-art { width: 100%; aspect-ratio: 1; border-radius: 12px; object-fit: cover; background: var(--cv-bg); color: var(--cv-ink); display: flex; align-items: flex-end; padding: 10px; font-size: 1.875rem; font-weight: 800; line-height: 1; }
+.tile-title { font-size: .875rem; font-weight: 500; line-height: 1.35; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.row:disabled { opacity: .45; }
+
+/* ── 지금 재생: 한 화면 ── */
+.full { background: var(--bg); padding: 0; gap: 0; overflow-y: auto; }
+.full > * { max-width: none; }
+.stage { flex: 1 1 0; min-height: 180px; background: var(--cv-bg); display: flex; flex-direction: column; padding: calc(6px + var(--sat)) 12px 0; transition: background-color 400ms ease-out; }
+.full-head { color: var(--ink); }
+.full-head .out, .full-head .small { color: var(--cv-ink); }
+.stage-text { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; padding: 8px 12px 22px; overflow: hidden; }
+.stage-title { font-size: clamp(1.5rem, 8vw, 2.375rem); font-weight: 800; line-height: 1.22; letter-spacing: -0.035em; color: var(--ink); display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
+.stage-sub { color: var(--cv-ink); font-size: 1rem; }
+.stage-art { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 8px 12px 20px; }
+.stage-art img { max-height: 100%; max-width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 16px; }
+.deck { flex: 0 0 auto; display: flex; flex-direction: column; gap: 10px; padding: 14px 20px calc(14px + var(--sab)); }
+.deck > * { width: 100%; max-width: 480px; margin: 0 auto; }
+.deck .full-title { font-size: 1.375rem; -webkit-line-clamp: 2; }
+.deck .seek { margin-top: 0; width: 100%; display: block; }
+.controls { justify-content: space-between; gap: 4px; margin-top: 0; }
+.play { width: 76px; height: 76px; border-radius: 38px; }
+.ctl { min-width: 60px; min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; border-radius: 12px; color: var(--ink-2); font-size: .8125rem; line-height: 1.2; text-align: center; transition: transform 140ms var(--ease-out); }
+.ctl:active { transform: scale(.93); }
+.ctl[aria-pressed='true'] { color: var(--tint); font-weight: 700; }
+.ctl[aria-pressed='true'] svg { stroke-width: 2.8; }
+.util { display: flex; align-items: center; gap: 4px; }
+.util .vol { flex: 1; min-width: 0; margin-top: 0; }
+.util .vol-range { height: 44px; }
+.nextbar { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 6px 16px; border-radius: 14px; background: var(--surface); text-align: left; }
+.nextbar:active { background: var(--surface-2); }
+
+/* ── 잠들기: 시간을 마음대로 ── */
+.free { display: flex; flex-direction: column; gap: 10px; padding-top: 6px; }
+.free-row { display: flex; align-items: center; gap: 8px; }
+.free-row .field { flex: 1; min-width: 0; text-align: center; font-size: 1.25rem; font-weight: 700; }
+input[type='time'].field { font-size: 1.125rem; color-scheme: dark; }
+input[type='number']::-webkit-inner-spin-button { appearance: none; }
+
+.play, .ctl, .icon { flex-shrink: 0; }
+.controls .icon.big { width: 56px; height: 56px; }
+.ctl { min-width: 56px; }
+.hero-mid { container-type: size; }
+.glyph { font-size: clamp(3.5rem, min(42vw, 88cqh), 10.5rem); }
+.stage-text { justify-content: flex-start; }
+.stage-glyph { flex: 1; min-height: 0; container-type: size; display: flex; align-items: center; }
+.stage-glyph span { font-size: min(78cqh, 56vw); font-weight: 800; line-height: 1; letter-spacing: -0.06em; color: color-mix(in srgb, var(--cv-ink) 34%, var(--cv-bg)); }
+@container (max-height: 90px) { .stage-glyph span { display: none; } }

@@ -27,6 +27,7 @@ export function usePlayer(tracks: Track[]) {
   const [duration, setDuration] = useState(0)
   const [shuffle, setShuffle] = useState<boolean>(() => load('shuffle', false))
   const [gain, setGainState] = useState<number>(() => load('gain', 1)) // PC·브라우저용 앱 자체 음량
+  const [plays, setPlays] = useState<Record<string, number>>(() => load('plays', {})) // 곡마다 들은 횟수
   const [resume] = useState<Resume | null>(() => load<Resume | null>('resume', null))
   // "시간 동안"은 앱을 다시 켜면 "계속"으로 시작한다. 예전 저장값(끄기)은 "모두 한 번만"으로 읽는다.
   const [repeat, setRepeatState] = useState<Repeat>(() => {
@@ -100,6 +101,7 @@ export function usePlayer(tracks: Track[]) {
     a.src = t.url
     a.currentTime = at
     a.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
+    setPlays((old) => { const n = { ...old, [t.id]: (old[t.id] ?? 0) + 1 }; save('plays', n); return n })
   }, [])
 
   /** 목록에서 곡을 누르면: 그 목록을 대기열로 */
@@ -301,7 +303,7 @@ export function usePlayer(tracks: Track[]) {
   return {
     current, playing, time, duration, shuffle, repeat, repeatLeft,
     resumeTrack, resumePos: resume?.pos ?? 0,
-    queueTracks, index, next, nextNote, gain, sleep, sleepLeft, goodnight,
+    queueTracks, index, next, nextNote, gain, plays, sleep, sleepLeft, goodnight,
     setSleep, dismissGoodnight: () => setGoodnight(false),
     playFrom, go, toggle, pause, seek, toggleShuffle, setRepeat, jump, removeAt, move, enqueue, setGain,
   }
