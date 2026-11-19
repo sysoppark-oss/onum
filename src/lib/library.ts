@@ -1,0 +1,97 @@
+import { parseBlob } from 'music-metadata'
+
+export interface Track {
+  id: string // 이름+크기: 다시 불러와도 같은 곡을 알아보기 위함
+  url: string
+  title: string
+  artist: string
+  album: string
+  folder: string
+  duration: number
+  art?: string
+  added: number // 추가한 때(ms)
+  nativeId?: number // 설치형 앱: MediaStore 번호
+  albumId?: number
+}
+
+const AUDIO_EXT = /\.(mp3|m4a|aac|flac|wav|ogg|opus)$/i
+// 통화·음성 녹음과 벨소리는 음악 목록에서 뺀다
+const SKIP_FOLDER = /(call|recording|recorder|voice|녹음|ringtone|notification|alarm|벨소리|알림)/i
+export const MIN_SECONDS = 30
+
+export interface ScanResult {
+  tracks: Track[]
+  skippedShort: number
+  skippedFolder: number
+}
+
+function folderOf(f: File): string {
+  const p = (f as File & { webkitRelativePath?: string }).webkitRelativePath || ''
+  const parts = p.split('/')
+  return parts.length > 1 ? parts[parts.length - 2] : '선택한 파일'
+}
+
+/** "가수 - 제목.mp3" 형태 파일 이름에서 가수와 제목을 짐작한다 */
+function fromName(name: string): { title: string; artist: string } {
+  const base = name.replace(/\.[^.]+$/, '').replace(/_/g, ' ').trim()
+  const m = base.match(/^(?:\d+[.\s-]+)?(.+?)\s+-\s+(.+)$/)
+  return m ? { artist: m[1].trim(), title: m[2].trim() } : { artist: '', title: base }
+}
+
+export async function scanFiles(
+  files: File[],
+  onProgress: (done: number, total: number) => void,
+): Promise<ScanResult> {
+  const audio = files.filter((f) => AUDIO_EXT.test(f.name))
+  const tracks: Track[] = []
+  let skippedShort = 0
+  let skippedFolder = 0
+  let done = 0
+  for (const file of audio) {
+    const folder = folderOf(file)
+    if (SKIP_FOLDER.test(folder)) {
+      skippedFolder++
+    } else {
+      const guess = fromName(file.name)
+      let title = guess.title, artist = guess.artist, album = '', duration = 0, art: string | undefined
+      try {
+        const meta = await parseBlob(file, { duration: false, skipCovers: false })
+        title = meta.common.title || title
+        artist = meta.common.artist || artist
+        album = meta.common.album || ''
+        duration = meta.format.duration || 0
+        const pic = meta.common.picture?.[0]
+        if (pic) art = URL.createObjectURL(new Blob([pic.data as BlobPart], { type: pic.format }))
+      } catch {
+        /* 태그가 없거나 깨진 파일: 파일 이름으로 대신 */
+      }
+      if (duration > 0 && duration < MIN_SECONDS) {
+        skippedShort++
+        if (art) URL.revokeObjectURL(art)
+      } else {
+        tracks.push({
+          id: `${file.name}|${file.size}`,
+          added: file.lastModified,
+          url: URL.createObjectURL(file),
+          title,
+          artist: artist || '모르는 가수',
+          album,
+          folder,
+          duration,
+          art,
+        })
+      }
+    }
+    done++
+    if (done % 5 === 0 || done === audio.length) onProgress(done, audio.length)
+  }
+  tracks.sort((a, b) => a.title.localeCompare(b.title, 'ko'))
+  return { tracks, skippedShort, skippedFolder }
+}
+
+export function fmt(sec: number): string {
+  if (!isFinite(sec) || sec < 0) sec = 0
+  const m = Math.floor(sec / 60)
+  const s = Math.floor(sec % 60)
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
