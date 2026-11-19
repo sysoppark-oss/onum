@@ -6,9 +6,9 @@ import { setNowPlaying } from './native'
 
 interface Resume { id: string; pos: number }
 
-/** 반복: 무엇을(끄기·한 곡·모두) × 얼마나(한 번 더·계속·정한 시간 동안) */
+/** 반복: 무엇을(한 곡·모두) × 얼마나(한 번만·계속·정한 시간 동안) */
 export interface Repeat {
-  scope: 'off' | 'one' | 'all'
+  scope: 'one' | 'all'
   limit: 'once' | 'forever' | 'timed'
   minutes: number
 }
@@ -23,21 +23,20 @@ export function usePlayer(tracks: Track[]) {
   const [duration, setDuration] = useState(0)
   const [shuffle, setShuffle] = useState<boolean>(() => load('shuffle', false))
   const [resume] = useState<Resume | null>(() => load<Resume | null>('resume', null))
-  // "한 번 더"와 "시간 동안"은 앱을 다시 켜면 끈 상태로 시작한다
+  // "시간 동안"은 앱을 다시 켜면 "계속"으로 시작한다. 예전 저장값(끄기)은 "모두 한 번만"으로 읽는다.
   const [repeat, setRepeatState] = useState<Repeat>(() => {
-    const r = load<Repeat>('repeat', DEFAULT_REPEAT)
-    return r.limit === 'forever' ? r : { ...r, scope: 'off' }
+    const r = load<Repeat & { scope: string }>('repeat', DEFAULT_REPEAT)
+    if (r.scope !== 'one' && r.scope !== 'all') return { scope: 'all', limit: 'once', minutes: r.minutes || 60 }
+    return r.limit === 'timed' ? { ...r, limit: 'forever' } : r
   })
   const [repeatUntil, setRepeatUntil] = useState(0)
-  const onceUsed = useRef(false)
   const byId = useRef(new Map<string, Track>())
   byId.current = new Map(tracks.map((t) => [t.id, t]))
 
   const current = index >= 0 ? byId.current.get(queue[index]) : undefined
 
   const setRepeat = useCallback((r: Repeat) => {
-    onceUsed.current = false
-    setRepeatUntil(r.scope !== 'off' && r.limit === 'timed' ? Date.now() + r.minutes * 60000 : 0)
+    setRepeatUntil(r.limit === 'timed' ? Date.now() + r.minutes * 60000 : 0)
     setRepeatState(r)
     save('repeat', r)
   }, [])
@@ -87,29 +86,22 @@ export function usePlayer(tracks: Track[]) {
   /** 곡이 끝났을 때: 반복 설정에 따라 다시 틀거나 넘어가거나 멈춘다 */
   const onEnded = useCallback(() => {
     const r = repeat
-    const active =
-      r.limit === 'forever' ||
-      (r.limit === 'timed' && Date.now() < repeatUntil) ||
-      (r.limit === 'once' && !onceUsed.current)
-    if (r.scope === 'one') {
-      if (active) {
-        if (r.limit === 'once') onceUsed.current = true
-        const a = audio.current
-        a.currentTime = 0
-        a.play().catch(() => {})
-        return
-      }
-      setRepeat({ ...r, scope: 'off' }) // 반복이 끝나면 다음 곡으로
-      go(1, false)
+    const stop = () => { audio.current.pause(); setPlaying(false) }
+    // 정한 시간이 지났으면 듣던 곡까지만 틀고 멈춘다
+    if (r.limit === 'timed' && Date.now() >= repeatUntil) {
+      setRepeat({ ...r, limit: 'once' })
+      stop()
       return
     }
-    const atEnd = index + 1 >= queue.length
-    if (r.scope === 'all' && atEnd) {
-      if (active && r.limit === 'once') onceUsed.current = true
-      if (!active) setRepeat({ ...r, scope: 'off' })
+    if (r.scope === 'one') {
+      if (r.limit === 'once') { stop(); return }
+      const a = audio.current
+      a.currentTime = 0
+      a.play().catch(() => {})
+      return
     }
-    go(1, r.scope === 'all' && active)
-  }, [repeat, repeatUntil, index, queue, go, setRepeat])
+    go(1, r.limit !== 'once')
+  }, [repeat, repeatUntil, go, setRepeat])
 
   const toggle = useCallback(() => {
     const a = audio.current

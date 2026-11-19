@@ -171,6 +171,15 @@ function Library({ tracks, scan, player }: { tracks: Track[]; scan: ScanResult; 
   const [q, setQ] = useState('')
   const [view, setView] = useState<View>('songs')
   const [group, setGroup] = useState<string | null>(null)
+  const [picking, setPicking] = useState(false)
+  const [picked, setPicked] = useState<Set<string>>(new Set())
+  const [ask, setAsk] = useState(false)
+  const pick = (id: string) => setPicked((old) => {
+    const n = new Set(old)
+    if (n.has(id)) n.delete(id); else n.add(id)
+    return n
+  })
+  const stopPicking = () => { setPicking(false); setPicked(new Set()) }
 
   const keyOf = (t: Track) => (view === 'artists' ? t.artist : t.folder)
   const filtered = useMemo(() => tracks.filter((t) =>
@@ -205,16 +214,23 @@ function Library({ tracks, scan, player }: { tracks: Track[]; scan: ScanResult; 
       <p className="small muted" role="status">
         {filtered.length}곡{hidden > 0 && ` · 짧은 소리·녹음 ${hidden}개는 숨겼어요`}
       </p>
-      {group != null && (
-        <button className="back-chip" onClick={() => setGroup(null)}>‹ {group}</button>
-      )}
+      <div className="rowgap">
+        {group != null && <button className="back-chip" onClick={() => setGroup(null)}>‹ {group}</button>}
+        {showSongs && (
+          <button className="back-chip" aria-pressed={picking} onClick={() => (picking ? stopPicking() : setPicking(true))}>
+            {picking ? '고르기 취소' : '곡 골라서 듣기'}
+          </button>
+        )}
+      </div>
       {showSongs ? (
         <ul className="list">
           {filtered.map((t) => (
             <li key={t.id}>
               <button className={'row' + (player.current?.id === t.id ? ' on' : '')}
                 aria-current={player.current?.id === t.id ? 'true' : undefined}
-                onClick={() => player.playFrom(filtered, t.id)}>
+                aria-pressed={picking ? picked.has(t.id) : undefined}
+                onClick={() => (picking ? pick(t.id) : player.playFrom(filtered, t.id))}>
+                {picking && <span className={'tick' + (picked.has(t.id) ? ' on' : '')} aria-hidden="true">{picked.has(t.id) && '✓'}</span>}
                 <Art t={t} size={48} />
                 <span className="grow left">
                   <span className="one">{t.title}</span>
@@ -236,6 +252,21 @@ function Library({ tracks, scan, player }: { tracks: Track[]; scan: ScanResult; 
             </li>
           ))}
         </ul>
+      )}
+      {picking && picked.size > 0 && (
+        <div className="pickbar">
+          <span className="strong" role="status">{picked.size}곡 골랐어요</span>
+          <button className="primary" onClick={() => setAsk(true)}>반복 정하고 듣기</button>
+        </div>
+      )}
+      {ask && (
+        <RepeatSheet player={player} count={picked.size} onClose={() => setAsk(false)}
+          onApply={(r) => {
+            const sel = tracks.filter((t) => picked.has(t.id))
+            player.setRepeat(r)
+            player.playFrom(sel, sel[0].id)
+            stopPicking()
+          }} />
       )}
     </div>
   )
@@ -301,7 +332,7 @@ function Full({ player, output, onClose }: { player: Player; output: Output | nu
         <button className="chip" aria-pressed={player.shuffle} onClick={player.toggleShuffle}>
           {player.shuffle && '✓ '}골고루 섞기
         </button>
-        <button className="chip" aria-pressed={player.repeat.scope !== 'off'} aria-haspopup="dialog" onClick={() => setSheet(true)}>
+        <button className="chip" aria-pressed={player.repeat.limit !== 'once'} aria-haspopup="dialog" onClick={() => setSheet(true)}>
           {repeatLabel(player.repeat, player.repeatUntil)}
         </button>
       </div>
@@ -317,16 +348,18 @@ function minutesText(m: number): string {
 }
 
 function repeatLabel(r: Repeat, until: number): string {
-  if (r.scope === 'off') return '반복 끄기'
   const what = r.scope === 'one' ? '한 곡' : '모두'
+  if (r.limit === 'once') return `${what} 한 번만`
   if (r.limit === 'forever') return `✓ ${what} 계속 반복`
-  if (r.limit === 'once') return `✓ ${what} 한 번 더`
   const left = Math.max(0, Math.ceil((until - Date.now()) / 60000))
   return `✓ ${what} 반복 · ${minutesText(left)} 남음`
 }
 
-function RepeatSheet({ player, onClose }: { player: Player; onClose: () => void }) {
-  const [r, setR] = useState<Repeat>(player.repeat)
+/** count가 있으면 "고른 곡"을 위한 창: 무엇을(한 곡·모두)은 묻지 않는다 */
+function RepeatSheet({ player, onClose, count, onApply }: {
+  player: Player; onClose: () => void; count?: number; onApply?: (r: Repeat) => void
+}) {
+  const [r, setR] = useState<Repeat>(count ? { ...player.repeat, scope: 'all' } : player.repeat)
   const Opt = <K extends keyof Repeat>({ k, v, label }: { k: K; v: Repeat[K]; label: string }) => (
     <button className="opt" aria-pressed={r[k] === v} onClick={() => setR({ ...r, [k]: v })}>
       {r[k] === v && '✓ '}{label}
@@ -336,24 +369,23 @@ function RepeatSheet({ player, onClose }: { player: Player; onClose: () => void 
   return (
     <div className="sheet-wrap" onClick={onClose}>
       <div className="sheet" role="dialog" aria-modal="true" aria-label="반복 설정" onClick={(e) => e.stopPropagation()}>
-        <h2 className="h-sec">반복</h2>
-        <p className="small muted">무엇을</p>
-        <div className="opts">
-          <Opt k="scope" v="off" label="끄기" />
-          <Opt k="scope" v="one" label="한 곡" />
-          <Opt k="scope" v="all" label="모두" />
-        </div>
-        {r.scope !== 'off' && (
+        <h2 className="h-sec">{count ? `고른 ${count}곡 듣기` : '반복'}</h2>
+        {!count && (
           <>
-            <p className="small muted">얼마나</p>
-            <div className="opts">
-              <Opt k="limit" v="once" label="한 번 더" />
-              <Opt k="limit" v="forever" label="계속" />
-              <Opt k="limit" v="timed" label="시간 동안" />
+            <p className="small muted">무엇을</p>
+            <div className="opts two">
+              <Opt k="scope" v="one" label="한 곡" />
+              <Opt k="scope" v="all" label="모두" />
             </div>
           </>
         )}
-        {r.scope !== 'off' && r.limit === 'timed' && (
+        <p className="small muted">얼마나</p>
+        <div className="opts">
+          <Opt k="limit" v="once" label="한 번만" />
+          <Opt k="limit" v="forever" label="계속" />
+          <Opt k="limit" v="timed" label="시간 동안" />
+        </div>
+        {r.limit === 'timed' && (
           <>
             <div className="opts four">
               {[10, 30, 60, 120].map((m) => <Opt key={m} k="minutes" v={m} label={minutesText(m)} />)}
@@ -363,10 +395,12 @@ function RepeatSheet({ player, onClose }: { player: Player; onClose: () => void 
               <p className="strong" role="status">{minutesText(r.minutes)}</p>
               <button className="opt" onClick={() => step(5)} aria-label="5분 늘리기">+ 5분</button>
             </div>
-            <p className="small muted">시간이 지나면 듣던 곡을 끝까지 튼 뒤 반복을 끝내요.</p>
+            <p className="small muted">{minutesText(r.minutes)} 동안 계속 반복하고, 시간이 지나면 듣던 곡까지만 틀고 멈춰요.</p>
           </>
         )}
-        <button className="primary" onClick={() => { player.setRepeat(r); onClose() }}>적용</button>
+        <button className="primary" onClick={() => { if (onApply) onApply(r); else player.setRepeat(r); onClose() }}>
+          {count ? '듣기 시작' : '적용'}
+        </button>
       </div>
     </div>
   )
@@ -425,7 +459,14 @@ function Art({ t, size }: { t: Track; size: number }) {
   }, [t])
   return src
     ? <img className="art" src={src} alt="" width={size} height={size} style={{ width: size, height: size }} />
-    : <span className="art art-none" aria-hidden="true" style={{ width: size, height: size, fontSize: size * 0.36 }}>{initial(t.title)}</span>
+    : size < 100
+      ? <span className="art art-none" aria-hidden="true" style={{ width: size, height: size, fontSize: size * 0.36 }}>{initial(t.title)}</span>
+      : (
+        <span className="art art-none art-text" aria-hidden="true" style={{ width: size, height: size, fontSize: Math.min(24, Math.max(14, size * 0.085)) }}>
+          <span className="art-title">{t.title}</span>
+          <span className="art-artist">{t.artist}</span>
+        </span>
+      )
 }
 
 function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
