@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { fmt, scanFiles, type ScanResult, type Track } from './lib/library'
 import { matches } from './lib/hangul'
 import { usePlayer, type Player, type Repeat } from './lib/usePlayer'
@@ -7,6 +7,21 @@ import { App as CapApp } from '@capacitor/app'
 import { load, save } from './lib/store'
 
 type Tab = 'home' | 'library' | 'practice' | 'worship'
+
+// 뒤로 버튼·Esc가 먼저 닫아야 할 창들 (맨 나중에 연 것부터)
+const closers: (() => void)[] = []
+function useCloser(onClose: () => void) {
+  useEffect(() => {
+    closers.push(onClose)
+    const key = (e: KeyboardEvent) => { if (e.key === 'Escape' && closers[closers.length - 1] === onClose) onClose() }
+    window.addEventListener('keydown', key)
+    return () => {
+      window.removeEventListener('keydown', key)
+      const i = closers.lastIndexOf(onClose)
+      if (i >= 0) closers.splice(i, 1)
+    }
+  }, [onClose])
+}
 
 // 개역한글. 하루에 한 문장씩 돌아간다.
 const VERSES = [
@@ -28,7 +43,8 @@ export default function App() {
   useEffect(() => {
     if (!isNative) return
     const h = CapApp.addListener('backButton', () => {
-      if (full) setFull(false)
+      if (closers.length) closers[closers.length - 1]()
+      else if (full) setFull(false)
       else if (tab !== 'home') setTab('home')
       else CapApp.minimizeApp()
     })
@@ -180,6 +196,7 @@ function Library({ tracks, scan, player }: { tracks: Track[]; scan: ScanResult; 
     return n
   })
   const stopPicking = () => { setPicking(false); setPicked(new Set()) }
+  const closeAsk = useCallback(() => setAsk(false), [])
 
   const keyOf = (t: Track) => (view === 'artists' ? t.artist : t.folder)
   const filtered = useMemo(() => tracks.filter((t) =>
@@ -204,7 +221,7 @@ function Library({ tracks, scan, player }: { tracks: Track[]; scan: ScanResult; 
       <label className="search">
         <SearchIcon />
         <span className="sr">곡, 가수 찾기</span>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="곡·가수 찾기 (ㄹㅅㄴ처럼 초성도 돼요)" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="곡·가수 찾기 (초성도 돼요)" autoComplete="off" enterKeyHint="search" />
       </label>
       <div className="seg" role="tablist" aria-label="보기">
         {([['songs', '곡'], ['artists', '가수'], ['folders', '폴더']] as const).map(([v, l]) => (
@@ -222,6 +239,9 @@ function Library({ tracks, scan, player }: { tracks: Track[]; scan: ScanResult; 
           </button>
         )}
       </div>
+      {filtered.length === 0 && (
+        <p className="muted empty">{q ? `"${q}"에 맞는 곡이 없어요. 초성이나 가수 이름으로도 찾아 보세요.` : '곡이 없어요.'}</p>
+      )}
       {showSongs ? (
         <ul className="list">
           {filtered.map((t) => (
@@ -260,7 +280,7 @@ function Library({ tracks, scan, player }: { tracks: Track[]; scan: ScanResult; 
         </div>
       )}
       {ask && (
-        <RepeatSheet player={player} count={picked.size} onClose={() => setAsk(false)}
+        <RepeatSheet player={player} count={picked.size} onClose={closeAsk}
           onApply={(r) => {
             const sel = tracks.filter((t) => picked.has(t.id))
             player.setRepeat(r)
@@ -304,6 +324,13 @@ function Mini({ player, onOpen }: { player: Player; onOpen: () => void }) {
 function Full({ player, output, onClose }: { player: Player; output: Output | null; onClose: () => void }) {
   const t = player.current!
   const [sheet, setSheet] = useState(false)
+  const closeSheet = useCallback(() => setSheet(false), [])
+  const [, tick] = useState(0)
+  useEffect(() => {
+    if (player.repeat.limit !== 'timed') return
+    const h = setInterval(() => tick((n) => n + 1), 20000)
+    return () => clearInterval(h)
+  }, [player.repeat.limit])
   return (
     <div className="full" role="dialog" aria-modal="true" aria-label="지금 재생">
       <div className="full-head">
@@ -314,7 +341,7 @@ function Full({ player, output, onClose }: { player: Player; output: Output | nu
         <span style={{ width: 48 }} />
       </div>
       <div className="full-art"><Art t={t} size={300} /></div>
-      <h1 className="full-title one">{t.title}</h1>
+      <h1 className="full-title">{t.title}</h1>
       <p className="muted one">{t.artist}{t.album && ` · ${t.album}`}</p>
       <label className="sr" htmlFor="seek">재생 위치</label>
       <input id="seek" type="range" className="seek" min={0} max={player.duration || 0} step={1}
@@ -336,7 +363,7 @@ function Full({ player, output, onClose }: { player: Player; output: Output | nu
           {repeatLabel(player.repeat, player.repeatUntil)}
         </button>
       </div>
-      {sheet && <RepeatSheet player={player} onClose={() => setSheet(false)} />}
+      {sheet && <RepeatSheet player={player} onClose={closeSheet} />}
     </div>
   )
 }
@@ -360,6 +387,7 @@ function RepeatSheet({ player, onClose, count, onApply }: {
   player: Player; onClose: () => void; count?: number; onApply?: (r: Repeat) => void
 }) {
   const [r, setR] = useState<Repeat>(count ? { ...player.repeat, scope: 'all' } : player.repeat)
+  useCloser(onClose)
   const Opt = <K extends keyof Repeat>({ k, v, label }: { k: K; v: Repeat[K]; label: string }) => (
     <button className="opt" aria-pressed={r[k] === v} onClick={() => setR({ ...r, [k]: v })}>
       {r[k] === v && '✓ '}{label}
@@ -449,20 +477,26 @@ function initial(title: string): string {
 /* ───────── 공통 ───────── */
 function Art({ t, size }: { t: Track; size: number }) {
   const [src, setSrc] = useState(t.art)
+  const el = useRef<HTMLElement | null>(null)
   useEffect(() => {
     setSrc(t.art)
-    if (!t.art && t.nativeId != null) {
-      let alive = true
+    if (t.art || t.nativeId == null || !el.current) return
+    let alive = true
+    const io = new IntersectionObserver((entries) => {
+      if (!entries.some((e) => e.isIntersecting)) return
+      io.disconnect()
       nativeArt(t).then((u) => { if (alive && u) setSrc(u) })
-      return () => { alive = false }
-    }
+    }, { rootMargin: '200px' })
+    io.observe(el.current)
+    return () => { alive = false; io.disconnect() }
   }, [t])
+  const setEl = (n: HTMLElement | null) => { el.current = n }
   return src
     ? <img className="art" src={src} alt="" width={size} height={size} style={{ width: size, height: size }} />
     : size < 100
-      ? <span className="art art-none" aria-hidden="true" style={{ width: size, height: size, fontSize: size * 0.36 }}>{initial(t.title)}</span>
+      ? <span ref={setEl} className="art art-none" aria-hidden="true" style={{ width: size, height: size, fontSize: size * 0.36 }}>{initial(t.title)}</span>
       : (
-        <span className="art art-none art-text" aria-hidden="true" style={{ width: size, height: size, fontSize: Math.min(24, Math.max(14, size * 0.085)) }}>
+        <span ref={setEl} className="art art-none art-text" aria-hidden="true" style={{ width: size, height: size, fontSize: Math.min(24, Math.max(14, size * 0.085)) }}>
           <span className="art-title">{t.title}</span>
           <span className="art-artist">{t.artist}</span>
         </span>
