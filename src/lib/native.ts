@@ -1,4 +1,4 @@
-import { Capacitor, registerPlugin } from '@capacitor/core'
+import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core'
 import type { ScanResult, Track } from './library'
 
 interface NativeTrack {
@@ -6,10 +6,15 @@ interface NativeTrack {
   duration: number; path: string; folder: string; added: number; size: number
 }
 
+/** 소리가 나가는 곳 */
+export interface Output { kind: 'speaker' | 'wired' | 'bluetooth'; name?: string }
+
 interface MusicScanPlugin {
   scan(opts: { minMs: number }): Promise<{ tracks: NativeTrack[]; skippedFolder: number }>
   art(opts: { id: number; albumId: number; size: number }): Promise<{ dataUrl?: string }>
   nowPlaying(opts: { playing: boolean; title?: string; artist?: string }): Promise<void>
+  output(): Promise<Output>
+  addListener(event: 'outputChanged', fn: (o: Output) => void): Promise<PluginListenerHandle>
 }
 
 const MusicScan = registerPlugin<MusicScanPlugin>('MusicScan')
@@ -50,4 +55,14 @@ export function nativeArt(t: Track): Promise<string | undefined> {
 export function setNowPlaying(playing: boolean, t?: Track): void {
   if (!isNative) return
   MusicScan.nowPlaying({ playing, title: t?.title, artist: t?.artist }).catch(() => {})
+}
+
+export function getOutput(): Promise<Output | null> {
+  return isNative ? MusicScan.output().catch(() => null) : Promise.resolve(null)
+}
+
+export function onOutput(fn: (o: Output) => void): () => void {
+  if (!isNative) return () => {}
+  const h = MusicScan.addListener('outputChanged', fn)
+  return () => { h.then((x) => x.remove()).catch(() => {}) }
 }

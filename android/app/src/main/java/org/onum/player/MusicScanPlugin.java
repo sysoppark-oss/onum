@@ -3,12 +3,18 @@ package org.onum.player;
 import android.Manifest;
 import android.content.ContentResolver;
 import android.content.ContentUris;
+import android.content.Context;
 import android.content.Intent;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.media.AudioDeviceCallback;
+import android.media.AudioDeviceInfo;
+import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.util.Base64;
 import android.util.Size;
@@ -36,6 +42,66 @@ import java.io.InputStream;
     }
 )
 public class MusicScanPlugin extends Plugin {
+
+    private AudioDeviceCallback deviceCallback;
+
+    @Override
+    public void load() {
+        AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+        deviceCallback = new AudioDeviceCallback() {
+            @Override
+            public void onAudioDevicesAdded(AudioDeviceInfo[] added) {
+                notifyListeners("outputChanged", currentOutput());
+            }
+
+            @Override
+            public void onAudioDevicesRemoved(AudioDeviceInfo[] removed) {
+                notifyListeners("outputChanged", currentOutput());
+            }
+        };
+        am.registerAudioDeviceCallback(deviceCallback, new Handler(Looper.getMainLooper()));
+    }
+
+    @Override
+    protected void handleOnDestroy() {
+        if (deviceCallback != null) {
+            AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+            am.unregisterAudioDeviceCallback(deviceCallback);
+        }
+    }
+
+    /** 소리가 나가는 곳: 블루투스 > 유선 이어폰 > 휴대폰 스피커 */
+    private JSObject currentOutput() {
+        AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
+        String kind = "speaker";
+        String name = null;
+        for (AudioDeviceInfo d : am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
+            int t = d.getType();
+            if (t == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
+                || t == AudioDeviceInfo.TYPE_BLE_HEADSET
+                || t == AudioDeviceInfo.TYPE_BLE_SPEAKER
+                || t == AudioDeviceInfo.TYPE_HEARING_AID) {
+                kind = "bluetooth";
+                CharSequence n = d.getProductName();
+                if (n != null) name = n.toString();
+                break;
+            }
+            if (t == AudioDeviceInfo.TYPE_WIRED_HEADPHONES
+                || t == AudioDeviceInfo.TYPE_WIRED_HEADSET
+                || t == AudioDeviceInfo.TYPE_USB_HEADSET) {
+                kind = "wired";
+            }
+        }
+        JSObject o = new JSObject();
+        o.put("kind", kind);
+        if (name != null) o.put("name", name);
+        return o;
+    }
+
+    @PluginMethod
+    public void output(PluginCall call) {
+        call.resolve(currentOutput());
+    }
 
     private String alias() {
         return Build.VERSION.SDK_INT >= 33 ? "audio" : "storage";

@@ -1,8 +1,8 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { fmt, scanFiles, type ScanResult, type Track } from './lib/library'
 import { matches } from './lib/hangul'
-import { usePlayer, type Player } from './lib/usePlayer'
-import { isNative, nativeArt, scanDevice } from './lib/native'
+import { usePlayer, type Player, type Repeat } from './lib/usePlayer'
+import { getOutput, isNative, nativeArt, onOutput, scanDevice, type Output } from './lib/native'
 import { App as CapApp } from '@capacitor/app'
 import { load, save } from './lib/store'
 
@@ -22,6 +22,7 @@ export default function App() {
   const [full, setFull] = useState(false)
   const tracks = scan?.tracks ?? []
   const player = usePlayer(tracks)
+  const output = useOutput(player)
 
   // 뒤로 버튼: 재생 화면이면 닫고, 아니면 앱을 끄지 않고 뒤로 숨긴다(음악은 계속)
   useEffect(() => {
@@ -46,7 +47,7 @@ export default function App() {
       </main>
       {player.current && !full && <Mini player={player} onOpen={() => setFull(true)} />}
       <TabBar tab={tab} setTab={setTab} />
-      {full && player.current && <Full player={player} onClose={() => setFull(false)} />}
+      {full && player.current && <Full player={player} output={output} onClose={() => setFull(false)} />}
     </div>
   )
 }
@@ -269,13 +270,16 @@ function Mini({ player, onOpen }: { player: Player; onOpen: () => void }) {
   )
 }
 
-function Full({ player, onClose }: { player: Player; onClose: () => void }) {
+function Full({ player, output, onClose }: { player: Player; output: Output | null; onClose: () => void }) {
   const t = player.current!
+  const [sheet, setSheet] = useState(false)
   return (
     <div className="full" role="dialog" aria-modal="true" aria-label="지금 재생">
       <div className="full-head">
         <button className="icon" onClick={onClose} aria-label="닫기"><DownIcon /></button>
-        <p className="small muted">지금 재생</p>
+        {output
+          ? <p className="out small" role="status"><OutIcon kind={output.kind} />{outputLabel(output)}</p>
+          : <p className="small muted">지금 재생</p>}
         <span style={{ width: 48 }} />
       </div>
       <div className="full-art"><Art t={t} size={300} /></div>
@@ -297,9 +301,115 @@ function Full({ player, onClose }: { player: Player; onClose: () => void }) {
         <button className="chip" aria-pressed={player.shuffle} onClick={player.toggleShuffle}>
           {player.shuffle && '✓ '}골고루 섞기
         </button>
+        <button className="chip" aria-pressed={player.repeat.scope !== 'off'} aria-haspopup="dialog" onClick={() => setSheet(true)}>
+          {repeatLabel(player.repeat, player.repeatUntil)}
+        </button>
+      </div>
+      {sheet && <RepeatSheet player={player} onClose={() => setSheet(false)} />}
+    </div>
+  )
+}
+
+/* ───────── 반복 ───────── */
+function minutesText(m: number): string {
+  const h = Math.floor(m / 60), r = m % 60
+  return h ? (r ? `${h}시간 ${r}분` : `${h}시간`) : `${r}분`
+}
+
+function repeatLabel(r: Repeat, until: number): string {
+  if (r.scope === 'off') return '반복 끄기'
+  const what = r.scope === 'one' ? '한 곡' : '모두'
+  if (r.limit === 'forever') return `✓ ${what} 계속 반복`
+  if (r.limit === 'once') return `✓ ${what} 한 번 더`
+  const left = Math.max(0, Math.ceil((until - Date.now()) / 60000))
+  return `✓ ${what} 반복 · ${minutesText(left)} 남음`
+}
+
+function RepeatSheet({ player, onClose }: { player: Player; onClose: () => void }) {
+  const [r, setR] = useState<Repeat>(player.repeat)
+  const Opt = <K extends keyof Repeat>({ k, v, label }: { k: K; v: Repeat[K]; label: string }) => (
+    <button className="opt" aria-pressed={r[k] === v} onClick={() => setR({ ...r, [k]: v })}>
+      {r[k] === v && '✓ '}{label}
+    </button>
+  )
+  const step = (d: number) => setR({ ...r, minutes: Math.min(720, Math.max(5, r.minutes + d)) })
+  return (
+    <div className="sheet-wrap" onClick={onClose}>
+      <div className="sheet" role="dialog" aria-modal="true" aria-label="반복 설정" onClick={(e) => e.stopPropagation()}>
+        <h2 className="h-sec">반복</h2>
+        <p className="small muted">무엇을</p>
+        <div className="opts">
+          <Opt k="scope" v="off" label="끄기" />
+          <Opt k="scope" v="one" label="한 곡" />
+          <Opt k="scope" v="all" label="모두" />
+        </div>
+        {r.scope !== 'off' && (
+          <>
+            <p className="small muted">얼마나</p>
+            <div className="opts">
+              <Opt k="limit" v="once" label="한 번 더" />
+              <Opt k="limit" v="forever" label="계속" />
+              <Opt k="limit" v="timed" label="시간 동안" />
+            </div>
+          </>
+        )}
+        {r.scope !== 'off' && r.limit === 'timed' && (
+          <>
+            <div className="opts four">
+              {[10, 30, 60, 120].map((m) => <Opt key={m} k="minutes" v={m} label={minutesText(m)} />)}
+            </div>
+            <div className="stepper">
+              <button className="opt" onClick={() => step(-5)} aria-label="5분 줄이기">− 5분</button>
+              <p className="strong" role="status">{minutesText(r.minutes)}</p>
+              <button className="opt" onClick={() => step(5)} aria-label="5분 늘리기">+ 5분</button>
+            </div>
+            <p className="small muted">시간이 지나면 듣던 곡을 끝까지 튼 뒤 반복을 끝내요.</p>
+          </>
+        )}
+        <button className="primary" onClick={() => { player.setRepeat(r); onClose() }}>적용</button>
       </div>
     </div>
   )
+}
+
+/* ───────── 소리 나가는 곳 ───────── */
+function useOutput(player: Player): Output | null {
+  const [out, setOut] = useState<Output | null>(null)
+  const ref = useRef(player)
+  ref.current = player
+  const prev = useRef<Output | null>(null)
+  useEffect(() => {
+    const apply = (o: Output | null) => {
+      if (!o) return
+      // 이어폰·블루투스가 빠지면 스피커로 크게 나오지 않게 멈춘다
+      if (prev.current && prev.current.kind !== 'speaker' && o.kind === 'speaker' && ref.current.playing) ref.current.pause()
+      prev.current = o
+      setOut(o)
+    }
+    getOutput().then(apply)
+    return onOutput(apply)
+  }, [])
+  return out
+}
+
+function outputLabel(o: Output): string {
+  if (o.kind === 'bluetooth') return o.name ? `블루투스 · ${o.name}` : '블루투스 연결됨'
+  if (o.kind === 'wired') return '이어폰 연결됨'
+  return '휴대폰 스피커'
+}
+
+function OutIcon({ kind }: { kind: Output['kind'] }) {
+  const p = { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2.2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true }
+  if (kind === 'bluetooth') return <svg {...p}><polyline points="6 7 18 17 12 22 12 2 18 7 6 17" /></svg>
+  if (kind === 'wired') return <svg {...p}><path d="M4 14v-2a8 8 0 0 1 16 0v2" /><rect x="3" y="14" width="4" height="6" rx="1.5" /><rect x="17" y="14" width="4" height="6" rx="1.5" /></svg>
+  return <svg {...p}><rect x="6" y="3" width="12" height="18" rx="2" /><circle cx="12" cy="14" r="3" /><line x1="12" y1="7" x2="12" y2="7" /></svg>
+}
+
+/** 앨범 그림이 없을 때 보여 줄 한 글자: "[우리들의 발라드] 김…" → "김" */
+function initial(title: string): string {
+  const s = title.replace(/^(\s*[[(【][^\])】]*[\])】])+/, '')
+  const m = (s || title).match(/[가-힣A-Za-z0-9]/)
+  return m ? m[0] : '♪'
 }
 
 /* ───────── 공통 ───────── */
@@ -315,7 +425,7 @@ function Art({ t, size }: { t: Track; size: number }) {
   }, [t])
   return src
     ? <img className="art" src={src} alt="" width={size} height={size} style={{ width: size, height: size }} />
-    : <span className="art art-none" aria-hidden="true" style={{ width: size, height: size, fontSize: size * 0.36 }}>{t.title.slice(0, 1)}</span>
+    : <span className="art art-none" aria-hidden="true" style={{ width: size, height: size, fontSize: size * 0.36 }}>{initial(t.title)}</span>
 }
 
 function TabBar({ tab, setTab }: { tab: Tab; setTab: (t: Tab) => void }) {
