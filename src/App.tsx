@@ -10,6 +10,8 @@ import { load, save } from './lib/store'
 type Tab = 'home' | 'library' | 'practice' | 'worship'
 
 const nf = new Intl.NumberFormat('ko-KR')
+// 마우스를 쓰는 넓은 화면이면 PC로 본다
+const isPC = !isNative && window.matchMedia('(pointer: fine) and (min-width: 700px)').matches
 
 // 떠 있는 창들 (맨 나중에 연 것이 맨 위). 뒤로 버튼·Esc는 맨 위 창부터 닫는다.
 const closers: (() => void)[] = []
@@ -141,7 +143,7 @@ function Import({ onDone, empty }: { onDone: (r: ScanResult) => void; empty: boo
   return (
     <div className="app pad onboard">
       <p className="brand">온음</p>
-      <h1 className="h-big">휴대폰 속 음악을<br />불러올게요</h1>
+      <h1 className="h-big">{isPC ? '이 컴퓨터의 음악을' : '휴대폰 속 음악을'}<br />불러올게요</h1>
       <p className="muted">음악 파일은 이 기기 밖으로 나가지 않아요. 30초보다 짧은 소리와 통화·음성 녹음 폴더는 빼고 가져와요.</p>
       {empty && <p className="warn" role="alert">음악 파일을 찾지 못했어요. {isNative ? '휴대폰에 음악 파일이 있는지 확인해 주세요.' : '다른 폴더를 골라 보세요.'}</p>}
       {error && <p className="warn" role="alert">{error}</p>}
@@ -170,7 +172,7 @@ function Import({ onDone, empty }: { onDone: (r: ScanResult) => void; empty: boo
           </label>
         </div>
       )}
-      {!isNative && <p className="small muted">버튼을 눌러도 아무 창이 뜨지 않으면, 오른쪽 위 ⋮ 메뉴에서 크롬 같은 브라우저로 열어 주세요.</p>}
+      {!isNative && !isPC && <p className="small muted">버튼을 눌러도 아무 창이 뜨지 않으면, 오른쪽 위 ⋮ 메뉴에서 크롬 같은 브라우저로 열어 주세요.</p>}
     </div>
   )
 }
