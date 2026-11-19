@@ -3,6 +3,7 @@ import { fmt, scanFiles, type ScanResult, type Track } from './lib/library'
 import { matches } from './lib/hangul'
 import { usePlayer, type Player } from './lib/usePlayer'
 import { isNative, nativeArt, scanDevice } from './lib/native'
+import { App as CapApp } from '@capacitor/app'
 import { load, save } from './lib/store'
 
 type Tab = 'home' | 'library' | 'practice' | 'worship'
@@ -21,6 +22,17 @@ export default function App() {
   const [full, setFull] = useState(false)
   const tracks = scan?.tracks ?? []
   const player = usePlayer(tracks)
+
+  // 뒤로 버튼: 재생 화면이면 닫고, 아니면 앱을 끄지 않고 뒤로 숨긴다(음악은 계속)
+  useEffect(() => {
+    if (!isNative) return
+    const h = CapApp.addListener('backButton', () => {
+      if (full) setFull(false)
+      else if (tab !== 'home') setTab('home')
+      else CapApp.minimizeApp()
+    })
+    return () => { h.then((x) => x.remove()) }
+  }, [full, tab])
 
   if (!scan || tracks.length === 0) return <Import onDone={setScan} empty={scan !== null} />
 
