@@ -8,3 +8,8 @@ createRoot(document.getElementById('root')!).render(
     <App />
   </StrictMode>,
 )
+
+// PC·브라우저용: 인터넷 없이도 켜지게 (설치형 앱에서는 필요 없음)
+if ('serviceWorker' in navigator && location.protocol === 'https:' && location.hostname !== 'localhost') {
+  navigator.serviceWorker.register('./sw.js').catch(() => {})
+}
