@@ -186,3 +186,4 @@ h1, h2, .verse-text { text-wrap: balance; }
 .full-head .out svg { color: var(--ink); }
 .stepper { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; }
 .stepper p { flex: 1; white-space: nowrap; text-align: center; }
+.tick { font-size: .8125rem; font-variant-numeric: tabular-nums; }

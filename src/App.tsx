@@ -220,6 +220,7 @@ function Library({ tracks, scan, player }: { tracks: Track[]; scan: ScanResult; 
   })
   const stopPicking = () => { setPicking(false); setPicked(new Set()) }
   const closeAsk = useCallback(() => setAsk(false), [])
+  const order = useMemo(() => [...picked], [picked]) // 고른 순서
 
   const keyOf = (t: Track) => (view === 'artists' ? t.artist : t.folder)
   const filtered = useMemo(() => tracks.filter((t) =>
@@ -272,7 +273,7 @@ function Library({ tracks, scan, player }: { tracks: Track[]; scan: ScanResult; 
               aria-current={player.current?.id === t.id ? 'true' : undefined}
               aria-pressed={picking ? picked.has(t.id) : undefined}
               onClick={() => (picking ? pick(t.id) : player.playFrom(filtered, t.id))}>
-              {picking && <span className={'tick' + (picked.has(t.id) ? ' on' : '')} aria-hidden="true">{picked.has(t.id) && '✓'}</span>}
+              {picking && <span className={'tick' + (picked.has(t.id) ? ' on' : '')} aria-hidden="true">{picked.has(t.id) && order.indexOf(t.id) + 1}</span>}
               <Art t={t} size={48} />
               <span className="grow left">
                 <span className="one">{t.title}</span>
@@ -294,16 +295,17 @@ function Library({ tracks, scan, player }: { tracks: Track[]; scan: ScanResult; 
       )}
       {picking && picked.size > 0 && (
         <div className="pickbar">
-          <span className="strong" role="status">{nf.format(picked.size)}곡 골랐어요</span>
+          <span className="strong" role="status">{nf.format(picked.size)}곡 골랐어요 · 고른 순서대로 틀어요</span>
           <button className="primary" onClick={() => setAsk(true)}>반복 정하고 듣기</button>
         </div>
       )}
       {ask && (
         <RepeatSheet player={player} count={picked.size} onClose={closeAsk}
           onApply={(r) => {
-            const sel = tracks.filter((t) => picked.has(t.id))
+            const byId = new Map(tracks.map((t) => [t.id, t]))
+            const sel = order.map((id) => byId.get(id)).filter((t): t is Track => !!t)
             player.setRepeat(r)
-            player.playFrom(sel, sel[0].id)
+            player.playFrom(sel, sel[0].id, 0, true)
             stopPicking()
           }} />
       )}
@@ -380,12 +382,6 @@ function Full({ player, output, onClose }: { player: Player; output: Output | nu
   const [sheet, setSheet] = useState(false)
   const closeSheet = useCallback(() => setSheet(false), [])
   const box = useDialog(onClose)
-  const [, tick] = useState(0)
-  useEffect(() => {
-    if (player.repeat.limit !== 'timed') return
-    const h = setInterval(() => tick((n) => n + 1), 20000)
-    return () => clearInterval(h)
-  }, [player.repeat.limit])
   return (
     <div ref={box} tabIndex={-1} className="full" role="dialog" aria-modal="true" aria-label="지금 재생">
       <div className="full-head">
@@ -415,7 +411,7 @@ function Full({ player, output, onClose }: { player: Player; output: Output | nu
           {player.shuffle && '✓ '}골고루 섞기
         </button>
         <button className="chip" aria-pressed={player.repeat.limit !== 'once'} aria-haspopup="dialog" onClick={() => setSheet(true)}>
-          {repeatLabel(player.repeat, player.repeatUntil)}
+          {repeatLabel(player.repeat, player.repeatLeft)}
         </button>
       </div>
       {sheet && <RepeatSheet player={player} onClose={closeSheet} />}
@@ -429,11 +425,11 @@ function minutesText(m: number): string {
   return h ? (r ? `${h}시간 ${r}분` : `${h}시간`) : `${r}분`
 }
 
-function repeatLabel(r: Repeat, until: number): string {
+function repeatLabel(r: Repeat, leftMs: number): string {
   const what = r.scope === 'one' ? '한 곡' : '모두'
   if (r.limit === 'once') return `${what} 한 번만`
   if (r.limit === 'forever') return `✓ ${what} 계속 반복`
-  const left = Math.max(0, Math.ceil((until - Date.now()) / 60000))
+  const left = Math.ceil(leftMs / 60000)
   return `✓ ${what} 반복 · ${minutesText(left)} 남음`
 }
 
@@ -479,7 +475,7 @@ function RepeatSheet({ player, onClose, count, onApply }: {
               <p className="strong" role="status">{minutesText(r.minutes)}</p>
               <button className="opt" onClick={() => step(5)} aria-label="5분 늘리기">+ 5분</button>
             </div>
-            <p className="small muted">{minutesText(r.minutes)} 동안 계속 반복하고, 시간이 지나면 듣던 곡까지만 틀고 멈춰요.</p>
+            <p className="small muted">{minutesText(r.minutes)} 동안 계속 반복하고, 시간이 지나면 듣던 곡까지만 틀고 멈춰요. 일시 정지한 동안은 시간을 세지 않아요.</p>
           </>
         )}
         <button className="primary" onClick={() => { if (onApply) onApply(r); else player.setRepeat(r); onClose() }}>
