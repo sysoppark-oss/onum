@@ -471,7 +471,7 @@ function repeatShort(r: Repeat, leftMs: number): string {
 
 function sleepShort(player: Player): string {
   if (!player.sleep) return '잠들기'
-  if (player.sleep.endOfTrack) return '이 곡까지'
+  if (player.sleep.endOfTrack) return '이 곡 끝나면'
   return `${minutesText(Math.max(1, Math.ceil(player.sleepLeft / 60000)))} 뒤`
 }
 
@@ -498,7 +498,7 @@ function Full({ player, output, tracks, lists, vol, loud, onClose }: {
           {output
             ? <p className="out small" role="status"><OutIcon kind={output.kind} />{outputLabel(output)}</p>
             : <p className="small">지금 재생</p>}
-          <button className="icon" onClick={() => setQueue(true)} aria-haspopup="dialog" aria-label={`재생 목록 ${nf.format(player.queueTracks.length)}곡`}><ListIcon /></button>
+          <span className="spacer" />
         </div>
         {src ? (
           <div className="stage-art"><img src={src} alt="" /></div>
@@ -538,14 +538,16 @@ function Full({ player, output, tracks, lists, vol, loud, onClose }: {
             <RepeatIcon one={r.scope === 'one'} /><span>{repeatShort(r, player.repeatLeft)}</span>
           </button>
         </div>
-        <div className="util">
-          <button className="ctl" aria-pressed={player.sleep != null} aria-haspopup="dialog" onClick={() => setSleeping(true)}
-            aria-label={`잠들기 예약: ${sleepLabel(player).replace('✓ ', '')}`}>
-            <MoonIcon /><span>{sleepShort(player)}</span>
-          </button>
-          <VolumeRow vol={vol} loud={loud} />
-        </div>
+        <VolumeRow vol={vol} loud={loud} />
         {loud && <p className="small danger" role="status">⚠ 권장 음량({SAFE_VOLUME}%)을 넘었어요. 귀를 위해 조금 줄여 보세요.</p>}
+        <div className="pair">
+          <button className="pill wide" aria-pressed={player.sleep != null} aria-haspopup="dialog" onClick={() => setSleeping(true)}>
+            <MoonIcon /><span className="one">{player.sleep ? sleepShort(player) + ' 멈춤' : '잠들기 예약'}</span>
+          </button>
+          <button className="pill wide" aria-haspopup="dialog" onClick={() => setQueue(true)}>
+            <ListIcon /><span className="one">재생 목록 {nf.format(player.queueTracks.length)}곡</span>
+          </button>
+        </div>
         <button className="nextbar" onClick={() => setQueue(true)} aria-haspopup="dialog">
           <span className="small muted">다음 곡</span>
           <span className="one grow">{player.next && !player.nextNote ? cleanTitle(player.next.title) : player.nextNote}</span>
@@ -592,7 +594,8 @@ type Vol = ReturnType<typeof useVolume>
 
 function VolumeRow({ vol, loud }: { vol: Vol; loud: boolean }) {
   return (
-    <div className={'vol' + (loud ? ' over' : '')}>
+    <div className={'vol' + (loud ? ' over' : '')} role="group" aria-label="음량">
+      <span className="vol-ico" aria-hidden="true"><SpeakerIcon /></span>
       <button className="icon" onClick={() => vol.step(-1)} aria-label="음량 줄이기"><MinusIcon /></button>
       <label className="sr" htmlFor="vol">음량</label>
       <input id="vol" type="range" className="seek vol-range" min={0} max={100} step={1} value={vol.percent}
@@ -821,48 +824,23 @@ function sleepLabel(player: Player): string {
 
 function SleepSheet({ player, onClose }: { player: Player; onClose: () => void }) {
   const box = useDialog(onClose)
-  const [m, setM] = useState('45')
-  const [at, setAt] = useState('')
+  const [m, setM] = useState(30)
   const pick = (v: number | 'track' | null) => { player.setSleep(v); onClose() }
-  const mins = Math.min(720, Math.max(1, Math.round(+m) || 0))
-  // "몇 시에": 지금부터 그 시각까지 남은 분. 이미 지난 시각이면 내일로 본다.
-  const until = (() => {
-    const mt = at.match(/^(\d\d):(\d\d)$/)
-    if (!mt) return 0
-    const now = new Date()
-    const target = new Date(now)
-    target.setHours(+mt[1], +mt[2], 0, 0)
-    if (target <= now) target.setDate(target.getDate() + 1)
-    return Math.max(1, Math.round((target.getTime() - now.getTime()) / 60000))
-  })()
   return (
     <div className="sheet-wrap" onClick={onClose}>
       <div ref={box} tabIndex={-1} className="sheet" role="dialog" aria-modal="true" aria-labelledby="sleep-h" onClick={(e) => e.stopPropagation()}>
+        <span className="grab" aria-hidden="true" />
         <h2 id="sleep-h" className="h-sec">잠들기 예약</h2>
-        <p className="small muted">끝나기 30초 전부터 소리가 서서히 줄어들다 멈춰요.</p>
-        <div className="opts" role="group" aria-label="빠른 선택">
-          {[15, 30, 60].map((v) => <button key={v} className="opt" onClick={() => pick(v)}>{minutesText(v)}</button>)}
-          <button className="opt" onClick={() => pick('track')}>이 곡까지</button>
-        </div>
-        <div className="free">
-          <label className="small muted" htmlFor="sleep-min">몇 분 뒤에 끌까요?</label>
-          <div className="free-row">
-            <button className="icon" onClick={() => setM(String(Math.max(1, mins - 5)))} aria-label="5분 줄이기"><MinusIcon /></button>
-            <input id="sleep-min" className="field num" type="number" inputMode="numeric" min={1} max={720} value={m}
-              autoComplete="off" onChange={(e) => setM(e.target.value)} />
-            <span>분</span>
-            <button className="icon" onClick={() => setM(String(Math.min(720, mins + 5)))} aria-label="5분 늘리기"><PlusIcon /></button>
+        {player.sleep && (
+          <div className="state">
+            <p className="tint strong" role="status">✓ {sleepLabel(player).replace('✓ ', '')}</p>
+            <button className="pill" onClick={() => pick(null)}>예약 끄기</button>
           </div>
-          <button className="primary" onClick={() => pick(mins)}>{minutesText(mins)} 뒤에 잠들기</button>
-        </div>
-        <div className="free">
-          <label className="small muted" htmlFor="sleep-at">또는, 몇 시에 끌까요?</label>
-          <input id="sleep-at" className="field num" type="time" value={at} onChange={(e) => setAt(e.target.value)} />
-          <button className="secondary" disabled={!until} onClick={() => pick(until)}>
-            {until ? `${at}에 잠들기 (${minutesText(until)} 뒤)` : '시각을 골라 주세요'}
-          </button>
-        </div>
-        {player.sleep && <button className="link danger" onClick={() => pick(null)}>예약 끄기</button>}
+        )}
+        <Duration value={m} onChange={setM} clock />
+        <button className="primary" onClick={() => pick(m)}>{minutesText(m)} 뒤에 멈추기</button>
+        <button className="secondary" onClick={() => pick('track')}>이 곡이 끝나면 멈추기</button>
+        <p className="small muted">끝나기 30초 전부터 소리가 서서히 줄어들어요.</p>
       </div>
     </div>
   )
@@ -895,54 +873,95 @@ function repeatLabel(r: Repeat, leftMs: number): string {
   return `✓ ${what} 반복 · ${minutesText(left)} 남음`
 }
 
-/** count가 있으면 "고른 곡"을 위한 창: 무엇을(한 곡·모두)은 묻지 않는다 */
+/** 시간 고르기: 막대로 크게, 버튼으로 1분씩. 반복과 잠들기가 함께 쓴다. */
+function Duration({ value, onChange, clock }: { value: number; onChange: (m: number) => void; clock?: boolean }) {
+  const set = (m: number) => onChange(Math.min(720, Math.max(1, m)))
+  const end = new Date(Date.now() + value * 60000).toLocaleTimeString('ko-KR', { hour: 'numeric', minute: '2-digit' })
+  return (
+    <div className="dur">
+      <div className="dur-read">
+        <button className="icon" onClick={() => set(value - 1)} aria-label="1분 줄이기"><MinusIcon /></button>
+        <p role="status"><span className="dur-num num">{minutesText(value)}</span>{clock && <span className="small muted num">{end}에 멈춰요</span>}</p>
+        <button className="icon" onClick={() => set(value + 1)} aria-label="1분 늘리기"><PlusIcon /></button>
+      </div>
+      <input type="range" className="seek dur-range" min={5} max={180} step={5} value={Math.min(180, value)}
+        onChange={(e) => set(+e.target.value)} aria-label="시간" aria-valuetext={minutesText(value)} />
+      <div className="dur-scale small muted num" aria-hidden="true"><span>5분</span><span>1시간</span><span>2시간</span><span>3시간</span></div>
+      <div className="dur-chips" role="group" aria-label="자주 쓰는 시간">
+        {[10, 30, 60, 120].map((m) => (
+          <button key={m} className="pill" aria-pressed={value === m} onClick={() => set(m)}>{minutesText(m)}</button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** 하나만 고르는 줄. 고르면 바로 적용된다. */
+function Choice({ on, title, note, onPick }: { on: boolean; title: string; note: string; onPick: () => void }) {
+  return (
+    <button className="choice" role="radio" aria-checked={on} onClick={onPick}>
+      <span className="dot" aria-hidden="true" />
+      <span className="grow left">
+        <span className="strong">{title}</span>
+        <span className="small muted">{note}</span>
+      </span>
+    </button>
+  )
+}
+
+/** 반복 설정. count가 있으면 "고른 곡"을 틀기 전에 묻는 창이다. */
 function RepeatSheet({ player, onClose, count, onApply }: {
   player: Player; onClose: () => void; count?: number; onApply?: (r: Repeat) => void
 }) {
-  const [r, setR] = useState<Repeat>(count ? { ...player.repeat, scope: 'all' } : player.repeat)
   const box = useDialog(onClose)
-  // 컴포넌트가 아니라 함수로 그린다: 누른 버튼이 다시 만들어져 초점을 잃지 않게
-  const opt = <K extends keyof Repeat>(k: K, v: Repeat[K], label: string) => (
-    <button key={String(v)} className="opt" aria-pressed={r[k] === v} onClick={() => setR({ ...r, [k]: v })}>
-      {r[k] === v && '✓ '}{label}
-    </button>
-  )
-  const step = (d: number) => setR({ ...r, minutes: Math.min(720, Math.max(5, r.minutes + d)) })
+  const cur = player.repeat
+  const [scope, setScope] = useState<Repeat['scope']>(count ? 'all' : cur.limit === 'timed' ? cur.scope : 'one') // 흔한 쓰임은 "이 곡만 1시간"
+  const [m, setM] = useState(cur.minutes || 60)
+  const apply = (r: Repeat) => { if (onApply) onApply(r); else player.setRepeat(r); onClose() }
+  const is = (sc: Repeat['scope'], li: Repeat['limit']) => !count && cur.scope === sc && cur.limit === li
+  const what = count ? `고른 ${nf.format(count)}곡` : scope === 'one' ? '이 곡만' : '목록 전체'
+  const timedOn = !count && cur.limit === 'timed'
+  // 시간 반복은 눌렀을 때만 펼친다. 펼치면 그 자리가 보이게 내려 준다.
+  const [open, setOpen] = useState(timedOn)
+  const timedBox = useRef<HTMLElement>(null)
+  useEffect(() => { if (open) timedBox.current?.scrollIntoView({ block: 'end', behavior: 'smooth' }) }, [open])
   return (
     <div className="sheet-wrap" onClick={onClose}>
       <div ref={box} tabIndex={-1} className="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-h" onClick={(e) => e.stopPropagation()}>
-        <h2 id="sheet-h" className="h-sec">{count ? `고른 ${nf.format(count)}곡 듣기` : '반복'}</h2>
-        {!count && (
-          <>
-            <p className="small muted">무엇을</p>
-            <div className="opts" role="group" aria-label="무엇을">
-              {opt('scope', 'one', '한 곡')}
-              {opt('scope', 'all', '모두')}
-            </div>
-          </>
-        )}
-        <p className="small muted">얼마나</p>
- <div className="opts" role="group" aria-label="얼마나">
-          {opt('limit', 'once', '한 번만')}
-          {opt('limit', 'forever', '계속')}
-          {opt('limit', 'timed', '시간 동안')}
+        <span className="grab" aria-hidden="true" />
+        <h2 id="sheet-h" className="h-sec">{count ? `고른 ${nf.format(count)}곡, 어떻게 들을까요?` : '반복'}</h2>
+        <div className="choices" role="radiogroup" aria-labelledby="sheet-h">
+          {count ? (
+            <>
+              <Choice on={false} title="한 번 듣고 멈춤" note="고른 순서대로 끝까지 듣고 멈춰요" onPick={() => apply({ scope: 'all', limit: 'once', minutes: m })} />
+              <Choice on={false} title="계속 반복" note="끝나면 처음부터 다시 틀어요" onPick={() => apply({ scope: 'all', limit: 'forever', minutes: m })} />
+            </>
+          ) : (
+            <>
+              <Choice on={is('one', 'forever')} title="이 곡만 반복" note="지금 곡을 계속 틀어요" onPick={() => apply({ scope: 'one', limit: 'forever', minutes: m })} />
+              <Choice on={is('all', 'forever')} title="목록 전체 반복" note="끝나면 처음부터 다시 틀어요" onPick={() => apply({ scope: 'all', limit: 'forever', minutes: m })} />
+              <Choice on={is('all', 'once')} title="반복 안 함" note="목록을 한 바퀴 듣고 멈춰요" onPick={() => apply({ scope: 'all', limit: 'once', minutes: m })} />
+              <Choice on={is('one', 'once')} title="이 곡만 듣고 멈춤" note="지금 곡이 끝나면 멈춰요" onPick={() => apply({ scope: 'one', limit: 'once', minutes: m })} />
+            </>
+          )}
+          <Choice on={timedOn} title="시간을 정해서 반복"
+            note={timedOn ? `${cur.scope === 'one' ? '이 곡만' : '목록 전체'} · ${minutesText(Math.ceil(player.repeatLeft / 60000))} 남음` : count ? '예: 1시간 동안 계속' : '예: 이 곡만 1시간 동안'}
+            onPick={() => setOpen(true)} />
         </div>
-        {r.limit === 'timed' && (
-          <>
-            <div className="opts" role="group" aria-label="시간">
-              {[10, 30, 60, 120].map((m) => opt('minutes', m, minutesText(m)))}
+        {open && <section ref={timedBox} className="timed" aria-labelledby="timed-h">
+          <h3 id="timed-h" className="strong">얼마 동안 반복할까요?</h3>
+          {!count && (
+            <div className="seg two" role="group" aria-label="무엇을 반복할까요">
+              <button aria-pressed={scope === 'one'} onClick={() => setScope('one')}>이 곡만</button>
+              <button aria-pressed={scope === 'all'} onClick={() => setScope('all')}>목록 전체</button>
             </div>
-            <div className="stepper">
-              <button className="opt" onClick={() => step(-5)} aria-label="5분 줄이기">− 5분</button>
-              <p className="strong" role="status">{minutesText(r.minutes)}</p>
-              <button className="opt" onClick={() => step(5)} aria-label="5분 늘리기">+ 5분</button>
-            </div>
-            <p className="small muted">{minutesText(r.minutes)} 동안 계속 반복하고, 시간이 지나면 듣던 곡까지만 틀고 멈춰요. 일시 정지한 동안은 시간을 세지 않아요.</p>
-          </>
-        )}
-        <button className="primary" onClick={() => { if (onApply) onApply(r); else player.setRepeat(r); onClose() }}>
-          {count ? '듣기 시작' : '적용'}
-        </button>
+          )}
+          <Duration value={m} onChange={setM} />
+          <button className="primary" onClick={() => apply({ scope: count ? 'all' : scope, limit: 'timed', minutes: m })}>
+            {what} {minutesText(m)} 동안 반복
+          </button>
+          <p className="small muted">시간이 지나면 듣던 곡까지만 틀고 멈춰요. 일시 정지한 동안은 시간을 세지 않아요.</p>
+        </section>}
       </div>
     </div>
   )
@@ -1066,3 +1085,4 @@ const ShuffleIcon = () => <svg {...line}><polyline points="16 4 20 4 20 8" /><pa
 const RepeatIcon = ({ one }: { one: boolean }) => <svg {...line}><polyline points="17 2 21 6 17 10" /><path d="M3 11V9a3 3 0 0 1 3-3h15" /><polyline points="7 22 3 18 7 14" /><path d="M21 13v2a3 3 0 0 1-3 3H3" />{one && <path d="M11 10.5l1.5-1v5" strokeWidth="2" />}</svg>
 const MoonIcon = () => <svg {...line}><path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" /></svg>
 const ListIcon = () => <svg {...line}><line x1="8" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="20" y2="12" /><line x1="8" y1="18" x2="20" y2="18" /><circle cx="4" cy="6" r="1" /><circle cx="4" cy="12" r="1" /><circle cx="4" cy="18" r="1" /></svg>
+const SpeakerIcon = () => <svg {...line}><polygon points="4 9 8 9 13 5 13 19 8 15 4 15" /><path d="M16.5 9a4 4 0 0 1 0 6" /><path d="M19 6.5a8 8 0 0 1 0 11" /></svg>
