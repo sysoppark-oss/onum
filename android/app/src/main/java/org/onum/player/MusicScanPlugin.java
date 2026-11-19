@@ -98,6 +98,14 @@ public class MusicScanPlugin extends Plugin {
         return o;
     }
 
+    /** 휴대폰 설정의 글자 크기 배율 */
+    @PluginMethod
+    public void fontScale(PluginCall call) {
+        JSObject o = new JSObject();
+        o.put("scale", (double) getContext().getResources().getConfiguration().fontScale);
+        call.resolve(o);
+    }
+
     @PluginMethod
     public void output(PluginCall call) {
         call.resolve(currentOutput());

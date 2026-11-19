@@ -14,6 +14,7 @@ interface MusicScanPlugin {
   art(opts: { id: number; albumId: number; size: number }): Promise<{ dataUrl?: string }>
   nowPlaying(opts: { playing: boolean; title?: string; artist?: string }): Promise<void>
   output(): Promise<Output>
+  fontScale(): Promise<{ scale: number }>
   addListener(event: 'outputChanged', fn: (o: Output) => void): Promise<PluginListenerHandle>
 }
 
@@ -65,4 +66,9 @@ export function onOutput(fn: (o: Output) => void): () => void {
   if (!isNative) return () => {}
   const h = MusicScan.addListener('outputChanged', fn)
   return () => { h.then((x) => x.remove()).catch(() => {}) }
+}
+
+/** 휴대폰 설정의 글자 크기 배율 (보통 1, 크게 하면 1.3~2) */
+export function getFontScale(): Promise<number | null> {
+  return isNative ? MusicScan.fontScale().then((r) => r.scale).catch(() => null) : Promise.resolve(null)
 }
