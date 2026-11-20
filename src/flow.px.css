@@ -640,3 +640,5 @@ label.pick:focus-within { outline: 3px solid var(--now); outline-offset: 2px; }
 .xbar { height: 8px; border-radius: 4px; background: var(--sf); overflow: hidden; }
 .xbar b { display: block; height: 100%; background: var(--now); border-radius: 4px; transition: width 200ms linear; }
 a.go { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
+.updrow { display: flex; flex-direction: column; gap: 2px; margin-top: -6px; }
+.updrow .textlink { align-self: flex-start; }

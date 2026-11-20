@@ -253,6 +253,64 @@ public class MusicScanPlugin extends Plugin {
         call.resolve();
     }
 
+    /** 새 시험판 APK를 받아 설치 화면을 연다. 진행은 updateProgress 알림으로.
+     *  설치는 사용자가 「설치」를 눌러야 끝난다(안드로이드 정책). 「출처를 알 수 없는 앱」 허락이 없으면 설정 화면을 연다. */
+    @PluginMethod
+    public void installApk(PluginCall call) {
+        String url = call.getString("url");
+        if (url == null) { call.reject("no_url"); return; }
+        Context ctx = getContext();
+        if (Build.VERSION.SDK_INT >= 26 && !ctx.getPackageManager().canRequestPackageInstalls()) {
+            Intent i = new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:" + ctx.getPackageName()));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(i);
+            call.reject("need_permission");
+            return;
+        }
+        new Thread(() -> {
+            try {
+                java.io.File dir = new java.io.File(ctx.getCacheDir(), "update");
+                dir.mkdirs();
+                java.io.File apk = new java.io.File(dir, "onum.apk");
+                java.net.HttpURLConnection c = null;
+                String u = url;
+                for (int hop = 0; hop < 6; hop++) { // GitHub 내려받기는 다른 주소로 넘겨준다
+                    c = (java.net.HttpURLConnection) new java.net.URL(u).openConnection();
+                    c.setInstanceFollowRedirects(false);
+                    c.setConnectTimeout(15000);
+                    c.setReadTimeout(30000);
+                    int code = c.getResponseCode();
+                    if (code / 100 == 3) { u = c.getHeaderField("Location"); c.disconnect(); continue; }
+                    if (code != 200) throw new Exception("http_" + code);
+                    break;
+                }
+                long total = c.getContentLengthLong();
+                try (InputStream is = c.getInputStream(); java.io.OutputStream os = new java.io.FileOutputStream(apk)) {
+                    byte[] buf = new byte[65536];
+                    long got = 0, last = 0;
+                    int n;
+                    while ((n = is.read(buf)) > 0) {
+                        os.write(buf, 0, n);
+                        got += n;
+                        long now = System.currentTimeMillis();
+                        if (total > 0 && now - last > 250) {
+                            last = now;
+                            JSObject o = new JSObject();
+                            o.put("f", got / (double) total);
+                            notifyListeners("updateProgress", o);
+                        }
+                    }
+                }
+                Uri uri = androidx.core.content.FileProvider.getUriForFile(ctx, ctx.getPackageName() + ".fileprovider", apk);
+                Intent i = new Intent(Intent.ACTION_VIEW);
+                i.setDataAndType(uri, "application/vnd.android.package-archive");
+                i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx.startActivity(i);
+                call.resolve();
+            } catch (Exception e) { call.reject("download_failed", e); }
+        }).start();
+    }
+
     /** 편집곡을 진짜 음악 파일로: parts [{path, s, e}], name. 진행은 exportProgress 알림으로 */
     @PluginMethod
     public void exportClips(PluginCall call) {

@@ -1,8 +1,11 @@
 // 온음 — 「흐름」 화면
+import { appReady, applyPending, checkUpdate, hasPending, type Remote } from './lib/update'
+import { UpdateSheet } from './ui/Update'
+import { useFlag } from './lib/flag'
 import { partTracks, useEdits } from './lib/edits'
 import { NOTES } from './lib/version'
 import { WhatsNew } from './ui/WhatsNew'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { App as CapApp } from '@capacitor/app'
 import type { ScanResult, Track } from './lib/library'
 import { classify, loadOverrides, saveOverrides, type KindOverrides } from './lib/kind'
@@ -85,6 +88,27 @@ export default function App() {
     else save('notesSeen', NOTES.id)
   }, [tracks.length > 0]) // eslint-disable-line react-hooks/exhaustive-deps
   const output = useOutput(player)
+  // 새 판: 화면 부분은 받아 두었다가 음악이 멈춰 있을 때 바꿔 끼우고, 휴대폰 쪽이 바뀐 판은 알린다
+  const updOn = useFlag('updateCheck', true)
+  const [apk, setApk] = useState<Remote | null>(null)
+  const playingRef = useRef(player.playing)
+  playingRef.current = player.playing
+  const runCheck = useCallback(async (force = false) => {
+    const u = await checkUpdate(force).catch(() => null)
+    if (u?.kind === 'apk' && (force || load('skipApk', '') !== u.r.sha)) setApk(u.r)
+    return u
+  }, [])
+  useEffect(() => {
+    appReady()
+    if (hasPending()) { applyPending(); return }
+    if (!isNative) return
+    const t = window.setTimeout(() => { if (updOn) runCheck() }, 8000)
+    const h = CapApp.addListener('resume', () => {
+      if (hasPending() && !playingRef.current) applyPending()
+      else if (updOn) runCheck()
+    })
+    return () => { window.clearTimeout(t); h.then((x) => x.remove()) }
+  }, [updOn]) // eslint-disable-line react-hooks/exhaustive-deps
   const lists = usePlaylists()
   const vol = useVolume(player)
   // 휴대폰의 실제 음량을 알 때만, 이어폰·블루투스로 들을 때만 경고한다
@@ -123,7 +147,7 @@ export default function App() {
             {tab === 'now' && <NowScreen tracks={tracks} player={player} vol={vol} loud={loud} output={output} lists={lists} edits={edits} onSleep={openSleep} />}
             {tab === 'music' && <MusicScreen tracks={tracks} scan={scan} player={player} lists={lists} onPlayed={() => setTab('now')} onKind={moveKind} />}
             {tab === 'lists' && <ListsScreen tracks={tracks} music={music} player={player} lists={lists} edits={edits} onPlayed={() => setTab('now')} />}
-            {tab === 'rest' && <RestScreen easy={easy} setEasy={setEasy} onFolders={() => setFolders(true)} battery={battery} onBattery={() => setBatteryOpen(true)} verseMove={verseMove} setVerseMove={setVerseMove} player={player} onNews={() => setNews(true)} />}
+            {tab === 'rest' && <RestScreen easy={easy} setEasy={setEasy} onFolders={() => setFolders(true)} battery={battery} onBattery={() => setBatteryOpen(true)} verseMove={verseMove} setVerseMove={setVerseMove} player={player} onNews={() => setNews(true)} onCheck={runCheck} />}
           </>
         )}
       </main>
@@ -145,6 +169,7 @@ export default function App() {
       {sleeping && <SleepSheet player={player} onClose={closeSleep} />}
       {folders && <FoldersPage tracks={raw.tracks} hidden={hidden} setHidden={setHidden} onClose={closeFolders} />}
       {news && !batteryOpen && <WhatsNew onClose={closeNews} />}
+      {apk && !news && !batteryOpen && <UpdateSheet r={apk} onClose={() => setApk(null)} />}
       {batteryOpen && <BatteryPage b={battery} onClose={closeBattery} />}
       {gn && <GoodnightScreen g={gn} onClose={player.dismissGoodnight} onResume={() => { player.dismissGoodnight(); player.toggle() }} />}
     </div>

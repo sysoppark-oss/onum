@@ -27,7 +27,15 @@ jobs:
       - name: 웹 화면 만들기
         run: |
           npm ci
+          echo "VITE_NATIVE=$(sh tools/native-hash.sh)" >> $GITHUB_ENV
+          echo "VITE_SHA=${GITHUB_SHA::12}" >> $GITHUB_ENV
+          echo "VITE_RUN=${GITHUB_RUN_NUMBER}" >> $GITHUB_ENV
+          echo "VITE_BUILT_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> $GITHUB_ENV
+
+      - name: 화면 부분 꾸러미(자동 업데이트용)
+        run: |
           npm run build
+          (cd dist && zip -qr ../web.zip .)
           npx cap sync android
 
       - name: APK 만들기
@@ -52,4 +60,7 @@ jobs:
           body: |
             시험판 ${{ github.run_number }}번 · ${{ github.sha }}
             휴대폰에서 onum-test.apk를 눌러 내려받아 설치하세요.
-          files: onum-test.apk
+            <!--onum {"sha":"${{ env.VITE_SHA }}","native":"${{ env.VITE_NATIVE }}","run":${{ github.run_number }},"at":"${{ env.VITE_BUILT_AT }}"}-->
+          files: |
+            onum-test.apk
+            web.zip

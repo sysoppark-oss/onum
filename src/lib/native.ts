@@ -30,6 +30,8 @@ interface MusicScanPlugin {
   addListener(event: 'outputChanged', fn: (o: Output) => void): Promise<PluginListenerHandle>
   addListener(event: 'mediaAction', fn: (a: MediaAction) => void): Promise<PluginListenerHandle>
   addListener(event: 'exportProgress', fn: (p: { f: number }) => void): Promise<PluginListenerHandle>
+  addListener(event: 'updateProgress', fn: (p: { f: number }) => void): Promise<PluginListenerHandle>
+  installApk(opts: { url: string }): Promise<void>
   exportClips(opts: { parts: { path: string; s: number; e: number }[]; name: string }): Promise<{ where: string }>
 }
 
@@ -145,4 +147,13 @@ export function askNearby(): Promise<Output | null> {
 export async function nativeExport(parts: { path: string; s: number; e: number }[], name: string, onProgress: (f: number) => void): Promise<string> {
   const h = await MusicScan.addListener('exportProgress', (p) => onProgress(p.f))
   try { return (await MusicScan.exportClips({ parts, name })).where } finally { h.remove() }
+}
+
+/** 새 시험판 APK를 받아 설치 화면 열기. 'need_permission'이면 설정 화면이 열린 것 */
+export async function installApk(url: string, onProgress: (f: number) => void): Promise<'ok' | 'need_permission' | 'fail'> {
+  if (!isNative) return 'fail'
+  const h = await MusicScan.addListener('updateProgress', (p) => onProgress(p.f))
+  try { await MusicScan.installApk({ url }); return 'ok' } catch (e) {
+    return String((e as { code?: string; message?: string })?.code ?? (e as Error)?.message).includes('need_permission') ? 'need_permission' : 'fail'
+  } finally { h.remove() }
 }

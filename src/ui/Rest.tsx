@@ -1,5 +1,6 @@
 // 「쉼」: 오늘의 한 문장, 말씀 천천히 보기, 찬송가 반주(준비 중), 보기 설정, 온음이 무료인 이유
 import { CURRENT } from '../lib/version'
+import { BUILD, type Remote } from '../lib/update'
 import { useCallback, useState } from 'react'
 import { dayIndex, type Verse } from '../lib/verses'
 import { MOODS, YEAR } from '../lib/verses365'
@@ -16,13 +17,15 @@ import { EFFECTIVE, PRIVACY } from '../lib/privacy'
 const REPO = 'https://github.com/sysoppark-oss/onum'
 const MAIL = 'sysoppark@gmail.com'
 
-export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verseMove, setVerseMove, player, onNews }: {
+export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verseMove, setVerseMove, player, onNews, onCheck }: {
   easy: boolean; setEasy: (v: boolean) => void; onFolders?: () => void; battery: Battery; onBattery: () => void
-  verseMove: boolean; setVerseMove: (v: boolean) => void; player: Player; onNews: () => void
+  verseMove: boolean; setVerseMove: (v: boolean) => void; player: Player; onNews: () => void; onCheck: (force?: boolean) => Promise<{ kind: 'apk' | 'web' | 'same'; r: Remote } | null>
 }) {
   const norm = player.normOn, setNorm = player.setNorm
   const kjv = useKjv()
   const notesOn = useFlag('notes', true)
+  const updOn = useFlag('updateCheck', true)
+  const [chk, setChk] = useState('')
   const [shared, setShared] = useState('')
   const [about, setAbout] = useState(false)
   const [reading, setReading] = useState(false)
@@ -68,6 +71,14 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
             <button className="sw" role="switch" aria-checked={notesOn} aria-labelledby="nt-l" onClick={() => setFlag('notes', !notesOn)} />
           </div>
         </li>
+        {isNative && (
+          <li>
+            <div className="lrow">
+              <span className="x"><span className="x1" id="up-l">새 판 알림</span><span className="x2">새 판이 나오면 받아 두거나 알려 드려요(GitHub에 확인)</span></span>
+              <button className="sw" role="switch" aria-checked={updOn} aria-labelledby="up-l" onClick={() => setFlag('updateCheck', !updOn)} />
+            </div>
+          </li>
+        )}
         <li className="setrow">
           <span className="x"><span className="x1" id="kjv-l">말씀 역본</span><span className="x2">{kjv ? '영어 흠정역(KJV)으로 보여요' : '한글 개역한글로 보여요'}</span></span>
           <div className="seg2 ver" role="radiogroup" aria-labelledby="kjv-l">
@@ -115,7 +126,17 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
         <button className="why" onClick={() => setAbout(true)}>온음이 무료인 이유 <Icon n="chev" s={16} /></button>
         <button className="why" onClick={() => setPrivacy(true)}>개인정보 처리방침 <Icon n="chev" s={16} /></button>
       </div>
-      <button className="why ver" onClick={onNews}><span className="num">온음 {CURRENT.v}</span> · {CURRENT.name} · 새로워진 점 <Icon n="chev" s={16} /></button>
+      <button className="why ver" onClick={onNews}><span className="num">온음 {CURRENT.v}</span> · {CURRENT.name}{BUILD.run ? <> · 시험판 <span className="num">{BUILD.run}</span>번</> : null} · 새로워진 점 <Icon n="chev" s={16} /></button>
+      {isNative && (
+        <div className="updrow">
+          <button className="textlink" disabled={chk === '…'} onClick={async () => {
+            setChk('…')
+            const u = await onCheck(true)
+            setChk(!u ? '확인하지 못했어요. 인터넷 연결을 확인해 주세요.' : u.kind === 'same' ? '지금이 가장 새 판이에요.' : u.kind === 'web' ? '새 판을 받아 두었어요. 음악을 멈추고 앱을 다시 열면 바뀌어요.' : '')
+          }}>{chk === '…' ? '확인하는 중…' : '새 판 확인하기'}</button>
+          {chk && chk !== '…' && <p className="hint" role="status">{chk}</p>}
+        </div>
+      )}
       {about && <AboutPage onClose={closeAbout} />}
       {reading && <ReadPage onClose={closeReading} />}
       {privacy && <PrivacyPage onClose={closePrivacy} />}
