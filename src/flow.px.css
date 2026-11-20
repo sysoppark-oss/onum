@@ -832,3 +832,22 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .langpick { display: flex; gap: 2px; padding: 0; border-radius: 22px; background: var(--sf); }
 .langpick button { min-height: 44px; padding: 0 10px; border-radius: 22px; font-size: 13px; font-weight: 700; color: var(--ink2); position: relative; }
 .langpick button.on { background: var(--bg); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+
+/* 지금 화면 아래: 이어서 | 가사 */
+.ftabs { display: flex; gap: 4px; margin-left: -8px; }
+.ftabs button { display: inline-flex; align-items: center; gap: 5px; min-height: 44px; padding: 0 8px; font-size: 15px; font-weight: 700; color: var(--ink2); position: relative; transition: color 160ms ease; }
+.ftabs button.on { color: var(--ink); }
+.ftabs button.on::after { content: ''; position: absolute; left: 8px; right: 8px; bottom: 6px; height: 2px; border-radius: 1px; background: var(--ink); }
+.flow > .bmchip { align-self: flex-start; margin-top: 4px; }
+.lyi { display: flex; flex-direction: column; flex: 1; padding-top: 6px; }
+.lyi-lines li { font-size: 18px; font-weight: 700; line-height: 1.45; letter-spacing: -0.015em; color: var(--ink2); transition: color 240ms ease; }
+.lyi-lines li > * { display: block; width: 100%; min-height: 40px; padding: 6px 0; text-align: left; }
+.lyi-lines li.on { color: var(--now-text); font-size: 20px; }
+.lyi-lines li.past { opacity: .55; }
+.lyi-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 6px; }
+.lyi-foot .more { margin-left: auto; }
+.lyi-empty { padding: 14px 0 6px; }
+.lyi-empty p { font-size: 15px; line-height: 1.55; color: var(--ink2); }
+.lyi-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.lyi-acts .pillbtn { cursor: pointer; }
+.lyi-acts label.pillbtn:focus-within { outline: 2px solid var(--now); outline-offset: 2px; }

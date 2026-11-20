@@ -9,8 +9,7 @@ import { load, save } from '../lib/store'
 import { BARS, cachedShape, getShape, type Shape } from '../lib/shape'
 import type { Playlists } from '../lib/playlists'
 import { Icon, SAFE_VOLUME, clock, fromLine, info, minutesText, nf, outputIcon, outputLabel, secText, whoLine, type Vol } from './common'
-import { LyricsPage } from './Lyrics'
-import { useLyrics } from '../lib/lyrics'
+import { LyricsInline, LyricsPage } from './Lyrics'
 import { LevelSheet, PracticeSheet, QueuePage, RepeatSheet, SpeedSheet, TrimSheet } from './Sheets'
 import { NoteFloat } from './Notes'
 import { ChooseEditSheet } from './Edits'
@@ -313,9 +312,10 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
   const [levelOpen, setLevelOpen] = useState(false)
   const [pracOpen, setPracOpen] = useState(false)
   const closePrac = useCallback(() => setPracOpen(false), [])
-  const [lyOpen, setLyOpen] = useState(false)
+  const [lyOpen, setLyOpen] = useState<false | 'view' | 'edit' | 'sync'>(false)
+  const [view, setView] = useState<'flow' | 'lyrics'>(() => load('nowView', 'flow'))
+  const pickView = (v: 'flow' | 'lyrics') => { setView(v); save('nowView', v) }
   const closeLy = useCallback(() => setLyOpen(false), [])
-  const hasLy = !!useLyrics(player.current ?? undefined)
   const closeLevel = useCallback(() => setLevelOpen(false), [])
   const [nearbyAsked, setNearbyAsked] = useState<boolean>(() => load('nearbyAsked', false))
   const closeSpeed = useCallback(() => setSpeedOpen(false), [])
@@ -328,6 +328,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
   const rp = repeatShort(player)
   const p = shown ? info(shown) : null
   const talk = !!shown?.talk
+  const lyView = cur && !talk ? view : 'flow'
   const lec = talk && shown ? lectureOf(shown) : null
   const music = tracks.filter((t) => !t.talk)
 
@@ -359,9 +360,8 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
         {talk ? (
           <p className="who">{who}{shown!.duration > 0 && <span>{who ? ' · ' : ''}{minutesText(Math.round(shown!.duration / 60))}</span>}</p>
         ) : (who || p?.original) && <p className="who">{who}{p?.original && <span>{who ? ' · ' : ''}{tx("원곡 ")}{p.original}</span>}</p>}
-        {cur && !talk && (
+        {cur && !talk && (player.practice || player.ab) && (
           <div className="chiprow">
-            <button className={'prac' + (hasLy ? ' on' : '')} onClick={() => setLyOpen(true)} aria-haspopup="dialog"><Icon n="lyric" s={18} /><span>{hasLy ? tx("가사 보기") : tx("가사 넣기")}</span></button>
             {(player.practice || player.ab) && (
               <button className={'prac' + (player.practice ? ' on' : '')} onClick={() => setPracOpen(true)} aria-haspopup="dialog" aria-label={player.practice ? tx("연습 중인 빠르기와 키 바꾸기") : undefined}>
                 <Icon n="note" s={18} />{player.practice ? <span className="num">{[player.practice.r && player.practice.r !== 1 ? `${player.practice.r}×` : '', player.practice.k ? tx("키 {0}{1}", player.practice.k > 0 ? '+' : '−', Math.abs(player.practice.k)) : ''].filter(Boolean).join(' · ')}</span> : <span>{tx("빠르기·키")}</span>}
@@ -429,19 +429,25 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
       {cur && player.ab ? <AbBar player={player} edits={edits} /> : cur && !player.playing && player.time > 0.5 && !(player.duration > 0 && player.time >= player.duration - 0.5) ? <PausedBar player={player} onTrim={() => setTrimOpen(true)} onLevel={() => setLevelOpen(true)} onPractice={talk ? undefined : () => setPracOpen(true)} /> : (
       <section className="flow" aria-labelledby="flow-h">
         <div className="flow-h">
-          {player.bookmark != null ? (
-            <span className="bmchip">
-              <button className="bm-go" onClick={player.backToMark}><Icon n="rew" s={18} />{rt("__{0}__[num]부터 다시", fmt(player.bookmark))}</button>
-              <button className="bm-x" onClick={() => player.setBookmark(null)} aria-label={tx("책갈피 지우기")}><Icon n="x" s={16} /></button>
-              <h2 id="flow-h" className="sr">{tx("이어서")}</h2>
-            </span>
+          {cur && !talk ? (
+            <div className="ftabs" role="tablist" aria-label={tx("지금 화면 아래")}>
+              <button role="tab" id="flow-h" aria-selected={lyView === 'flow'} className={lyView === 'flow' ? 'on' : undefined} onClick={() => pickView('flow')}>{tx("이어서")}</button>
+              <button role="tab" aria-selected={lyView === 'lyrics'} className={lyView === 'lyrics' ? 'on' : undefined} onClick={() => pickView('lyrics')}><Icon n="lyric" s={16} />{tx("가사")}</button>
+            </div>
           ) : <h2 id="flow-h">{tx("이어서")}</h2>}
           <button className={'until' + (s ? ' set' : '')} aria-haspopup="dialog" onClick={onSleep}>
             <Icon n="moon" s={16} />
             {s ? (s.endOfTrack ? tx("이 곡 끝나면 멈춤") : <><span className="num">{clock(s.until, false)}</span> {tx("멈춤")}</>) : tx("잠들기")}
           </button>
         </div>
-        {flow && (
+        {player.bookmark != null && lyView === 'flow' && (
+          <span className="bmchip">
+            <button className="bm-go" onClick={player.backToMark}><Icon n="rew" s={18} />{rt("__{0}__[num]부터 다시", fmt(player.bookmark))}</button>
+            <button className="bm-x" onClick={() => player.setBookmark(null)} aria-label={tx("책갈피 지우기")}><Icon n="x" s={16} /></button>
+          </span>
+        )}
+        {lyView === 'lyrics' && cur && <LyricsInline t={cur} player={player} onOpen={(m) => setLyOpen(m ?? 'view')} />}
+        {flow && lyView === 'flow' && (
           <>
             <ol className="rows">
               {flow.rows.map((r, k) => {
@@ -475,7 +481,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
       {trimOpen && cur && <TrimSheet t={cur} player={player} onClose={closeTrim} />}
       {levelOpen && cur && <LevelSheet t={cur} player={player} onClose={closeLevel} />}
       {pracOpen && cur && <PracticeSheet t={cur} player={player} onClose={closePrac} />}
-      {lyOpen && cur && <LyricsPage t={cur} player={player} onClose={closeLy} />}
+      {lyOpen && cur && <LyricsPage t={cur} player={player} onClose={closeLy} start={lyOpen === 'view' ? undefined : lyOpen} />}
       {queueOpen && <QueuePage player={player} tracks={tracks} lists={lists} onClose={closeQueue} />}
     </div>
   )

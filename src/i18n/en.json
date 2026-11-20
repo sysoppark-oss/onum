@@ -707,5 +707,10 @@
 "{0}회": "Ep. {0}",
 "{0}강": "Lesson {0}",
 "음악 파일 속 가사와 곡 옆 .lrc 가사 파일을 저절로 가져와요. 가사를 .lrc 파일로 저장하거나 보낼 수 있어요.": "Lyrics stored in music files and .lrc files next to songs come in automatically. You can save or share lyrics as .lrc files.",
-"화면 언어(한국어·English·日本語)와 말씀 역본(개역한글·KJV·口語訳)을 고를 수 있어요(쉼 › 보기).": "Choose the language (한국어·English·日本語) and Bible version (Korean Revised·KJV·口語訳) in Rest › Display."
+"화면 언어(한국어·English·日本語)와 말씀 역본(개역한글·KJV·口語訳)을 고를 수 있어요(쉼 › 보기).": "Choose the language (한국어·English·日本語) and Bible version (Korean Revised·KJV·口語訳) in Rest › Display.",
+"이 곡 가사를 넣어 두면 노래방처럼 지금 부르는 줄을 따라가요.": "Add lyrics for this song and they'll follow along like karaoke.",
+"붙여 넣기": "Paste",
+"파일 가져오기": "Import file",
+"가사 전체 보기": "All lyrics",
+"지금 화면 아래": "Below the player"
 }

@@ -14,9 +14,9 @@ import { Page } from './Sheets'
 
 type Mode = 'view' | 'edit' | 'sync' | 'find'
 
-export function LyricsPage({ t, player, onClose }: { t: Track; player: Player; onClose: () => void }) {
+export function LyricsPage({ t, player, onClose, start }: { t: Track; player: Player; onClose: () => void; start?: 'edit' | 'sync' }) {
   const ly = useLyrics(t)
-  const [mode, setMode] = useState<Mode>(ly ? 'view' : 'find')
+  const [mode, setMode] = useState<Mode>(start === 'edit' ? 'edit' : start === 'sync' && ly ? 'sync' : ly ? 'view' : 'find')
   const [found, setFound] = useState(false)
   const x = info(t)
   // 처음 열 때 음악 파일 속 가사(또는 곡 옆 .lrc)를 먼저 찾아본다
@@ -186,6 +186,65 @@ function ViewLyrics({ t, ly, player, isCur, found, onEdit, onSync }: { t: Track;
             <button onClick={exportLrc}><Icon n="share" s={22} /><span>{isNative ? tx("보내기") : tx("파일로 저장")}</span></button>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+/** 「지금」 화면 안 가사 칸: 박자가 맞으면 지금 줄 둘레를, 없으면 넣는 길을 바로 보여 준다 */
+export function LyricsInline({ t, player, onOpen }: { t: Track; player: Player; onOpen: (m?: 'edit' | 'sync') => void }) {
+  const ly = useLyrics(t)
+  const [looking, setLooking] = useState(!ly)
+  useEffect(() => {
+    if (ly) { setLooking(false); return }
+    let alive = true
+    setLooking(true)
+    findLyrics(t).then((l) => { if (!alive) return; if (l) setLyrics(t, l); setLooking(false) })
+    return () => { alive = false }
+  }, [t.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  const fromFile = async (f: File | undefined) => {
+    if (!f) return
+    const s = await f.text()
+    if (s.trim()) setLyrics(t, fromPasted(ly, s))
+  }
+  if (!ly) {
+    return (
+      <div className="lyi-empty">
+        {looking ? <p role="status">{tx("음악 파일에 든 가사를 찾고 있어요…")}</p> : <>
+          <p>{tx("이 곡 가사를 넣어 두면 노래방처럼 지금 부르는 줄을 따라가요.")}</p>
+          <div className="lyi-acts">
+            <button className="pillbtn" onClick={() => onOpen('edit')}><Icon n="edit" s={18} />{tx("붙여 넣기")}</button>
+            <label className="pillbtn">
+              <input type="file" className="sr" accept=".lrc,.txt,text/plain" onChange={(e) => fromFile(e.target.files?.[0])} />
+              <Icon n="folder" s={18} />{tx("파일 가져오기")}
+            </label>
+          </div>
+        </>}
+      </div>
+    )
+  }
+  const lines = linesOf(ly.text)
+  const sync = synced(ly)
+  const on = sync ? lineAt(ly, player.time) : -1
+  // 지금 줄을 가운데 두고 앞 1줄, 뒤 3줄(빈 줄은 건너뜀)
+  const idx = lines.map((l, i) => (l ? i : -1)).filter((i) => i >= 0)
+  const at = Math.max(0, idx.findIndex((i) => i >= Math.max(on, 0)))
+  const from = Math.max(0, at - 1)
+  const show = idx.slice(from, from + 5)
+  return (
+    <div className="lyi">
+      <ol className="lyi-lines">
+        {show.map((i) => (
+          <li key={i} className={i === on ? 'on' : on >= 0 && i < on ? 'past' : undefined} aria-current={i === on ? 'true' : undefined}>
+            {sync && ly.t[i] != null
+              ? <button onClick={() => player.seek(Math.max(0, ly.t[i]! - ly.off))}>{lines[i]}</button>
+              : <span>{lines[i]}</span>}
+          </li>
+        ))}
+      </ol>
+      <div className="lyi-foot">
+        {!sync && <button className="pillbtn small" onClick={() => onOpen('sync')}>{tx("박자 맞추기")}</button>}
+        <button className="more" onClick={() => onOpen()}>{tx("가사 전체 보기")}<Icon n="chev" s={16} /></button>
       </div>
     </div>
   )
