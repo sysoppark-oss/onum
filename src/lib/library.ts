@@ -32,7 +32,9 @@ function folderOf(f: File): string {
 
 /** "가수 - 제목.mp3" 형태 파일 이름에서 가수와 제목을 짐작한다 */
 export function fromName(name: string): { title: string; artist: string } {
-  const base = name.replace(/\.[^.]+$/, '').replace(/_/g, ' ').trim()
+  const bare = name.replace(/\.[^.]+$/, '')
+  // 방송 녹음 꼴("가수🎵곡_원곡")의 밑줄은 원곡을 가르는 표시라 남겨 둔다
+  const base = (/[🎵🎶]/u.test(bare) ? bare : bare.replace(/_/g, ' ')).trim()
   const m = base.match(/^(?:\d+[.\s-]+)?(.+?)\s+-\s+(.+)$/)
   return m ? { artist: m[1].trim(), title: m[2].trim() } : { artist: '', title: base }
 }

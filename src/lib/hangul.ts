@@ -34,3 +34,21 @@ export function matches(target: string, query: string): boolean {
   }
   return false
 }
+
+/** 찾은 자리: [시작, 길이] (원래 글자 기준). 띄어쓰기를 건너뛰며 맞춘다. 없으면 null */
+export function findRange(target: string, query: string): [number, number] | null {
+  const q = [...norm(query)]
+  if (!q.length) return null
+  const chars = [...target]
+  for (let i = 0; i < chars.length; i++) {
+    let j = 0, k = i
+    while (k < chars.length && j < q.length) {
+      const a = chars[k].toLowerCase()
+      if (/\s/.test(a)) { if (j === 0) break; k++; continue }
+      const b = q[j]
+      if (a === b || (isCho(b) && toChosung(a) === b)) { j++; k++ } else break
+    }
+    if (j === q.length) return [i, k - i]
+  }
+  return null
+}

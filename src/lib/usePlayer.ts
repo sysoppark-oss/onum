@@ -12,7 +12,8 @@ export interface Repeat {
   limit: 'once' | 'forever' | 'timed'
   minutes: number
 }
-interface Sleep { until: number; endOfTrack: boolean }
+export interface Sleep { until: number; endOfTrack: boolean; fade: boolean }
+export interface Goodnight { at: number; title: string }
 const SLEEP_FADE_MS = 30000
 const DEFAULT_REPEAT: Repeat = { scope: 'all', limit: 'forever', minutes: 60 }
 
@@ -43,14 +44,16 @@ export function usePlayer(tracks: Track[]) {
   // ── 잠들기 예약 ──
   const [sleep, setSleepState] = useState<Sleep | null>(null)
   const [sleepLeft, setSleepLeft] = useState(0)
-  const [goodnight, setGoodnight] = useState(false)
+  const [goodnight, setGoodnight] = useState<Goodnight | null>(null)
+  const [last, setLast] = useState<Record<string, number>>(() => load('last', {})) // 곡마다 마지막으로 들은 때
   const sleepRef = useRef<Sleep | null>(null)
+  const currentTitle = useRef('')
   const gainRef = useRef(gain)
   gainRef.current = gain
 
-  /** minutes: 몇 분 뒤 / 'track': 이 곡까지 / null: 끄기 */
-  const setSleep = useCallback((v: number | 'track' | null) => {
-    const next: Sleep | null = v == null ? null : v === 'track' ? { until: 0, endOfTrack: true } : { until: Date.now() + v * 60000, endOfTrack: false }
+  /** minutes: 몇 분 뒤 / 'track': 이 곡까지 / null: 끄기. fade: 끝날 때 30초 동안 소리 줄이기 */
+  const setSleep = useCallback((v: number | 'track' | null, fade = true) => {
+    const next: Sleep | null = v == null ? null : v === 'track' ? { until: 0, endOfTrack: true, fade } : { until: Date.now() + v * 60000, endOfTrack: false, fade }
     sleepRef.current = next
     setSleepState(next)
     setSleepLeft(next && !next.endOfTrack ? next.until - Date.now() : 0)
@@ -64,7 +67,7 @@ export function usePlayer(tracks: Track[]) {
     sleepRef.current = null
     setSleepState(null)
     setPlaying(false)
-    setGoodnight(true)
+    setGoodnight({ at: Date.now(), title: currentTitle.current })
   }, [])
 
   // 끝나기 30초 전부터 소리를 서서히 줄인다
@@ -77,7 +80,7 @@ export function usePlayer(tracks: Track[]) {
       if (left <= 0) {
         if (a.paused) { sleepRef.current = null; setSleepState(null) } // 이미 멈춰 있으면 조용히 끝낸다
         else finishSleep()
-      } else if (left < SLEEP_FADE_MS) a.volume = gainRef.current * (left / SLEEP_FADE_MS)
+      } else if (sleep.fade && left < SLEEP_FADE_MS) a.volume = gainRef.current * (left / SLEEP_FADE_MS)
     }
     tick()
     const h = setInterval(tick, 500)
@@ -87,6 +90,7 @@ export function usePlayer(tracks: Track[]) {
   byId.current = new Map(tracks.map((t) => [t.id, t]))
 
   const current = index >= 0 ? byId.current.get(queue[index]) : undefined
+  currentTitle.current = current?.title ?? ''
 
   const setRepeat = useCallback((r: Repeat) => {
     left.current = r.limit === 'timed' ? r.minutes * 60000 : 0
@@ -102,6 +106,7 @@ export function usePlayer(tracks: Track[]) {
     a.currentTime = at
     a.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
     setPlays((old) => { const n = { ...old, [t.id]: (old[t.id] ?? 0) + 1 }; save('plays', n); return n })
+    setLast((old) => { const n = { ...old, [t.id]: Date.now() }; save('last', n); return n })
   }, [])
 
   /** 목록에서 곡을 누르면: 그 목록을 대기열로 */
@@ -303,8 +308,8 @@ export function usePlayer(tracks: Track[]) {
   return {
     current, playing, time, duration, shuffle, repeat, repeatLeft,
     resumeTrack, resumePos: resume?.pos ?? 0,
-    queueTracks, index, next, nextNote, gain, plays, sleep, sleepLeft, goodnight,
-    setSleep, dismissGoodnight: () => setGoodnight(false),
+    queueTracks, index, next, nextNote, gain, plays, last, sleep, sleepLeft, goodnight,
+    setSleep, dismissGoodnight: () => setGoodnight(null),
     playFrom, go, toggle, pause, seek, toggleShuffle, setRepeat, jump, removeAt, move, enqueue, setGain,
   }
 }
