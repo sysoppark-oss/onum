@@ -29,6 +29,8 @@ interface MusicScanPlugin {
   addListener(event: 'volumeChanged', fn: (v: Volume) => void): Promise<PluginListenerHandle>
   addListener(event: 'outputChanged', fn: (o: Output) => void): Promise<PluginListenerHandle>
   addListener(event: 'mediaAction', fn: (a: MediaAction) => void): Promise<PluginListenerHandle>
+  addListener(event: 'exportProgress', fn: (p: { f: number }) => void): Promise<PluginListenerHandle>
+  exportClips(opts: { parts: { path: string; s: number; e: number }[]; name: string }): Promise<{ where: string }>
 }
 
 const MusicScan = registerPlugin<MusicScanPlugin>('MusicScan')
@@ -137,4 +139,10 @@ export function nativeAnalyze(path: string, bars: number): Promise<{ rms: number
 /** 차 오디오인지 알아보려고 "근처 기기" 권한을 묻는다 */
 export function askNearby(): Promise<Output | null> {
   return isNative ? MusicScan.askNearby().catch(() => null) : Promise.resolve(null)
+}
+
+/** 편집곡을 진짜 음악 파일(.m4a)로 「음악/온음」에 저장(설치형 앱) */
+export async function nativeExport(parts: { path: string; s: number; e: number }[], name: string, onProgress: (f: number) => void): Promise<string> {
+  const h = await MusicScan.addListener('exportProgress', (p) => onProgress(p.f))
+  try { return (await MusicScan.exportClips({ parts, name })).where } finally { h.remove() }
 }

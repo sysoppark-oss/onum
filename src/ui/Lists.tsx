@@ -5,6 +5,8 @@ import type { Player } from '../lib/usePlayer'
 import type { Playlist, Playlists } from '../lib/playlists'
 import { Icon, VirtualList, info, minutesText, nf, whoLine } from './common'
 import { AddSongs, EditRows, MemoSheet, NameSheet, Page, TagSheet } from './Sheets'
+import { EditsSection } from './Edits'
+import type { Edits } from '../lib/edits'
 
 const DAY = 86400000
 // 바로가기 목록: 파일이 있는 자리로 가른다(설치형 앱은 전체 경로, PC는 폴더 이름)
@@ -22,7 +24,7 @@ function meta(items: Track[]): string {
 
 interface Auto { id: string; name: string; sub: string; items: Track[] }
 
-export function ListsScreen({ tracks, music, player, lists, onPlayed }: { tracks: Track[]; music: Track[]; player: Player; lists: Playlists; onPlayed: () => void }) {
+export function ListsScreen({ tracks, music, player, lists, edits, onPlayed }: { tracks: Track[]; music: Track[]; player: Player; lists: Playlists; edits: Edits; onPlayed: () => void }) {
   // 곡을 틀면 「지금」으로 넘어간다(음악 탭과 같게)
   const play: Player['playFrom'] = (...a) => { player.playFrom(...a); onPlayed() }
   const [open, setOpen] = useState<string | null>(null)
@@ -94,6 +96,7 @@ export function ListsScreen({ tracks, music, player, lists, onPlayed }: { tracks
           })}
         </ul>
       )}
+      <EditsSection edits={edits} tracks={tracks} player={player} play={play} />
       <h2 className="sub">저절로 모이는 목록</h2>
       <ul className="pl auto">
         {autos.map((a) => (

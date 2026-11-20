@@ -1,4 +1,5 @@
 // 온음 — 「흐름」 화면
+import { partTracks, useEdits } from './lib/edits'
 import { NOTES } from './lib/version'
 import { WhatsNew } from './ui/WhatsNew'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -68,7 +69,13 @@ export default function App() {
   useEffect(() => {
     if (battery && !battery.free && !load('batteryAsked', false)) setBatteryOpen(true)
   }, [battery])
-  const player = usePlayer(tracks)
+  const edits = useEdits()
+  // 재생기는 편집곡의 구간들도 곡처럼 안다
+  const playable = useMemo(() => {
+    const byId = new Map(tracks.map((t) => [t.id, t]))
+    return [...tracks, ...edits.items.flatMap((e) => partTracks(e, byId))]
+  }, [tracks, edits.items])
+  const player = usePlayer(playable)
   // 업데이트 뒤 한 번: 새로워진 점. 처음 쓰는 사람에게는 띄우지 않는다
   const [news, setNews] = useState(false)
   const closeNews = useCallback(() => { setNews(false); save('notesSeen', NOTES.id) }, [])
@@ -113,9 +120,9 @@ export default function App() {
           <EasyScreen tracks={tracks} player={player} vol={vol} loud={loud} onNormal={() => setEasy(false)} onSleep={openSleep} />
         ) : (
           <>
-            {tab === 'now' && <NowScreen tracks={tracks} player={player} vol={vol} loud={loud} output={output} lists={lists} onSleep={openSleep} />}
+            {tab === 'now' && <NowScreen tracks={tracks} player={player} vol={vol} loud={loud} output={output} lists={lists} edits={edits} onSleep={openSleep} />}
             {tab === 'music' && <MusicScreen tracks={tracks} scan={scan} player={player} lists={lists} onPlayed={() => setTab('now')} onKind={moveKind} />}
-            {tab === 'lists' && <ListsScreen tracks={tracks} music={music} player={player} lists={lists} onPlayed={() => setTab('now')} />}
+            {tab === 'lists' && <ListsScreen tracks={tracks} music={music} player={player} lists={lists} edits={edits} onPlayed={() => setTab('now')} />}
             {tab === 'rest' && <RestScreen easy={easy} setEasy={setEasy} onFolders={() => setFolders(true)} battery={battery} onBattery={() => setBatteryOpen(true)} verseMove={verseMove} setVerseMove={setVerseMove} player={player} onNews={() => setNews(true)} />}
           </>
         )}

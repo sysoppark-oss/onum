@@ -566,13 +566,13 @@ label.pick:focus-within { outline: 3px solid var(--now); outline-offset: 2px; }
 .tlinks { display: flex; flex-wrap: wrap; justify-content: center; column-gap: 18px; }
 
 /* 목록 메모·곡 색 */
-.tag { width: 6px; height: 28px; border-radius: 3px; flex-shrink: 0; }
-.tag.none { background: transparent; }
-.tag.green { background: var(--tg-green); }
-.tag.orange { background: var(--tg-orange); }
-.tag.purple { background: var(--tg-purple); }
-.tag.pink { background: var(--tg-pink); }
-.opt .tag { height: 22px; margin-right: -4px; }
+.ctag { width: 6px; height: 28px; border-radius: 3px; flex-shrink: 0; }
+.ctag.none { background: transparent; }
+.ctag.green { background: var(--tg-green); }
+.ctag.orange { background: var(--tg-orange); }
+.ctag.purple { background: var(--tg-purple); }
+.ctag.pink { background: var(--tg-pink); }
+.opt .ctag { height: 22px; margin-right: -4px; }
 .lmemo { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 14px 16px; border-radius: 14px; background: var(--sf); text-align: left; font-size: 16px; line-height: 1.5; }
 .lmemo span { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .lmemo small { flex-shrink: 0; font-size: 14px; font-weight: 700; color: var(--ink2); text-decoration: underline; text-underline-offset: 3px; line-height: 24px; }
@@ -629,3 +629,14 @@ label.pick:focus-within { outline: 3px solid var(--now); outline-offset: 2px; }
   50% { transform: translate(calc(-50% + var(--dx) * .5), -10px) scale(1.05) rotate(calc(var(--r) * -.6)); }
   100% { transform: translate(calc(-50% + var(--dx)), -22px) scale(.9) rotate(var(--r)); opacity: 0; }
 }
+
+/* 내 편집곡 */
+.sub-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sub-row .textlink { align-self: auto; }
+.erows.parts li { height: 68px; }
+.pillbtn.listen { align-self: flex-start; }
+.pillbtn.listen.on { background: var(--ink); color: var(--on-ink); }
+.textlink.savefile { align-self: flex-start; margin-top: -6px; }
+.xbar { height: 8px; border-radius: 4px; background: var(--sf); overflow: hidden; }
+.xbar b { display: block; height: 100%; background: var(--now); border-radius: 4px; transition: width 200ms linear; }
+a.go { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }

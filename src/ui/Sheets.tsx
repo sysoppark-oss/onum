@@ -267,7 +267,7 @@ export function EditRows({ tracks, currentId, lockCurrent, onTap, onMove, onRemo
         <li key={t.id + i} className={on ? 'on' : undefined}>
           <button className="erow-main" aria-current={on ? 'true' : undefined} onClick={() => onTap(i)} {...(onLong ? lp(() => onLong(i)) : {})}>
             <span className="en num" aria-hidden="true">{i + 1}</span>
-            {tagOf && <i className={'tag ' + (tagOf(t) ?? 'none')} aria-hidden="true" />}
+            {tagOf && <i className={'ctag ' + (tagOf(t) ?? 'none')} aria-hidden="true" />}
             <span className="x"><span className="x1">{x.song}</span><span className="x2">{tagOf?.(t) ? <span className="sr">{tagName(tagOf(t))} 표시, </span> : null}{whoLine(x) || ' '}</span></span>
           </button>
           <button className="eb" disabled={i === 0} onClick={() => onMove(i, -1)} aria-label={`${x.song} 위로`}><Icon n="up" s={22} /></button>
@@ -360,7 +360,7 @@ export function AddSongs({ tracks, has, onAdd, onClose }: { tracks: Track[]; has
 }
 
 /** 목록 이름 적기 */
-export function NameSheet({ onDone, onClose, title = '새 목록 만들기', initial = '', done = '만들기' }: { onDone: (name: string) => void; onClose: () => void; title?: string; initial?: string; done?: string }) {
+export function NameSheet({ onDone, onClose, title = '새 목록 만들기', initial = '', done = '만들기', placeholder = '예: 새벽 기도 찬양' }: { onDone: (name: string) => void; onClose: () => void; title?: string; initial?: string; done?: string; placeholder?: string }) {
   const [name, setName] = useState(initial)
   const [err, setErr] = useState(false)
   const input = useRef<HTMLInputElement>(null)
@@ -376,9 +376,9 @@ export function NameSheet({ onDone, onClose, title = '새 목록 만들기', ini
     <Sheet label={title} onClose={onClose}>
       <form className="form" onSubmit={submit}>
         <h2 className="q">{title}</h2>
-        <label className="flabel" htmlFor="list-name">목록 이름</label>
+        <label className="flabel" htmlFor="list-name">이름</label>
         <input id="list-name" ref={input} className="field" value={name} maxLength={30} autoComplete="off" enterKeyHint="done"
-          placeholder="예: 새벽 기도 찬양" aria-invalid={err} aria-describedby={err ? 'name-err' : undefined}
+          placeholder={placeholder} aria-invalid={err} aria-describedby={err ? 'name-err' : undefined}
           onChange={(e) => { setName(e.target.value); setErr(false) }} />
         {err && <p id="name-err" className="ferr" role="alert">이름을 적어 주세요.</p>}
         <button className="go" type="submit">{done}</button>
@@ -549,7 +549,7 @@ export function TagSheet({ t, tag, onPick, onClose }: { t: Track; tag?: Tag; onP
         <button className={'opt' + (!tag ? ' on' : '')} role="radio" aria-checked={!tag} onClick={() => pick(null)}><span className="r" aria-hidden="true" />표시 안 함</button>
         {TAGS.map((g) => (
           <button key={g.k} className={'opt' + (tag === g.k ? ' on' : '')} role="radio" aria-checked={tag === g.k} onClick={() => pick(g.k)}>
-            <span className="r" aria-hidden="true" /><i className={'tag ' + g.k} aria-hidden="true" />{g.name}
+            <span className="r" aria-hidden="true" /><i className={'ctag ' + g.k} aria-hidden="true" />{g.name}
           </button>
         ))}
       </div>

@@ -171,6 +171,7 @@ export function usePlayer(tracks: Track[]) {
   /** 실제로 들을 범위: 곡별 시작·끝 + (켜져 있으면) 앞뒤 무음 건너뛰기. to가 0이면 아직 모름 */
   const bounds = useCallback((t: Track, dur?: number) => {
     const d = dur && isFinite(dur) ? dur : t.duration || 0
+    if (t.clip) return { from: t.clip.s, to: Math.min(t.clip.e, d || t.clip.e) } // 편집곡 구간
     const tr = trimsRef.current[t.id] || {}
     const sh = skipSilRef.current && !t.talk ? cachedShape(t) : undefined
     let from = Math.max(tr.s ?? 0, sh?.head ?? 0)
@@ -195,7 +196,7 @@ export function usePlayer(tracks: Track[]) {
     count(t)
     // 처음 듣는 곡은 아직 앞 무음을 모른다: 재고 나서 아직 무음 안이면 건너뛴다
     if (!cachedShape(t)) getShape(t).then((sh) => { if (sh?.side && audio.current === a && a.src === t.url) setMonoFix(a, sh.side) })
-    if (at == null && !t.talk && skipSilRef.current && !cachedShape(t)) {
+    if (at == null && !t.talk && !t.clip && skipSilRef.current && !cachedShape(t)) {
       getShape(t).then((sh) => {
         const h = sh?.head ?? 0
         if (h > 0.3 && audio.current === a && a.src === t.url && a.currentTime < h - 0.2) a.currentTime = Math.max(h, trimsRef.current[t.id]?.s ?? 0)

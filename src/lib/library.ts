@@ -16,6 +16,10 @@ export interface Track {
   bitrate?: number // bps
   talk?: boolean // 강의(앱이 가른 결과)
   path?: string // 설치형 앱: 휴대폰 안 파일 자리(분석용)
+  // 내 편집곡의 한 구간: 원래 곡(src)의 clip.s~clip.e만 든다
+  src?: string
+  clip?: { s: number; e: number }
+  edit?: { id: string; k: number; n: number; from: string }
 }
 
 const AUDIO_EXT = /\.(mp3|m4a|aac|flac|wav|ogg|opus)$/i

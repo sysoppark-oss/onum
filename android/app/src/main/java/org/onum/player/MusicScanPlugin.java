@@ -253,6 +253,37 @@ public class MusicScanPlugin extends Plugin {
         call.resolve();
     }
 
+    /** 편집곡을 진짜 음악 파일로: parts [{path, s, e}], name. 진행은 exportProgress 알림으로 */
+    @PluginMethod
+    public void exportClips(PluginCall call) {
+        JSArray arr = call.getArray("parts");
+        String name = call.getString("name", "온음 편집곡");
+        if (arr == null || arr.length() == 0) { call.reject("no_parts"); return; }
+        Exporter.Clip[] clips = new Exporter.Clip[arr.length()];
+        try {
+            for (int i = 0; i < arr.length(); i++) {
+                org.json.JSONObject o = arr.getJSONObject(i);
+                clips[i] = new Exporter.Clip(o.getString("path"), o.getDouble("s"), o.getDouble("e"));
+            }
+        } catch (Exception e) { call.reject("bad_parts", e); return; }
+        new Thread(() -> {
+            try {
+                long[] last = {0};
+                String where = Exporter.run(getContext(), clips, name, (f) -> {
+                    long now = System.currentTimeMillis();
+                    if (now - last[0] < 250) return;
+                    last[0] = now;
+                    JSObject o = new JSObject();
+                    o.put("f", f);
+                    notifyListeners("exportProgress", o);
+                });
+                JSObject r = new JSObject();
+                r.put("where", where);
+                call.resolve(r);
+            } catch (Exception e) { call.reject("export_failed", e); }
+        }).start();
+    }
+
     /** 소리 모양·소리 크기: 곡을 bars 구간으로 나눠 구간마다 1초씩만 풀어 잰다(긴 강의도 빠르고 메모리를 적게 쓴다) */
     @PluginMethod
     public void analyze(PluginCall call) {

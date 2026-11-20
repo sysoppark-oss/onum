@@ -24,6 +24,8 @@ export function clock(ms: number, withAmPm = true): string {
 /* ── 곡 정보: 제목 풀이는 곡마다 한 번만 ── */
 const parsedMemo = new Map<string, Parsed>()
 export function info(t: Track): Parsed {
+  // 편집곡 구간: 편집곡 이름 + 몇째 구간·어느 곡에서
+  if (t.edit) return { song: t.title, singer: `편집곡 ${t.edit.k + 1}/${t.edit.n} · ${t.edit.from}`, original: '', program: '', episode: '' }
   let p = parsedMemo.get(t.id)
   if (!p) {
     p = parseTitle(t.title, t.artist)

@@ -26,10 +26,11 @@ const memo = new Map<string, Shape>()
 let chain: Promise<unknown> = Promise.resolve() // 한 번에 한 곡씩만 푼다
 
 export function cachedShape(t: Track): Shape | undefined {
-  const hit = memo.get(t.id)
+  const key = t.src ?? t.id // 편집곡 구간은 원래 곡의 소리 모양을 쓴다
+  const hit = memo.get(key)
   if (hit) return hit
-  const saved = load<Shape | null>('shape:' + t.id, null)
-  if (saved && saved.bars?.length === BARS && saved.lufs !== undefined && saved.head !== undefined && saved.side !== undefined) { memo.set(t.id, saved); return saved }
+  const saved = load<Shape | null>('shape:' + key, null)
+  if (saved && saved.bars?.length === BARS && saved.lufs !== undefined && saved.head !== undefined && saved.side !== undefined) { memo.set(key, saved); return saved }
   return undefined
 }
 
@@ -59,8 +60,8 @@ async function analyze(t: Track): Promise<Shape | null> {
     if (!r || r.rms.length !== BARS) return null
     const bars = toBars(r.rms)
     const shape: Shape = { bars, hook: findHook(bars), lufs: r.lufs ?? null, head: r.head ?? 0, tail: r.tail ?? 0, side: r.side ?? 0 }
-    memo.set(t.id, shape)
-    save('shape:' + t.id, shape)
+    memo.set(t.src ?? t.id, shape)
+    save('shape:' + (t.src ?? t.id), shape)
     return shape
   }
   if (t.duration > MAX_SECONDS) return null
@@ -96,8 +97,8 @@ async function analyze(t: Track): Promise<Shape | null> {
     side = sideOf(eL, eR)
   }
   const shape: Shape = { bars, hook: findHook(bars), lufs: loudness(chs, audio.sampleRate), head, tail, side }
-  memo.set(t.id, shape)
-  save('shape:' + t.id, shape)
+  memo.set(t.src ?? t.id, shape)
+  save('shape:' + (t.src ?? t.id), shape)
   return shape
 }
 

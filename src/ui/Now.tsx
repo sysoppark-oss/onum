@@ -10,6 +10,8 @@ import type { Playlists } from '../lib/playlists'
 import { Icon, SAFE_VOLUME, clock, fromLine, info, minutesText, nf, outputIcon, outputLabel, secText, whoLine, type Vol } from './common'
 import { LevelSheet, QueuePage, RepeatSheet, SpeedSheet, TrimSheet } from './Sheets'
 import { NoteFloat } from './Notes'
+import { ChooseEditSheet } from './Edits'
+import type { Edits } from '../lib/edits'
 import { useFlag } from '../lib/flag'
 
 /* ── 소리 모양 ── */
@@ -214,9 +216,12 @@ function buildTalkFlow(p: Player, now: number): Flow {
 }
 
 /** 구간 반복: 시작 정하기 → 끝 정하기 → 반복 중 */
-function AbBar({ player }: { player: Player }) {
+function AbBar({ player, edits }: { player: Player; edits: Edits }) {
   const g = player.ab!
   const [miss, setMiss] = useState(false)
+  const [save, setSave] = useState(false)
+  const [saved, setSaved] = useState('')
+  const cur = player.current
   if (g.b == null) {
     return (
       <section className="abbar" aria-label="구간 반복">
@@ -244,7 +249,10 @@ function AbBar({ player }: { player: Player }) {
           <button className="num" onClick={() => player.abSet('b', g.b! - 1)} aria-label="끝 1초 앞으로">−1초</button>
           <button className="num" onClick={() => player.abSet('b', g.b! + 1)} aria-label="끝 1초 뒤로">+1초</button></div>
       </div>
+      {cur && !cur.clip && <button className="quick" onClick={() => setSave(true)}>이 구간을 편집곡에 담기</button>}
+      {saved && <p className="done-note" role="status">「{saved}」에 담았어요 · 내 목록에서 들어요</p>}
       <div className="abx"><span className="t2">다음 곡으로 가면 저절로 풀려요</span><button onClick={player.abClear}>구간 반복 끝내기</button></div>
+      {save && cur && <ChooseEditSheet edits={edits} part={{ tid: cur.src ?? cur.id, s: Math.floor(g.a), e: Math.ceil(g.b!) }} onClose={() => setSave(false)} onDone={setSaved} />}
     </section>
   )
 }
@@ -279,8 +287,8 @@ function useNow(ms: number) {
   return now
 }
 
-export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }: {
-  tracks: Track[]; player: Player; vol: Vol; loud: boolean; output: Output | null; lists: Playlists; onSleep: () => void
+export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onSleep }: {
+  tracks: Track[]; player: Player; vol: Vol; loud: boolean; output: Output | null; lists: Playlists; edits: Edits; onSleep: () => void
 }) {
   const notesOn = useFlag('notes', true)
   const [repeatOpen, setRepeatOpen] = useState(false)
@@ -337,11 +345,20 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
       {shown && (
         <>
           <ShapeBar t={shown} time={cur ? player.time : player.resumePos} duration={cur ? player.duration : shown.duration}
-            onSeek={cur ? player.seek : undefined} ab={cur ? player.ab : null} mark={cur ? player.bookmark : null} />
+            onSeek={cur ? player.seek : undefined} ab={cur ? (player.ab ?? (cur.clip ? { a: cur.clip.s, b: cur.clip.e, n: 1 } : null)) : null} mark={cur ? player.bookmark : null} />
           <div className="times num" aria-hidden="true">
             {notesOn && cur && !cur.talk && <NoteFloat playing={player.playing} ratio={player.duration > 0 ? player.time / player.duration : 0} bars={cachedShape(cur)?.bars ?? null} />}
-            <span>{fmt(cur ? player.time : player.resumePos)}</span>
-            <span>−{fmt(Math.max(0, (cur ? player.duration : shown.duration) - (cur ? player.time : player.resumePos)))}</span>
+            {cur?.clip ? (
+              <>
+                <span>{fmt(Math.max(0, player.time - cur.clip.s))}</span>
+                <span>−{fmt(Math.max(0, cur.clip.e - player.time))}</span>
+              </>
+            ) : (
+              <>
+                <span>{fmt(cur ? player.time : player.resumePos)}</span>
+                <span>−{fmt(Math.max(0, (cur ? player.duration : shown.duration) - (cur ? player.time : player.resumePos)))}</span>
+              </>
+            )}
           </div>
         </>
       )}
@@ -379,7 +396,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
       <VolumeRow vol={vol} loud={loud} guide={!!output && output.kind !== 'speaker' && !output.car}
         onCar={output?.kind === 'bluetooth' && output.car === undefined && !nearbyAsked ? () => { save('nearbyAsked', true); setNearbyAsked(true); askNearby() } : undefined} />
 
-      {cur && player.ab ? <AbBar player={player} /> : cur && !player.playing && player.time > 0.5 && !(player.duration > 0 && player.time >= player.duration - 0.5) ? <PausedBar player={player} onTrim={() => setTrimOpen(true)} onLevel={() => setLevelOpen(true)} /> : (
+      {cur && player.ab ? <AbBar player={player} edits={edits} /> : cur && !player.playing && player.time > 0.5 && !(player.duration > 0 && player.time >= player.duration - 0.5) ? <PausedBar player={player} onTrim={() => setTrimOpen(true)} onLevel={() => setLevelOpen(true)} /> : (
       <section className="flow" aria-labelledby="flow-h">
         <div className="flow-h">
           {player.bookmark != null ? (
