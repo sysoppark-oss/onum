@@ -265,21 +265,28 @@ function AbBar({ player, edits }: { player: Player; edits: Edits }) {
 function PausedBar({ player, onTrim, onLevel, onPractice }: { player: Player; onTrim: () => void; onLevel: () => void; onPractice?: () => void }) {
   const t = player.time
   return (
-    <section className="abbar paused" aria-labelledby="pz-h">
-      <h2 className="say2" id="pz-h"><em className="num">{fmt(t)}</em>에서 멈췄어요</h2>
-      <div className="nudge" role="group" aria-label="멈춘 자리 다듬기">
-        <button className="num" onClick={() => player.skip(-5)} aria-label="멈춘 자리를 5초 되돌리기">−5초</button>
-        <span>막대를 끌거나 눌러서 자리를 다듬어요</span>
-        <button className="num" onClick={() => player.skip(5)} aria-label="멈춘 자리를 5초 넘기기">+5초</button>
+    <section className="pz" aria-labelledby="pz-h">
+      <div className="pz-top">
+        <h2 className="pz-h" id="pz-h"><em className="num">{fmt(t)}</em>에서 멈췄어요</h2>
+        <div className="pz-nudge" role="group" aria-label="멈춘 자리 다듬기">
+          <button className="num" onClick={() => player.skip(-5)} aria-label="멈춘 자리를 5초 되돌리기"><Icon n="rew" s={16} />5초</button>
+          <button className="num" onClick={() => player.skip(5)} aria-label="멈춘 자리를 5초 넘기기">5초<Icon n="fwd" s={16} /></button>
+        </div>
       </div>
-      <div className="ab2">
-        <button className="next" onClick={() => { player.setBookmark(t); player.play() }}>여기부터 다시 듣기<small>언제든 이 자리로 돌아와요</small></button>
-        <button className="set" onClick={() => { player.abStart(); player.play() }}>여기부터 구간 반복<small>끝을 정해 그 사이만</small></button>
+      <div className="pz-acts">
+        <button onClick={() => { player.setBookmark(t); player.play() }}>
+          <span className="pz-ic" aria-hidden="true"><Icon n="undo" s={20} /></span>
+          <span className="x"><span className="x1">여기부터 다시 듣기</span><span className="x2">언제든 이 자리로 돌아와요</span></span>
+        </button>
+        <button onClick={() => { player.abStart(); player.play() }}>
+          <span className="pz-ic" aria-hidden="true"><Icon n="ab" s={20} /></span>
+          <span className="x"><span className="x1">여기부터 구간 반복</span><span className="x2">끝을 정해 그 사이만 들어요</span></span>
+        </button>
       </div>
-      <div className="tlinks">
-        <button className="textlink" onClick={onTrim}>이 곡 시작·끝 정하기</button>
-        <button className="textlink" onClick={onLevel}>이 곡 소리 크기</button>
-        {onPractice && <button className="textlink" onClick={onPractice}>빠르기·키</button>}
+      <div className={'pz-tools' + (onPractice ? '' : ' two')} role="group" aria-label="이 곡 설정">
+        <button onClick={onTrim}><Icon n="trim" s={22} /><span>시작·끝</span></button>
+        <button onClick={onLevel}><Icon n="level" s={22} /><span>소리 크기</span></button>
+        {onPractice && <button onClick={onPractice}><Icon n="note" s={22} /><span>빠르기·키</span></button>}
       </div>
     </section>
   )
@@ -352,10 +359,10 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
         ) : (who || p?.original) && <p className="who">{who}{p?.original && <span>{who ? ' · ' : ''}원곡 {p.original}</span>}</p>}
         {cur && !talk && (
           <div className="chiprow">
-            <button className={'prac' + (hasLy ? ' on' : '')} onClick={() => setLyOpen(true)} aria-haspopup="dialog">{hasLy ? '가사 보기' : '가사 넣기'}</button>
+            <button className={'prac' + (hasLy ? ' on' : '')} onClick={() => setLyOpen(true)} aria-haspopup="dialog"><Icon n="lyric" s={18} /><span>{hasLy ? '가사 보기' : '가사 넣기'}</span></button>
             {(player.practice || player.ab) && (
-              <button className={'prac' + (player.practice ? ' on' : '')} onClick={() => setPracOpen(true)} aria-haspopup="dialog">
-                {player.practice ? <>연습 중 · <span className="num">{[player.practice.r && player.practice.r !== 1 ? `${player.practice.r}×` : '', player.practice.k ? `키 ${player.practice.k > 0 ? '+' : '−'}${Math.abs(player.practice.k)}` : ''].filter(Boolean).join(' · ')}</span></> : '빠르기·키 바꾸기'}
+              <button className={'prac' + (player.practice ? ' on' : '')} onClick={() => setPracOpen(true)} aria-haspopup="dialog" aria-label={player.practice ? '연습 중인 빠르기와 키 바꾸기' : undefined}>
+                <Icon n="note" s={18} />{player.practice ? <span className="num">{[player.practice.r && player.practice.r !== 1 ? `${player.practice.r}×` : '', player.practice.k ? `키 ${player.practice.k > 0 ? '+' : '−'}${Math.abs(player.practice.k)}` : ''].filter(Boolean).join(' · ')}</span> : <span>빠르기·키</span>}
               </button>
             )}
           </div>
