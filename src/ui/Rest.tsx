@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react'
 import { dayIndex, type Verse } from '../lib/verses'
 import { MOODS, YEAR } from '../lib/verses365'
 import { setKjv, shown, useKjv } from '../lib/kjv'
+import { setFlag, useFlag } from '../lib/flag'
 import { Icon } from './common'
 import { Page, XfadeChips } from './Sheets'
 import type { Player } from '../lib/usePlayer'
@@ -21,6 +22,7 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
 }) {
   const norm = player.normOn, setNorm = player.setNorm
   const kjv = useKjv()
+  const notesOn = useFlag('notes', true)
   const [shared, setShared] = useState('')
   const [about, setAbout] = useState(false)
   const [reading, setReading] = useState(false)
@@ -58,6 +60,12 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
           <div className="lrow">
             <span className="x"><span className="x1" id="vm-l">아래 말씀 흘려 보내기</span><span className="x2">끄면 「지금」 아래 말씀이 멈춘 채로 보여요</span></span>
             <button className="sw" role="switch" aria-checked={verseMove} aria-labelledby="vm-l" onClick={() => setVerseMove(!verseMove)} />
+          </div>
+        </li>
+        <li>
+          <div className="lrow">
+            <span className="x"><span className="x1" id="nt-l">음표 띄우기</span><span className="x2">들을 때 파형 아래에서 음표가 떠올라요</span></span>
+            <button className="sw" role="switch" aria-checked={notesOn} aria-labelledby="nt-l" onClick={() => setFlag('notes', !notesOn)} />
           </div>
         </li>
         <li className="setrow">

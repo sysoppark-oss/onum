@@ -99,7 +99,7 @@ button.out { min-height: 44px; padding: 0 16px; font-size: 14px; font-weight: 70
 .hook { position: absolute; top: -26px; font-size: 13px; font-weight: 700; color: var(--ink2); transform: translateX(-50%); white-space: nowrap; pointer-events: none; }
 .scrub { position: absolute; left: 0; right: 0; top: -14px; bottom: -14px; width: 100%; height: auto; margin: 0; opacity: 0; cursor: pointer; touch-action: none; }
 .shape:has(.scrub:focus-visible) { outline: 3px solid var(--now); outline-offset: 8px; border-radius: 6px; }
-.times { display: flex; justify-content: space-between; margin-top: 10px; font-size: 13px; font-weight: 600; color: var(--ink2); }
+.times { position: relative; display: flex; justify-content: space-between; margin-top: 10px; font-size: 13px; font-weight: 600; color: var(--ink2); }
 
 .ctl { margin-top: 14px; display: grid; grid-template-columns: min(64px, 18vw) 1fr min(84px, 23vw) 1fr min(64px, 18vw); align-items: center; justify-items: center; }
 .ctl .small { width: min(64px, 18vw); min-height: 56px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 13px; font-weight: 600; color: var(--ink2); border-radius: 14px; text-align: center; line-height: 1.2; }
@@ -615,3 +615,17 @@ label.pick:focus-within { outline: 3px solid var(--now); outline-offset: 2px; }
 .mchips button { min-height: 48px; padding: 0 18px; border-radius: 24px; background: var(--sf); font-size: 16px; font-weight: 700; }
 .mchips button:active { transform: scale(0.97); }
 .rest-w[lang=en] { font-family: Georgia, 'Times New Roman', serif; }
+
+/* 파형이 왼쪽부터 차례로 솟아오른다(곡이 바뀔 때) */
+.shape i.in { animation: bar-in 380ms var(--ease) both; animation-delay: calc(var(--i) * 6ms); transform-origin: 50% 50%; }
+@keyframes bar-in { from { transform: scaleY(0); opacity: 0; } }
+/* 음표 띄우기 */
+.times > span:not(.notes) { position: relative; z-index: 1; }
+.notes { position: absolute; left: 0; right: 0; top: -4px; height: 26px; pointer-events: none; }
+.notes i { position: absolute; bottom: 0; font-style: normal; line-height: 1; font-weight: 700; font-family: 'Segoe UI Symbol', 'Noto Sans Symbols 2', 'Apple Symbols', sans-serif; transform: translateX(-50%); animation: note-up 1.8s cubic-bezier(.22,.8,.3,1) forwards; }
+@keyframes note-up {
+  0% { transform: translate(-50%, 6px) scale(.4) rotate(0deg); opacity: 0; }
+  18% { opacity: .95; }
+  50% { transform: translate(calc(-50% + var(--dx) * .5), -10px) scale(1.05) rotate(calc(var(--r) * -.6)); }
+  100% { transform: translate(calc(-50% + var(--dx)), -22px) scale(.9) rotate(var(--r)); opacity: 0; }
+}

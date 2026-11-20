@@ -9,6 +9,8 @@ import { BARS, cachedShape, getShape, type Shape } from '../lib/shape'
 import type { Playlists } from '../lib/playlists'
 import { Icon, SAFE_VOLUME, clock, fromLine, info, minutesText, nf, outputIcon, outputLabel, secText, whoLine, type Vol } from './common'
 import { LevelSheet, QueuePage, RepeatSheet, SpeedSheet, TrimSheet } from './Sheets'
+import { NoteFloat } from './Notes'
+import { useFlag } from '../lib/flag'
 
 /* ── 소리 모양 ── */
 export function ShapeBar({ t, time, duration, onSeek, ab, mark }: { t: Track; time: number; duration: number; onSeek?: (s: number) => void; ab?: AB | null; mark?: number | null }) {
@@ -26,7 +28,8 @@ export function ShapeBar({ t, time, duration, onSeek, ab, mark }: { t: Track; ti
   return (
     <div className={'shape' + (bars ? '' : ' wait')}>
       {Array.from({ length: BARS }, (_, i) => (
-        <i key={i} className={i / BARS < ratio ? 'done' : undefined} style={{ height: `${(bars ? bars[i] : 0.14) * 100}%` }} />
+        <i key={`${t.id}-${bars ? 1 : 0}-${i}`} className={(i / BARS < ratio ? 'done' : '') + (bars ? ' in' : '')}
+          style={{ height: `${(bars ? bars[i] : 0.14) * 100}%`, ['--i' as string]: i }} />
       ))}
       {ab && duration > 0 && (
         <>
@@ -279,6 +282,7 @@ function useNow(ms: number) {
 export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }: {
   tracks: Track[]; player: Player; vol: Vol; loud: boolean; output: Output | null; lists: Playlists; onSleep: () => void
 }) {
+  const notesOn = useFlag('notes', true)
   const [repeatOpen, setRepeatOpen] = useState(false)
   const [queueOpen, setQueueOpen] = useState(false)
   const [speedOpen, setSpeedOpen] = useState(false)
@@ -335,6 +339,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
           <ShapeBar t={shown} time={cur ? player.time : player.resumePos} duration={cur ? player.duration : shown.duration}
             onSeek={cur ? player.seek : undefined} ab={cur ? player.ab : null} mark={cur ? player.bookmark : null} />
           <div className="times num" aria-hidden="true">
+            {notesOn && cur && !cur.talk && <NoteFloat playing={player.playing} ratio={player.duration > 0 ? player.time / player.duration : 0} bars={cachedShape(cur)?.bars ?? null} />}
             <span>{fmt(cur ? player.time : player.resumePos)}</span>
             <span>−{fmt(Math.max(0, (cur ? player.duration : shown.duration) - (cur ? player.time : player.resumePos)))}</span>
           </div>
