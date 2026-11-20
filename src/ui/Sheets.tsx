@@ -123,7 +123,7 @@ export function RepeatSheet({ player, onClose, count, onApply }: {
           </div>
         )}
         {opt('all', count ? '계속 반복' : '목록 계속 반복')}
-        {opt('timed', '시간 정해서 반복')}
+        {opt('timed', '시간 정해서 반복', '예: 이 곡 1시간')}
         {!count && player.current && opt('part', '한 부분만 반복', '구간 반복')}
         {kind === 'timed' && (
           <div className="timebox">

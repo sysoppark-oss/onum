@@ -1,4 +1,5 @@
 // 여러 화면이 함께 쓰는 것: 창 다루기, 긴 목록, 아이콘, 곡 정보, 그림, 음량, 소리 나가는 곳
+import { load, save } from '../lib/store'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { Track } from '../lib/library'
@@ -253,6 +254,7 @@ const STROKE: Record<string, React.ReactNode> = {
   repeat: <><path d="M17 2l4 4-4 4" /><path d="M3 11V9a3 3 0 0 1 3-3h15" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v2a3 3 0 0 1-3 3H3" /></>,
   repeat1: <><path d="M17 2l4 4-4 4" /><path d="M3 11V9a3 3 0 0 1 3-3h15" /><path d="M7 22l-4-4 4-4" /><path d="M21 13v2a3 3 0 0 1-3 3H3" /><path d="M11 10.5l1.4-1v5" /></>,
   speaker: <><polygon points="4 9 8 9 13 5 13 19 8 15 4 15" /><path d="M16.5 9a4 4 0 0 1 0 6" /></>,
+  mute: <><polygon points="4 9 8 9 13 5 13 19 8 15 4 15" /><path d="M17 9.5l5 5M22 9.5l-5 5" /></>,
   speakerLoud: <><polygon points="4 9 8 9 13 5 13 19 8 15 4 15" /><path d="M16.5 9a4 4 0 0 1 0 6" /><path d="M19 6.5a8 8 0 0 1 0 11" /></>,
   warn: <><path d="M12 3 2 21h20z" /><line x1="12" y1="10" x2="12" y2="14" /><line x1="12" y1="17.5" x2="12" y2="17.5" /></>,
   phone: <><rect x="6" y="3" width="12" height="18" rx="2" /><circle cx="12" cy="14" r="3" /></>,
@@ -326,7 +328,11 @@ export function useVolume(player: Player) {
     } else player.setGain(q / 100)
   }
   const step = (d: 1 | -1) => (sys ? set(((sys.value + d) / sys.max) * 100) : set(percent + d * 5))
-  return { percent, set, step, flash: flash > 0, native: sys != null }
+  // 스피커를 누르면 바로 소리 끄기, 다시 누르면 끄기 전 크기로
+  const toggleMute = () => {
+    if (percent > 0) { save('unmute', percent); set(0) } else set(load<number>('unmute', 50) || 50)
+  }
+  return { percent, set, step, toggleMute, flash: flash > 0, native: sys != null }
 }
 export type Vol = ReturnType<typeof useVolume>
 

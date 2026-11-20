@@ -12,7 +12,7 @@ export const BUILD = {
   native: (import.meta.env.VITE_NATIVE as string | undefined) ?? '',
   run: Number(import.meta.env.VITE_RUN ?? 0),
 }
-export interface Remote { sha: string; native: string; run: number; at: string; apk?: string; web?: string }
+export interface Remote { sha: string; native: string; run: number; at: string; dl?: number; apk?: string; web?: string }
 const EVERY = 6 * 3600 * 1000
 
 /** 지금 판에 문제가 없다고 알린다(안 하면 업데이트 꾸러미가 되돌려진다) */
@@ -21,11 +21,14 @@ export function appReady() { if (isNative) CapacitorUpdater.notifyAppReady().cat
 export async function fetchRemote(): Promise<Remote | null> {
   const r = await fetch(API, { headers: { Accept: 'application/vnd.github+json' } })
   if (!r.ok) return null
-  const j = await r.json() as { body?: string; assets?: { name: string; browser_download_url: string }[] }
+  const j = await r.json() as { body?: string; assets?: { name: string; browser_download_url: string; download_count: number }[] }
   const m = /<!--onum (\{.*?\})-->/s.exec(j.body ?? '')
   if (!m) return null
   const info = JSON.parse(m[1]) as Remote
   const asset = (n: string) => j.assets?.find((a) => a.name === n)?.browser_download_url
+  // 내려받은 횟수: 지난 판들까지 모아 둔 수(dl) + 지금 판 APK를 받은 수
+  const now = j.assets?.find((a) => a.name === 'onum-test.apk')?.download_count ?? 0
+  save('dlCount', (info.dl ?? 0) + now)
   return { ...info, apk: asset('onum-test.apk'), web: asset('web.zip') }
 }
 

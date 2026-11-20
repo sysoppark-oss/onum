@@ -64,7 +64,9 @@ export function VolumeRow({ vol, loud, guide, onCar }: { vol: Vol; loud: boolean
   return (
     <>
       <div className={'vol' + (loud ? ' over' : '') + (vol.flash ? ' flash' : '')}>
-        <span className="ico" aria-hidden="true"><Icon n={p > SAFE_VOLUME ? 'speakerLoud' : 'speaker'} s={22} /></span>
+        <button className={'ico' + (p === 0 ? ' muted' : '')} onClick={vol.toggleMute} aria-label={p === 0 ? '소리 다시 켜기' : '소리 끄기'} aria-pressed={p === 0}>
+          <Icon n={p === 0 ? 'mute' : p > SAFE_VOLUME ? 'speakerLoud' : 'speaker'} s={22} />
+        </button>
         <div className="track">
           {guide && <i className="safe" style={{ left: `${SAFE_VOLUME}%` }} aria-hidden="true" />}
           <b style={{ width: `${p}%` }} />
@@ -72,7 +74,7 @@ export function VolumeRow({ vol, loud, guide, onCar }: { vol: Vol; loud: boolean
           <input type="range" min={0} max={100} step={1} value={p} onChange={(e) => vol.set(+e.target.value)}
             aria-label="음량" aria-valuetext={`${p}%${loud ? ', 권장 음량 넘음' : ''}`} />
         </div>
-        <span className="val num" aria-hidden="true">{p}%</span>
+        <span className="val num" aria-hidden="true">{p === 0 ? '꺼짐' : `${p}%`}</span>
       </div>
       {loud && (
         <div className="warnrow">
@@ -89,8 +91,8 @@ function repeatShort(p: Player): { label: string; on: boolean; one: boolean } {
   const r = p.repeat
   const tm = p.times && p.current && p.times.id === p.current.id ? p.times : null
   if (tm && r.scope !== 'one') return { label: `${tm.done + 1}/${tm.n}번`, on: true, one: true }
-  if (r.limit === 'timed') return { label: minutesText(Math.max(1, Math.ceil(p.repeatLeft / 60000))), on: true, one: r.scope === 'one' }
-  if (r.limit === 'forever') return { label: r.scope === 'one' ? '한 곡' : '목록', on: true, one: r.scope === 'one' }
+  if (r.limit === 'timed') return { label: minutesText(Math.max(1, Math.ceil(p.repeatLeft / 60000))) + (r.scope === 'one' ? ' 한 곡' : ''), on: true, one: r.scope === 'one' }
+  if (r.limit === 'forever') return { label: r.scope === 'one' ? '한 곡 반복' : '목록 반복', on: true, one: r.scope === 'one' }
   return { label: '반복', on: false, one: false }
 }
 

@@ -50,6 +50,15 @@ jobs:
           name: onum-test-${{ github.run_number }}
           path: onum-test.apk
 
+      - name: 내려받은 횟수 모으기(APK를 바꿔 올리면 GitHub의 수가 0이 되므로 앞의 수를 더해 둔다)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rel=$(gh api repos/${{ github.repository }}/releases/tags/test-build 2>/dev/null || echo '{}')
+          now=$(echo "$rel" | jq '[.assets[]? | select(.name=="onum-test.apk") | .download_count] | add // 0')
+          base=$(echo "$rel" | jq -r '.body // ""' | sed -n 's/.*<!--onum \(.*\)-->.*/\1/p' | jq '.dl // 0' 2>/dev/null || echo 0)
+          echo "DL_TOTAL=$(( ${base:-0} + ${now:-0} ))" >> $GITHUB_ENV
+
       - name: 휴대폰에서 받을 수 있게 올리기
         uses: softprops/action-gh-release@v2
         with:
@@ -60,7 +69,7 @@ jobs:
           body: |
             시험판 ${{ github.run_number }}번 · ${{ github.sha }}
             휴대폰에서 onum-test.apk를 눌러 내려받아 설치하세요.
-            <!--onum {"sha":"${{ env.VITE_SHA }}","native":"${{ env.VITE_NATIVE }}","run":${{ github.run_number }},"at":"${{ env.VITE_BUILT_AT }}"}-->
+            <!--onum {"sha":"${{ env.VITE_SHA }}","native":"${{ env.VITE_NATIVE }}","run":${{ github.run_number }},"at":"${{ env.VITE_BUILT_AT }}","dl":${{ env.DL_TOTAL }}}-->
           files: |
             onum-test.apk
             web.zip

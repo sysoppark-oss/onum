@@ -1,12 +1,13 @@
 // 「쉼」: 오늘의 한 문장, 말씀 천천히 보기, 찬송가 반주(준비 중), 보기 설정, 온음이 무료인 이유
 import { CURRENT } from '../lib/version'
+import { load } from '../lib/store'
 import { BUILD, type Remote } from '../lib/update'
 import { useCallback, useState } from 'react'
 import { dayIndex, type Verse } from '../lib/verses'
 import { MOODS, YEAR } from '../lib/verses365'
 import { setKjv, shown, useKjv } from '../lib/kjv'
 import { setFlag, useFlag } from '../lib/flag'
-import { Icon } from './common'
+import { Icon, nf } from './common'
 import { Page, XfadeChips } from './Sheets'
 import type { Player } from '../lib/usePlayer'
 import { Share } from '@capacitor/share'
@@ -26,6 +27,7 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
   const notesOn = useFlag('notes', true)
   const updOn = useFlag('updateCheck', true)
   const [chk, setChk] = useState('')
+  const [dl, setDl] = useState(() => load<number>('dlCount', 0))
   const [shared, setShared] = useState('')
   const [about, setAbout] = useState(false)
   const [reading, setReading] = useState(false)
@@ -122,21 +124,32 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
 
       <button className="sharebtn" onClick={async () => setShared(await shareApp())}><Icon n="heart" s={20} />이 앱 알려 주기</button>
       {shared && <p className="done-note" role="status">{shared}</p>}
-      <div className="whys">
-        <button className="why" onClick={() => setAbout(true)}>온음이 무료인 이유 <Icon n="chev" s={16} /></button>
-        <button className="why" onClick={() => setPrivacy(true)}>개인정보 처리방침 <Icon n="chev" s={16} /></button>
-      </div>
-      <button className="why ver" onClick={onNews}><span className="num">온음 {CURRENT.v}</span> · {CURRENT.name}{BUILD.run ? <> · 시험판 <span className="num">{BUILD.run}</span>번</> : null} · 새로워진 점 <Icon n="chev" s={16} /></button>
-      {isNative && (
-        <div className="updrow">
-          <button className="textlink" disabled={chk === '…'} onClick={async () => {
-            setChk('…')
-            const u = await onCheck(true)
-            setChk(!u ? '확인하지 못했어요. 인터넷 연결을 확인해 주세요.' : u.kind === 'same' ? '지금이 가장 새 판이에요.' : u.kind === 'web' ? '새 판을 받아 두었어요. 음악을 멈추고 앱을 다시 열면 바뀌어요.' : '')
-          }}>{chk === '…' ? '확인하는 중…' : '새 판 확인하기'}</button>
-          {chk && chk !== '…' && <p className="hint" role="status">{chk}</p>}
-        </div>
-      )}
+      {dl > 0 && <p className="dlcount"><b className="num">{nf.format(dl)}</b>번 내려받았어요 · 고맙습니다</p>}
+
+      <h2 className="sub">온음에 대하여</h2>
+      <ul className="pl about">
+        <li><button className="lrow" onClick={() => setAbout(true)}><span className="x"><span className="x1">온음이 무료인 이유</span></span><Icon n="chev" s={20} /></button></li>
+        <li><button className="lrow" onClick={() => setPrivacy(true)}><span className="x"><span className="x1">개인정보 처리방침</span></span><Icon n="chev" s={20} /></button></li>
+        <li>
+          <button className="lrow" onClick={onNews}>
+            <span className="x"><span className="x1">새로워진 점</span><span className="x2"><span className="num">온음 {CURRENT.v}</span> · {CURRENT.name}{BUILD.run ? <> · 시험판 <span className="num">{BUILD.run}</span>번</> : null}</span></span>
+            <Icon n="chev" s={20} />
+          </button>
+        </li>
+        {isNative && (
+          <li>
+            <div className="lrow">
+              <span className="x"><span className="x1">새 판 확인</span><span className="x2" role="status">{chk === '…' ? '확인하는 중…' : chk || '새 판이 있는지 지금 알아봐요'}</span></span>
+              <button className="pillbtn small" disabled={chk === '…'} onClick={async () => {
+                setChk('…')
+                const u = await onCheck(true)
+                setDl(load<number>('dlCount', 0))
+                setChk(!u ? '확인하지 못했어요. 인터넷 연결을 확인해 주세요' : u.kind === 'same' ? '지금이 가장 새 판이에요' : u.kind === 'web' ? '새 판을 받아 두었어요. 음악을 멈추고 앱을 다시 열면 바뀌어요' : '새 판이 나왔어요')
+              }}>확인</button>
+            </div>
+          </li>
+        )}
+      </ul>
       {about && <AboutPage onClose={closeAbout} />}
       {reading && <ReadPage onClose={closeReading} />}
       {privacy && <PrivacyPage onClose={closePrivacy} />}

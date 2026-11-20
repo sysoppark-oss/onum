@@ -642,3 +642,15 @@ label.pick:focus-within { outline: 3px solid var(--now); outline-offset: 2px; }
 a.go { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
 .updrow { display: flex; flex-direction: column; gap: 2px; margin-top: -6px; }
 .updrow .textlink { align-self: flex-start; }
+
+/* 소리 끄기 버튼 */
+.vol .ico { width: 44px; height: 44px; margin: -11px 0 -11px -11px; display: inline-flex; align-items: center; justify-content: center; border-radius: 22px; color: var(--ink2); flex-shrink: 0; }
+.vol .ico:active { transform: scale(0.94); background: var(--sf); }
+.vol .ico.muted { color: var(--ink); background: var(--sf); }
+/* 온음에 대하여 */
+.dlcount { margin-top: 2px; text-align: center; font-size: 15px; color: var(--ink2); }
+.dlcount b { color: var(--ink); font-weight: 800; }
+.page > .pl.about li, .pl.about li { height: auto; min-height: 64px; }
+.pl.about .lrow { gap: 12px; color: var(--ink); }
+.pl.about .lrow > svg { color: var(--ink3); flex-shrink: 0; }
+.pillbtn.small { min-height: 44px; padding: 0 18px; flex-shrink: 0; }
