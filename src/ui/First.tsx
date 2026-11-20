@@ -10,6 +10,7 @@ import { classify, loadOverrides } from '../lib/kind'
 import { Icon, nf } from './common'
 import { LANGS, lang, setLang, tx } from "../lib/i18n";
 import { Page } from './Sheets'
+import { useChurch } from '../lib/church'
 import { AI_MB, aiAsked, aiOn, downloadAi, refreshAi, setAiAsked } from '../lib/ai'
 
 // 마우스를 쓰는 넓은 화면이면 PC로 본다
@@ -125,7 +126,7 @@ export function FirstScreen({ onDone }: { onDone: (r: ScanResult, hidden: string
   if (offer) {
     return (
       <div className="page first">
-        <p className="mark">{tx("온음")}</p>
+        <Mark />
         <div className="found-big">
           <span className="ai-mark" aria-hidden="true"><Icon n="spark" s={30} /></span>
           <h1 className="fb-t">{rt("가사를 저절로 맞추는 기능을\n받아 둘까요?")}</h1>
@@ -147,7 +148,7 @@ export function FirstScreen({ onDone }: { onDone: (r: ScanResult, hidden: string
   if (busy) {
     return (
       <div className="page first" role="status">
-        <p className="mark">{tx("온음")}</p>
+        <Mark />
         <div className="found-big">
           <p className="fb-t">{busy.total ? tx("음악을 정리하고 있어요") : isNative ? tx("휴대폰에서 음악을 찾고 있어요") : tx("음악을 읽고 있어요")}</p>
           {busy.total > 0 && <p className="fb-s num">{nf.format(busy.done)} / {nf.format(busy.total)}</p>}
@@ -161,7 +162,7 @@ export function FirstScreen({ onDone }: { onDone: (r: ScanResult, hidden: string
     const skipped = found.skippedShort + found.skippedFolder
     return (
       <div className="page first">
-        <p className="mark">{tx("온음")}</p>
+        <Mark />
         <div className="found-big">
           <p className="fb-n num">{nf.format(count - talkN)}<span>{tx("곡")}</span></p>
           <h1 className="fb-t">{isNative ? tx("휴대폰에서 음악을 찾았어요") : tx("음악을 찾았어요")}</h1>
@@ -184,7 +185,7 @@ export function FirstScreen({ onDone }: { onDone: (r: ScanResult, hidden: string
   return (
     <div className="page first">
       <div className="first-top">
-        <p className="mark">{tx("온음")}</p>
+        <Mark />
         <div className="langpick" role="radiogroup" aria-label="Language · 언어 · 言語">
           {LANGS.map((l) => <button key={l.id} role="radio" lang={l.id} aria-checked={lang === l.id} className={lang === l.id ? 'on' : undefined} onClick={() => lang !== l.id && setLang(l.id)}>{l.name}</button>)}
         </div>
@@ -219,4 +220,12 @@ export function FoldersPage({ tracks, hidden, setHidden, onClose }: { tracks: Tr
       <FolderList tracks={tracks} hidden={hidden} onToggle={toggle} />
     </Page>
   )
+}
+
+/** 교회 카드로 받은 분께: 「생명샘교회가 드리는」 + 온음 */
+function Mark() {
+  const ch = useChurch()
+  return ch
+    ? <p className="mark gift"><span className="gift-ch">{tx("{0}에서 드리는", ch.name)}</span>{tx("온음")}</p>
+    : <p className="mark">{tx("온음")}</p>
 }

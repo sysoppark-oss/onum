@@ -13,6 +13,8 @@ import { classify, loadOverrides, saveOverrides, type KindOverrides } from './li
 import { usePlayer, type Player } from './lib/usePlayer'
 import { usePlaylists } from './lib/playlists'
 import { getFontScale, isNative } from './lib/native'
+import { receiveUrl } from './lib/church'
+import { IncomingSheet } from './ui/Church'
 import { load, save } from './lib/store'
 import { useDayNight } from './lib/theme'
 import { Icon, SAFE_VOLUME, closers, info, useOutput, useVolume } from './ui/common'
@@ -148,7 +150,17 @@ export default function App() {
     return () => { h.then((x) => x.remove()) }
   }, [tab])
 
-  if (!scan || !raw || tracks.length === 0) return <FirstScreen onDone={(r, h) => { setHidden(h); setRaw(r) }} />
+  // 교회 카드 링크로 열렸을 때: 웹은 주소 # 뒤, 설치형 앱은 onum://c/…
+  useEffect(() => {
+    const fromHash = () => { if (receiveUrl(location.hash)) history.replaceState(null, '', location.pathname + location.search) }
+    fromHash()
+    if (!isNative) { window.addEventListener('hashchange', fromHash); return () => window.removeEventListener('hashchange', fromHash) }
+    CapApp.getLaunchUrl().then((r) => receiveUrl(r?.url)).catch(() => {})
+    const h = CapApp.addListener('appUrlOpen', (e) => { receiveUrl(e.url) })
+    return () => { h.then((x) => x.remove()) }
+  }, [])
+
+  if (!scan || !raw || tracks.length === 0) return <><FirstScreen onDone={(r, h) => { setHidden(h); setRaw(r) }} /><IncomingSheet /></>
 
   const gn = player.goodnight
   return (
@@ -186,6 +198,7 @@ export default function App() {
       {news && !batteryOpen && <WhatsNew onClose={closeNews} />}
       {apk && !news && !batteryOpen && <UpdateSheet r={apk} onClose={() => setApk(null)} />}
       {batteryOpen && <BatteryPage b={battery} onClose={closeBattery} />}
+      <IncomingSheet />
       {gn && <GoodnightScreen g={gn} onClose={player.dismissGoodnight} onResume={() => { player.dismissGoodnight(); player.toggle() }} />}
     </div>
   )

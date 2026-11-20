@@ -14,6 +14,8 @@ import { LevelSheet, PracticeSheet, QueuePage, RepeatSheet, SpeedSheet, TrimShee
 import { NoteFloat } from './Notes'
 import { ChooseEditSheet } from './Edits'
 import type { Edits } from '../lib/edits'
+import { useChurch } from '../lib/church'
+import { ChurchPage } from './Church'
 import { tx } from "../lib/i18n";
 import { useFlag } from '../lib/flag'
 
@@ -304,6 +306,9 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
   tracks: Track[]; player: Player; vol: Vol; loud: boolean; output: Output | null; lists: Playlists; edits: Edits; onSleep: () => void
 }) {
   const notesOn = useFlag('notes', true)
+  const church = useChurch()
+  const [chOpen, setChOpen] = useState(false)
+  const closeCh = useCallback(() => setChOpen(false), [])
   const [repeatOpen, setRepeatOpen] = useState(false)
   const [queueOpen, setQueueOpen] = useState(false)
   const [speedOpen, setSpeedOpen] = useState(false)
@@ -350,7 +355,10 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
   return (
     <div className="page now">
       <div className="top">
-        <span className="mark">{tx("온음")}</span>
+        <div className="brand">
+          <span className="mark">{tx("온음")}</span>
+          {church && <button className="chmark" onClick={() => setChOpen(true)} aria-label={tx("교회 카드: {0}", church.name)}><span>{church.name}</span></button>}
+        </div>
         {output && <span className="out" role="status"><Icon n={outputIcon(output)} s={16} />{outputLabel(output)}</span>}
       </div>
 
@@ -481,6 +489,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
       {trimOpen && cur && <TrimSheet t={cur} player={player} onClose={closeTrim} />}
       {levelOpen && cur && <LevelSheet t={cur} player={player} onClose={closeLevel} />}
       {pracOpen && cur && <PracticeSheet t={cur} player={player} onClose={closePrac} />}
+      {chOpen && <ChurchPage onClose={closeCh} />}
       {lyOpen && cur && <LyricsPage t={cur} player={player} onClose={closeLy} start={lyOpen === 'view' ? undefined : lyOpen} />}
       {queueOpen && <QueuePage player={player} tracks={tracks} lists={lists} onClose={closeQueue} />}
     </div>
