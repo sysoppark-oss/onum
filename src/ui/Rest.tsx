@@ -9,6 +9,8 @@ import { setKjv, shown, useKjv } from '../lib/kjv'
 import { setFlag, useFlag } from '../lib/flag'
 import { Icon, nf } from './common'
 import { EqPage, eqLabel } from './Eq'
+import { MeditatePage } from './Meditate'
+import type { Track } from '../lib/library'
 import { useEq } from '../lib/eq'
 import { Page, XfadeChips } from './Sheets'
 import type { Player } from '../lib/usePlayer'
@@ -20,9 +22,9 @@ import { EFFECTIVE, PRIVACY } from '../lib/privacy'
 const REPO = 'https://github.com/sysoppark-oss/onum'
 const MAIL = 'sysoppark@gmail.com'
 
-export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verseMove, setVerseMove, player, onNews, onCheck }: {
+export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verseMove, setVerseMove, player, onNews, onCheck, music }: {
   easy: boolean; setEasy: (v: boolean) => void; onFolders?: () => void; battery: Battery; onBattery: () => void
-  verseMove: boolean; setVerseMove: (v: boolean) => void; player: Player; onNews: () => void; onCheck: (force?: boolean) => Promise<Check | null>
+  verseMove: boolean; setVerseMove: (v: boolean) => void; player: Player; onNews: () => void; onCheck: (force?: boolean) => Promise<Check | null>; music: Track[]
 }) {
   const norm = player.normOn, setNorm = player.setNorm
   const kjv = useKjv()
@@ -37,6 +39,8 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
   const closePrivacy = useCallback(() => setPrivacy(false), [])
   const closeAbout = useCallback(() => setAbout(false), [])
   const [eqOpen, setEqOpen] = useState(false)
+  const [med, setMed] = useState(false)
+  const closeMed = useCallback(() => setMed(false), [])
   const closeEq = useCallback(() => setEqOpen(false), [])
   const eqs = useEq()
   const closeReading = useCallback(() => setReading(false), [])
@@ -52,6 +56,7 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
         <p className="wr">{v.ref} · {v.ver}</p>
         <button className="go rest-go" onClick={() => setReading(true)}>말씀 천천히 보기</button>
         <button className="ghost rest-mood" onClick={() => setMood(true)}>지금 내 마음에 맞는 말씀</button>
+        <button className="ghost rest-mood" onClick={() => setMed(true)}>음악과 함께 묵상하기</button>
         <p className="rest-n">듣고 있는 음악은 그대로 흘러요</p>
       </section>
 
@@ -162,6 +167,7 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
         )}
       </ul>
       {eqOpen && <EqPage onClose={closeEq} />}
+      {med && <MeditatePage player={player} music={music} onClose={closeMed} />}
       {about && <AboutPage onClose={closeAbout} />}
       {reading && <ReadPage onClose={closeReading} />}
       {privacy && <PrivacyPage onClose={closePrivacy} />}
