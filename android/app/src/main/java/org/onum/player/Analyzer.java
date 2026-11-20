@@ -94,6 +94,68 @@ class Analyzer implements AutoCloseable {
         return Arrays.copyOf(buf, got);
     }
 
+    /** 처음부터 끝까지 흘려 풀며 winMs 창마다 크기(dBFS)를 잰다. 표본은 쌓지 않는다(긴 강의도 메모리 걱정 없음). */
+    float[] levels(int winMs) {
+        ex.seekTo(0, MediaExtractor.SEEK_TO_CLOSEST_SYNC);
+        codec.flush();
+        int cap = (int) (durUs / 1000 / winMs) + 64;
+        float[] out = new float[cap];
+        int nOut = 0;
+        double acc = 0;
+        long accN = 0;
+        long winFrames = -1;
+        int pos = 0; // 창 안에서 센 프레임
+        boolean inEos = false, outEos = false;
+        long idle = 0;
+        while (!outEos && idle < 400) {
+            if (!inEos) {
+                int ii = codec.dequeueInputBuffer(10_000);
+                if (ii >= 0) {
+                    ByteBuffer ib = codec.getInputBuffer(ii);
+                    int n = ib == null ? -1 : ex.readSampleData(ib, 0);
+                    if (n < 0) { codec.queueInputBuffer(ii, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM); inEos = true; }
+                    else { codec.queueInputBuffer(ii, 0, n, ex.getSampleTime(), 0); ex.advance(); }
+                }
+            }
+            int oi = codec.dequeueOutputBuffer(info, 10_000);
+            if (oi == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                MediaFormat of = codec.getOutputFormat();
+                if (of.containsKey(MediaFormat.KEY_SAMPLE_RATE)) fs = of.getInteger(MediaFormat.KEY_SAMPLE_RATE);
+                if (of.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) ch = of.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
+                if (of.containsKey(MediaFormat.KEY_PCM_ENCODING))
+                    isFloat = of.getInteger(MediaFormat.KEY_PCM_ENCODING) == AudioFormat.ENCODING_PCM_FLOAT;
+                winFrames = -1;
+            } else if (oi >= 0) {
+                idle = 0;
+                if (winFrames < 0) winFrames = Math.max(1, (long) fs * winMs / 1000);
+                ByteBuffer ob = codec.getOutputBuffer(oi);
+                if (ob != null && info.size > 0) {
+                    ob.position(info.offset);
+                    ob.limit(info.offset + info.size);
+                    ByteBuffer o2 = ob.slice().order(ByteOrder.nativeOrder());
+                    int c = Math.max(1, ch);
+                    int n = (isFloat ? info.size / 4 : info.size / 2) / c;
+                    FloatBuffer fb = isFloat ? o2.asFloatBuffer() : null;
+                    ShortBuffer sb = isFloat ? null : o2.asShortBuffer();
+                    for (int f = 0; f < n; f++) {
+                        double m = 0;
+                        for (int k = 0; k < c; k++) m += isFloat ? fb.get(f * c + k) : sb.get(f * c + k) / 32768.0;
+                        m /= c;
+                        acc += m * m; accN++;
+                        if (++pos >= winFrames) {
+                            if (nOut >= out.length) out = Arrays.copyOf(out, out.length * 2);
+                            out[nOut++] = (float) (10 * Math.log10(acc / accN + 1e-12));
+                            acc = 0; accN = 0; pos = 0;
+                        }
+                    }
+                }
+                codec.releaseOutputBuffer(oi, false);
+                if ((info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) outEos = true;
+            } else idle++;
+        }
+        return Arrays.copyOf(out, nOut);
+    }
+
     /** 50ms 창마다 크기. 조용한 기준보다 큰 창의 번호(처음 또는 마지막). 없으면 -1 */
     int loudWindow(float[] buf, boolean first) {
         int win = Math.max(1, fs / 20) * ch;

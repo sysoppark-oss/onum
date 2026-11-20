@@ -1,4 +1,5 @@
 // 반복 · 잠들기 · 밤 인사 · 재생 목록 · 곡 추가 · 목록 이름 · 목록 고르기
+import { setFlag } from '../lib/flag'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Track } from '../lib/library'
 import { LEVELS, RATES, TIMES, XFADES, type Goodnight, type Player, type Repeat } from '../lib/usePlayer'
@@ -151,6 +152,7 @@ export function RepeatSheet({ player, onClose, count, onApply }: {
 export function SpeedSheet({ player, onClose }: { player: Player; onClose: () => void }) {
   const [v, setV] = useState(player.rate || 1)
   const [each, setEach] = useState(player.rateEach)
+  const [quiet, setQuiet] = useState(player.quietOn)
   const say = v === 1 ? <><em>보통 빠르기</em>로 들어요.</>
     : <><em className="num">{v}배</em> {v > 1 ? '빠르게' : '느리게'} 들어요.<br />목소리 높이는 그대로예요.</>
   return (
@@ -168,7 +170,11 @@ export function SpeedSheet({ player, onClose }: { player: Player; onClose: () =>
         <span id="each-l">강의마다 빠르기를 따로 기억하기</span>
         <button className="sw" role="switch" aria-checked={each} aria-labelledby="each-l" onClick={() => setEach(!each)} />
       </div>
-      <button className="go" onClick={() => { player.setRate(v, each); onClose() }}>적용</button>
+      <div className="fade">
+        <span id="quiet-l">말 사이 쉼 줄이기<small>말이 멈춘 긴 쉼만 빠르게 지나가요. 말은 그대로예요</small></span>
+        <button className="sw" role="switch" aria-checked={quiet} aria-labelledby="quiet-l" onClick={() => setQuiet(!quiet)} />
+      </div>
+      <button className="go" onClick={() => { player.setRate(v, each); setFlag('quietSkip', quiet); onClose() }}>적용</button>
     </Sheet>
   )
 }

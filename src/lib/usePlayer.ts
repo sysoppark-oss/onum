@@ -6,6 +6,8 @@ import { onMediaAction, setNowPlaying } from './native'
 import { cachedShape, getShape, normGain } from './shape'
 import { setMonoFix } from './monofix'
 import { addListen } from './stats'
+import { useFlag } from './flag'
+import { getQuiet, spanAt, type Span } from './quiet'
 
 interface Resume { id: string; pos: number }
 
@@ -558,6 +560,37 @@ export function usePlayer(tracks: Track[]) {
     a.playbackRate = curRate
   }, [curRate, curId])
 
+  // 강의: 조용한 구간 줄이기. 말과 말 사이 긴 쉼만 4배로 빠르게 지나간다(자르지 않아 말은 그대로)
+  const quietOn = useFlag('quietSkip', true)
+  const [quietSaved, setQuietSaved] = useState(0) // 이 강의에서 아낀 초
+  const [quietReady, setQuietReady] = useState(false)
+  const isTalk = !!current?.talk
+  useEffect(() => {
+    setQuietSaved(0); setQuietReady(false)
+    if (!isTalk || !quietOn || !current) return
+    let spans: Span[] | null = null
+    let alive = true
+    getQuiet(current).then((s) => { if (alive && s) { spans = s; setQuietReady(s.length > 0) } })
+    const QB = 4
+    let boost = false, saved = 0, last = -1, shown = 0
+    const h = window.setInterval(() => {
+      const a = audio.current
+      if (!spans || !a || a.paused) { last = -1; return }
+      const ct = a.currentTime
+      const sp = spanAt(spans, ct)
+      const want = !!sp && sp[1] - ct > 0.2 && !abRef.current
+      if (boost && last >= 0 && ct > last && ct - last < 5) saved += ((ct - last) / curRate) * (1 - 1 / QB)
+      if (want !== boost) { boost = want; a.playbackRate = want ? curRate * QB : curRate }
+      last = ct
+      if (saved - shown >= 1) { shown = Math.floor(saved); setQuietSaved(shown) }
+    }, 80)
+    return () => {
+      alive = false; clearInterval(h)
+      if (boost) audio.current.playbackRate = curRate
+      if (saved > 0) save('quietSavedAll', load<number>('quietSavedAll', 0) + saved)
+    }
+  }, [curId, isTalk, quietOn, curRate]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // 설치형 앱: 알림·잠금 화면을 지금 상태로(재생 중이면 화면이 꺼져도 멈추지 않게 붙잡는다)
   const notify = useCallback(() => {
     const a = audio.current
@@ -781,7 +814,7 @@ export function usePlayer(tracks: Track[]) {
     queueTracks, index, next, nextNote, gain, plays, last, sleep, sleepLeft, goodnight,
     setSleep, dismissGoodnight: () => setGoodnight(null),
     playFrom, go, toggle, pause, seek, toggleShuffle, setRepeat, jump, removeAt, move, enqueue, setGain,
-    talkPos, talkDone, markDone, rate: curRate, rateEach, setRate, skip, SKIP,
+    talkPos, talkDone, markDone, rate: curRate, rateEach, setRate, skip, SKIP, quietOn, quietSaved, quietReady,
     ab, abStart, abEnd, abSet, abClear, abSpan, bookmark, setBookmark, backToMark, play, normOn, setNorm,
     bounds, trims, setTrim, skipSilence, setSkipSilence, xfade, setXfade, listPos,
     levels, setLevel, headroom, times, setTimes,

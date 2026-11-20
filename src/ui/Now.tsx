@@ -358,6 +358,9 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
             ) : (
               <>
                 <span>{fmt(cur ? player.time : player.resumePos)}</span>
+                {cur?.talk && player.quietOn && player.quietReady && (
+                  <span className="qsave">{player.quietSaved >= 60 ? `쉼을 줄여 ${minutesText(Math.floor(player.quietSaved / 60))} 아꼈어요` : '말 사이 쉼을 줄이는 중'}</span>
+                )}
                 <span>−{fmt(Math.max(0, (cur ? player.duration : shown.duration) - (cur ? player.time : player.resumePos)))}</span>
               </>
             )}

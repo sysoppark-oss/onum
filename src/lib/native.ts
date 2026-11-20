@@ -22,6 +22,7 @@ interface MusicScanPlugin {
   battery(): Promise<{ free: boolean; maker: string }>
   askNearby(): Promise<Output>
   analyze(opts: { path: string; bars: number }): Promise<{ rms: number[]; lufs?: number; head?: number; tail?: number }>
+  quiet(opts: { path: string }): Promise<{ q: number[]; n: number }>
   askBattery(): Promise<void>
   appSettings(): Promise<void>
   volume(): Promise<Volume>
@@ -135,6 +136,11 @@ export function openAppSettings(): void { if (isNative) MusicScan.appSettings().
 /** 설치형 앱: 휴대폰이 직접 곡을 나눠 재기(구간마다 rms, 전체 소리 크기) */
 export function nativeAnalyze(path: string, bars: number): Promise<{ rms: number[]; lufs?: number; head?: number; tail?: number; side?: 0 | 1 | 2 } | null> {
   return isNative ? MusicScan.analyze({ path, bars }).catch(() => null) : Promise.resolve(null)
+}
+
+/** 설치형 앱: 강의를 처음부터 끝까지 재어 조용한 구간(1/100초 단위 [시작, 끝, …]) */
+export function nativeQuiet(path: string): Promise<number[] | null> {
+  return isNative ? MusicScan.quiet({ path }).then((r) => r.q).catch(() => null) : Promise.resolve(null)
 }
 
 /** 차 오디오인지 알아보려고 "근처 기기" 권한을 묻는다 */

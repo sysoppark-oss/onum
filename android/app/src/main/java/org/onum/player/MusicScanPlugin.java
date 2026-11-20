@@ -295,6 +295,24 @@ public class MusicScanPlugin extends Plugin {
         }).start();
     }
 
+    /** 강의의 조용한 구간: 처음부터 끝까지 50ms 창으로 재어, 0.7초 넘게 조용한 곳을 [시작, 끝](1/100초)으로 돌려준다 */
+    @PluginMethod
+    public void quiet(PluginCall call) {
+        String path = call.getString("path");
+        if (path == null) { call.reject("no_path"); return; }
+        new Thread(() -> {
+            try (Analyzer an = new Analyzer(path)) {
+                float[] lv = an.levels(50);
+                JSArray arr = new JSArray();
+                for (int v : Quiet.find(lv, 50)) arr.put(v);
+                JSObject o = new JSObject();
+                o.put("q", arr);
+                o.put("n", lv.length);
+                call.resolve(o);
+            } catch (Exception e) { call.reject("quiet_failed", e); }
+        }).start();
+    }
+
     /** 소리 모양·소리 크기: 곡을 bars 구간으로 나눠 구간마다 1초씩만 풀어 잰다(긴 강의도 빠르고 메모리를 적게 쓴다) */
     @PluginMethod
     public void analyze(PluginCall call) {

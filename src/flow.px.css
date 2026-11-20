@@ -711,3 +711,7 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .dp-done { margin-top: 14px; font-size: 15px; font-weight: 700; color: var(--now-text); }
 .dp-back { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 15px; color: var(--ink2); }
 .dp-back .textlink { min-height: 44px; }
+
+/* 강의: 말 사이 쉼 줄이기 */
+.fade small { display: block; margin-top: 2px; font-size: 13px; font-weight: 500; color: var(--ink2); line-height: 1.4; }
+.times .qsave { flex: 1; min-width: 0; text-align: center; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
