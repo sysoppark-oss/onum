@@ -115,7 +115,7 @@ export default function App() {
           <>
             {tab === 'now' && <NowScreen tracks={tracks} player={player} vol={vol} loud={loud} output={output} lists={lists} onSleep={openSleep} />}
             {tab === 'music' && <MusicScreen tracks={tracks} scan={scan} player={player} lists={lists} onPlayed={() => setTab('now')} onKind={moveKind} />}
-            {tab === 'lists' && <ListsScreen tracks={tracks} music={music} player={player} lists={lists} />}
+            {tab === 'lists' && <ListsScreen tracks={tracks} music={music} player={player} lists={lists} onPlayed={() => setTab('now')} />}
             {tab === 'rest' && <RestScreen easy={easy} setEasy={setEasy} onFolders={() => setFolders(true)} battery={battery} onBattery={() => setBatteryOpen(true)} verseMove={verseMove} setVerseMove={setVerseMove} player={player} onNews={() => setNews(true)} />}
           </>
         )}

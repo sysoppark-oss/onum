@@ -22,7 +22,9 @@ function meta(items: Track[]): string {
 
 interface Auto { id: string; name: string; sub: string; items: Track[] }
 
-export function ListsScreen({ tracks, music, player, lists }: { tracks: Track[]; music: Track[]; player: Player; lists: Playlists }) {
+export function ListsScreen({ tracks, music, player, lists, onPlayed }: { tracks: Track[]; music: Track[]; player: Player; lists: Playlists; onPlayed: () => void }) {
+  // 곡을 틀면 「지금」으로 넘어간다(음악 탭과 같게)
+  const play: Player['playFrom'] = (...a) => { player.playFrom(...a); onPlayed() }
   const [open, setOpen] = useState<string | null>(null)
   const [auto, setAuto] = useState<string | null>(null)
   const [naming, setNaming] = useState(false)
@@ -83,7 +85,7 @@ export function ListsScreen({ tracks, music, player, lists }: { tracks: Track[];
                   <span className="x"><span className="x1">{p.name}</span><span className="x2 num">{lp ? `이어서 · ${info(lp.t).song} ${fmt(lp.pos)}` : meta(items)}</span></span>
                 </button>
                 <button className="pp" disabled={!items.length}
-                  onClick={() => (lp ? player.playFrom(items, lp.t.id, lp.pos, true, 'list:' + p.id) : player.playFrom(items, items[0].id, undefined, true, 'list:' + p.id))}
+                  onClick={() => (lp ? play(items, lp.t.id, lp.pos, true, 'list:' + p.id) : play(items, items[0].id, undefined, true, 'list:' + p.id))}
                   aria-label={lp ? `${p.name} 이어서 듣기` : `${p.name} 듣기`}>
                   <Icon n="play" s={20} />
                 </button>
@@ -104,14 +106,14 @@ export function ListsScreen({ tracks, music, player, lists }: { tracks: Track[];
         ))}
       </ul>
       {naming && <NameSheet onClose={closeNaming} onDone={(name) => setOpen(lists.create(name))} />}
-      {pl && <ListDetail pl={pl} items={itemsOf(pl)} tracks={tracks} lists={lists} player={player} onClose={closeOpen} resume={resumeOf(pl, itemsOf(pl))} />}
-      {au && <AutoDetail a={au} player={player} onClose={closeAuto} />}
+      {pl && <ListDetail pl={pl} items={itemsOf(pl)} tracks={tracks} lists={lists} player={player} play={play} onClose={closeOpen} resume={resumeOf(pl, itemsOf(pl))} />}
+      {au && <AutoDetail a={au} player={player} play={play} onClose={closeAuto} />}
     </div>
   )
 }
 
-function ListDetail({ pl, items, tracks, lists, player, onClose, resume }: {
-  pl: Playlist; items: Track[]; tracks: Track[]; lists: Playlists; player: Player; onClose: () => void; resume: { t: Track; pos: number } | null
+function ListDetail({ pl, items, tracks, lists, player, play, onClose, resume }: {
+  pl: Playlist; items: Track[]; tracks: Track[]; lists: Playlists; player: Player; play: Player['playFrom']; onClose: () => void; resume: { t: Track; pos: number } | null
 }) {
   const src = 'list:' + pl.id
   const [adding, setAdding] = useState(false)
@@ -137,14 +139,14 @@ function ListDetail({ pl, items, tracks, lists, player, onClose, resume }: {
         </button>
       ) : null}
       <div className="acts">
-        {resume && <button className="go grow" onClick={() => player.playFrom(items, resume.t.id, resume.pos, true, src)}><Icon n="play" s={18} /><span className="one">이어서 · {info(resume.t).song} <span className="num">{fmt(resume.pos)}</span></span></button>}
-        {items.length > 0 && <button className={resume ? 'pillbtn' : 'go grow'} onClick={() => player.playFrom(items, items[0].id, undefined, true, src)}><Icon n="play" s={18} />처음부터 듣기</button>}
+        {resume && <button className="go grow" onClick={() => play(items, resume.t.id, resume.pos, true, src)}><Icon n="play" s={18} /><span className="one">이어서 · {info(resume.t).song} <span className="num">{fmt(resume.pos)}</span></span></button>}
+        {items.length > 0 && <button className={resume ? 'pillbtn' : 'go grow'} onClick={() => play(items, items[0].id, undefined, true, src)}><Icon n="play" s={18} />처음부터 듣기</button>}
         <button className="pillbtn" onClick={() => setAdding(true)}><Icon n="plus" s={18} />곡 추가</button>
       </div>
       {items.length > 1 && !Object.keys(tags).length && <p className="hint">곡을 길게 누르면 색으로 표시해 둘 수 있어요.</p>}
       {items.length === 0 && <p className="empty">아직 담은 곡이 없어요. "곡 추가"를 눌러 담아 보세요.</p>}
       <EditRows tracks={items} currentId={player.current?.id}
-        onTap={(i) => player.playFrom(items, items[i].id, undefined, true, src)}
+        onTap={(i) => play(items, items[i].id, undefined, true, src)}
         onMove={(i, d) => lists.swap(pl.id, items[i].id, items[i + d].id)}
         onRemove={(i) => lists.removeTrack(pl.id, items[i].id)}
         tagOf={(t) => tags[t.id]} onLong={setTagAt} />
@@ -170,18 +172,18 @@ function ListDetail({ pl, items, tracks, lists, player, onClose, resume }: {
   )
 }
 
-function AutoDetail({ a, player, onClose }: { a: Auto; player: Player; onClose: () => void }) {
+function AutoDetail({ a, player, play, onClose }: { a: Auto; player: Player; play: Player['playFrom']; onClose: () => void }) {
   return (
     <Page label={a.name} onClose={onClose}>
       <p className="lmeta num">{a.sub} · {meta(a.items)}</p>
       {a.items.length > 0
-        ? <div className="acts"><button className="go grow" onClick={() => player.playFrom(a.items, a.items[0].id, undefined, true)}><Icon n="play" s={18} />처음부터 듣기</button></div>
+        ? <div className="acts"><button className="go grow" onClick={() => play(a.items, a.items[0].id, undefined, true)}><Icon n="play" s={18} />처음부터 듣기</button></div>
         : <p className="empty">{a.id === 'often' ? '두 번 이상 들은 곡이 여기 모여요.' : '아직 해당하는 곡이 없어요.'}</p>}
       <VirtualList items={a.items} className="pl" rowRem={4.25} render={(t) => {
         const x = info(t)
         return (
           <li key={t.id}>
-            <button className="lrow" onClick={() => player.playFrom(a.items, t.id, undefined, true)}>
+            <button className="lrow" onClick={() => play(a.items, t.id, undefined, true)}>
               <span className="x"><span className="x1">{x.song}</span><span className="x2">{whoLine(x) || ' '}</span></span>
               <span className="d num">{a.id === 'often' ? `${nf.format(player.plays[t.id] ?? 0)}번` : t.duration ? fmt(t.duration) : ''}</span>
             </button>
