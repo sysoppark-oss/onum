@@ -3,11 +3,15 @@ import { useCallback, useState } from 'react'
 import { DAILY, today } from '../lib/verses'
 import { Icon } from './common'
 import { Page } from './Sheets'
+import type { Battery } from './Battery'
 
 const REPO = 'https://github.com/sysoppark-oss/onum'
 const MAIL = 'sysoppark@gmail.com'
 
-export function RestScreen({ easy, setEasy, onFolders }: { easy: boolean; setEasy: (v: boolean) => void; onFolders?: () => void }) {
+export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, norm, setNorm }: {
+  easy: boolean; setEasy: (v: boolean) => void; onFolders?: () => void; battery: Battery; onBattery: () => void
+  norm: boolean; setNorm: (v: boolean) => void
+}) {
   const [about, setAbout] = useState(false)
   const [reading, setReading] = useState(false)
   const closeAbout = useCallback(() => setAbout(false), [])
@@ -35,6 +39,20 @@ export function RestScreen({ easy, setEasy, onFolders }: { easy: boolean; setEas
             <button className="sw" role="switch" aria-checked={easy} aria-labelledby="easy-l" onClick={() => setEasy(!easy)} />
           </div>
         </li>
+        <li>
+          <div className="lrow">
+            <span className="x"><span className="x1" id="norm-l">곡마다 소리 크기 맞추기</span><span className="x2">유난히 큰 곡은 줄여서 비슷하게 들려요</span></span>
+            <button className="sw" role="switch" aria-checked={norm} aria-labelledby="norm-l" onClick={() => setNorm(!norm)} />
+          </div>
+        </li>
+        {battery && (
+          <li>
+            <button className="lrow" onClick={onBattery}>
+              <span className="x"><span className="x1">화면이 꺼져도 계속 듣기</span><span className={'x2' + (battery.free ? '' : ' need')}>{battery.free ? '배터리 절약에서 빠져 있어요' : '설정이 필요해요 · 잠들기 중에 끊길 수 있어요'}</span></span>
+              <span className="go-r" aria-hidden="true"><Icon n="chev" s={18} /></span>
+            </button>
+          </li>
+        )}
         {onFolders && (
           <li>
             <button className="lrow" onClick={onFolders}>

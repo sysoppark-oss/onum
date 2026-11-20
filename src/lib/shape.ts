@@ -2,12 +2,14 @@
 // 휴대폰 메모리를 아끼려고 8kHz 한 갈래로 낮춰서 풀고, 곡마다 한 번만 계산해 저장한다.
 import type { Track } from './library'
 import { load, save } from './store'
+import { isNative, nativeAnalyze } from './native'
 
 export const BARS = 76
 
 export interface Shape {
   bars: number[] // 0~1
   hook: number | null // 가장 크게 이어지는 구간의 가운데(0~1). 후렴 '추정'
+  lufs?: number | null // 곡 전체 소리 크기(ITU-R BS.1770 방식, 8kHz로 낮춰 잰 값)
 }
 
 const memo = new Map<string, Shape>()
@@ -17,7 +19,7 @@ export function cachedShape(t: Track): Shape | undefined {
   const hit = memo.get(t.id)
   if (hit) return hit
   const saved = load<Shape | null>('shape:' + t.id, null)
-  if (saved && saved.bars?.length === BARS) { memo.set(t.id, saved); return saved }
+  if (saved && saved.bars?.length === BARS && saved.lufs !== undefined) { memo.set(t.id, saved); return saved }
   return undefined
 }
 
@@ -33,7 +35,24 @@ export function getShape(t: Track): Promise<Shape | null> {
 const MAX_SECONDS = 20 * 60
 const MAX_BYTES = 40 * 1024 * 1024
 
+/** rms 76개 → 막대 높이 */
+function toBars(raw: number[]): number[] {
+  const max = Math.max(...raw, 1e-6)
+  // 작은 소리도 보이게 살짝 끌어올린다
+  return raw.map((v) => Math.round(Math.max(0.06, Math.pow(v / max, 0.7)) * 100) / 100)
+}
+
 async function analyze(t: Track): Promise<Shape | null> {
+  // 설치형 앱은 휴대폰이 직접 잰다: 긴 강의도 구간마다 1초씩만 풀어서 빠르다
+  if (isNative && t.path) {
+    const r = await nativeAnalyze(t.path, BARS)
+    if (!r || r.rms.length !== BARS) return null
+    const bars = toBars(r.rms)
+    const shape: Shape = { bars, hook: findHook(bars), lufs: r.lufs ?? null }
+    memo.set(t.id, shape)
+    save('shape:' + t.id, shape)
+    return shape
+  }
   if (t.duration > MAX_SECONDS) return null
   const res = await fetch(t.url)
   if (Number(res.headers.get('content-length') || 0) > MAX_BYTES) return null
@@ -58,10 +77,8 @@ async function analyze(t: Track): Promise<Shape | null> {
     }
     raw.push(Math.sqrt(sum / Math.max(cnt, 1)))
   }
-  const max = Math.max(...raw, 1e-6)
-  // 작은 소리도 보이게 살짝 끌어올린다
-  const bars = raw.map((v) => Math.round(Math.max(0.06, Math.pow(v / max, 0.7)) * 100) / 100)
-  const shape: Shape = { bars, hook: findHook(bars) }
+  const bars = toBars(raw)
+  const shape: Shape = { bars, hook: findHook(bars), lufs: loudness(chs, audio.sampleRate) }
   memo.set(t.id, shape)
   save('shape:' + t.id, shape)
   return shape
@@ -80,4 +97,57 @@ function findHook(bars: number[]): number | null {
   }
   if (at < 0 || best / w < mean * 1.15) return null
   return (at + w / 2) / BARS
+}
+
+/** 2차 필터 계수 (RBJ). BS.1770의 K-가중: 고음 올림(1.5kHz, +4dB) + 저음 자름(38Hz) */
+function biquad(kind: 'shelf' | 'hp', fc: number, fs: number, q: number, gainDb = 0) {
+  const A = Math.pow(10, gainDb / 40), w = (2 * Math.PI * fc) / fs, c = Math.cos(w), al = Math.sin(w) / (2 * q)
+  let b0, b1, b2, a0, a1, a2
+  if (kind === 'shelf') {
+    const r = 2 * Math.sqrt(A) * al
+    b0 = A * ((A + 1) + (A - 1) * c + r); b1 = -2 * A * ((A - 1) + (A + 1) * c); b2 = A * ((A + 1) + (A - 1) * c - r)
+    a0 = (A + 1) - (A - 1) * c + r; a1 = 2 * ((A - 1) - (A + 1) * c); a2 = (A + 1) - (A - 1) * c - r
+  } else {
+    b0 = (1 + c) / 2; b1 = -(1 + c); b2 = (1 + c) / 2; a0 = 1 + al; a1 = -2 * c; a2 = 1 - al
+  }
+  return [b0 / a0, b1 / a0, b2 / a0, a1 / a0, a2 / a0]
+}
+
+function filter(x: Float32Array, k: number[]): Float32Array {
+  const [b0, b1, b2, a1, a2] = k
+  const y = new Float32Array(x.length)
+  let x1 = 0, x2 = 0, y1 = 0, y2 = 0
+  for (let i = 0; i < x.length; i++) {
+    const v = b0 * x[i] + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2
+    x2 = x1; x1 = x[i]; y2 = y1; y1 = v; y[i] = v
+  }
+  return y
+}
+
+/** 통합 소리 크기(LUFS): 400ms 조각(75% 겹침), 절대 -70 LUFS·상대 -10 LU 문턱 */
+export function loudness(chs: Float32Array[], fs: number): number | null {
+  const shelf = biquad('shelf', 1500, fs, 1 / Math.SQRT2, 4)
+  const hp = biquad('hp', 38, fs, 0.5)
+  const ks = chs.slice(0, 2).map((c) => filter(filter(c, shelf), hp))
+  const n = ks[0].length, block = Math.round(fs * 0.4), step = Math.round(block / 4)
+  const z: number[] = []
+  for (let i = 0; i + block <= n; i += step) {
+    let sum = 0
+    for (const k of ks) { let e = 0; for (let j = i; j < i + block; j++) e += k[j] * k[j]; sum += e / block }
+    z.push(sum)
+  }
+  const lk = (e: number) => -0.691 + 10 * Math.log10(e)
+  const abs = z.filter((e) => e > 0 && lk(e) > -70)
+  if (!abs.length) return null
+  const rel = lk(abs.reduce((a, b) => a + b, 0) / abs.length) - 10
+  const gated = abs.filter((e) => lk(e) > rel)
+  if (!gated.length) return null
+  return Math.round(lk(gated.reduce((a, b) => a + b, 0) / gated.length) * 10) / 10
+}
+
+export const TARGET_LUFS = -16
+/** 큰 곡만 줄인다(재생기는 소리를 키울 수 없다). 최대 -12dB */
+export function normGain(lufs: number | null | undefined): number {
+  if (lufs == null) return 1
+  return Math.max(Math.pow(10, -12 / 20), Math.min(1, Math.pow(10, (TARGET_LUFS - lufs) / 20)))
 }

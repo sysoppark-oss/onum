@@ -15,6 +15,7 @@ export interface Track {
   genre?: string
   bitrate?: number // bps
   talk?: boolean // 강의(앱이 가른 결과)
+  path?: string // 설치형 앱: 휴대폰 안 파일 자리(분석용)
 }
 
 const AUDIO_EXT = /\.(mp3|m4a|aac|flac|wav|ogg|opus)$/i

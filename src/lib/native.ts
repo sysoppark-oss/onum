@@ -19,6 +19,10 @@ interface MusicScanPlugin {
   nowPlaying(opts: { playing: boolean; title?: string; artist?: string }): Promise<void>
   output(): Promise<Output>
   fontScale(): Promise<{ scale: number }>
+  battery(): Promise<{ free: boolean; maker: string }>
+  analyze(opts: { path: string; bars: number }): Promise<{ rms: number[]; lufs?: number }>
+  askBattery(): Promise<void>
+  appSettings(): Promise<void>
   volume(): Promise<Volume>
   setVolume(opts: { value: number }): Promise<Volume>
   addListener(event: 'volumeChanged', fn: (v: Volume) => void): Promise<PluginListenerHandle>
@@ -49,6 +53,7 @@ export async function scanDevice(): Promise<ScanResult> {
       nativeId: n.id,
       albumId: n.albumId,
       talkFlag: n.talkFlag,
+      path: n.path,
       genre: n.genre,
       bitrate: n.bitrate || undefined,
     }
@@ -103,4 +108,16 @@ export function onVolume(fn: (v: Volume) => void): () => void {
   if (!isNative) return () => {}
   const h = MusicScan.addListener('volumeChanged', fn)
   return () => { h.then((x) => x.remove()).catch(() => {}) }
+}
+
+/** 배터리 최적화에서 빠져 있는지. 설치형 앱이 아니면 null */
+export function getBattery(): Promise<{ free: boolean; maker: string } | null> {
+  return isNative ? MusicScan.battery().catch(() => null) : Promise.resolve(null)
+}
+export function askBattery(): void { if (isNative) MusicScan.askBattery().catch(() => {}) }
+export function openAppSettings(): void { if (isNative) MusicScan.appSettings().catch(() => {}) }
+
+/** 설치형 앱: 휴대폰이 직접 곡을 나눠 재기(구간마다 rms, 전체 소리 크기) */
+export function nativeAnalyze(path: string, bars: number): Promise<{ rms: number[]; lufs?: number } | null> {
+  return isNative ? MusicScan.analyze({ path, bars }).catch(() => null) : Promise.resolve(null)
 }

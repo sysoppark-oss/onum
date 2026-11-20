@@ -147,6 +147,162 @@ public class MusicScanPlugin extends Plugin {
         }
     }
 
+    /** 배터리 최적화에서 빠져 있는지(빠져 있어야 화면이 꺼져도 오래 재생된다) */
+    @PluginMethod
+    public void battery(PluginCall call) {
+        android.os.PowerManager pm = (android.os.PowerManager) getContext().getSystemService(Context.POWER_SERVICE);
+        JSObject o = new JSObject();
+        o.put("free", pm != null && pm.isIgnoringBatteryOptimizations(getContext().getPackageName()));
+        o.put("maker", Build.MANUFACTURER == null ? "" : Build.MANUFACTURER.toLowerCase());
+        call.resolve(o);
+    }
+
+    /** "배터리 사용량 최적화 중지" 묻는 창을 띄운다. 막히면 앱 정보 화면을 연다. */
+    @PluginMethod
+    public void askBattery(PluginCall call) {
+        Context ctx = getContext();
+        try {
+            Intent i = new Intent(android.provider.Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+            i.setData(Uri.parse("package:" + ctx.getPackageName()));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            ctx.startActivity(i);
+        } catch (Exception e) {
+            try {
+                Intent i = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                i.setData(Uri.parse("package:" + ctx.getPackageName()));
+                i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                ctx.startActivity(i);
+            } catch (Exception ignored) {}
+        }
+        call.resolve();
+    }
+
+    /** 앱 정보 화면(삼성: 배터리 › 제한 없음을 여기서 고른다) */
+    @PluginMethod
+    public void appSettings(PluginCall call) {
+        try {
+            Intent i = new Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+            i.setData(Uri.parse("package:" + getContext().getPackageName()));
+            i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            getContext().startActivity(i);
+        } catch (Exception ignored) {}
+        call.resolve();
+    }
+
+    /** 소리 모양·소리 크기: 곡을 bars 구간으로 나눠 구간마다 1초씩만 풀어 잰다(긴 강의도 빠르고 메모리를 적게 쓴다) */
+    @PluginMethod
+    public void analyze(PluginCall call) {
+        String path = call.getString("path");
+        int bars = call.getInt("bars", 76);
+        if (path == null) { call.reject("no_path"); return; }
+        new Thread(() -> {
+            try { call.resolve(runAnalyze(path, bars)); }
+            catch (Exception e) { call.reject("analyze_failed", e); }
+        }).start();
+    }
+
+    private JSObject runAnalyze(String path, int bars) throws Exception {
+        android.media.MediaExtractor ex = new android.media.MediaExtractor();
+        android.media.MediaCodec codec = null;
+        try {
+            ex.setDataSource(path);
+            int track = -1;
+            android.media.MediaFormat fmt = null;
+            for (int i = 0; i < ex.getTrackCount(); i++) {
+                android.media.MediaFormat f = ex.getTrackFormat(i);
+                String m = f.getString(android.media.MediaFormat.KEY_MIME);
+                if (m != null && m.startsWith("audio/")) { track = i; fmt = f; break; }
+            }
+            if (track < 0 || fmt == null) throw new Exception("no_audio");
+            ex.selectTrack(track);
+            long durUs = fmt.containsKey(android.media.MediaFormat.KEY_DURATION) ? fmt.getLong(android.media.MediaFormat.KEY_DURATION) : 0;
+            if (durUs <= 0) throw new Exception("no_duration");
+            int fs = fmt.getInteger(android.media.MediaFormat.KEY_SAMPLE_RATE);
+            int ch = fmt.getInteger(android.media.MediaFormat.KEY_CHANNEL_COUNT);
+            boolean isFloat = false;
+            codec = android.media.MediaCodec.createDecoderByType(fmt.getString(android.media.MediaFormat.KEY_MIME));
+            codec.configure(fmt, null, null, 0);
+            codec.start();
+            android.media.MediaCodec.BufferInfo info = new android.media.MediaCodec.BufferInfo();
+            long win = Math.max(200_000L, Math.min(1_000_000L, durUs / bars));
+            double[] rms = new double[bars];
+            Loudness loud = null;
+            int loudFs = 0;
+            for (int b = 0; b < bars; b++) {
+                long at = (long) ((b + 0.5) * durUs / bars) - win / 2;
+                if (at < 0) at = 0;
+                ex.seekTo(at, android.media.MediaExtractor.SEEK_TO_PREVIOUS_SYNC);
+                codec.flush();
+                float[] buf = new float[0];
+                int got = 0;
+                boolean inEos = false, outEos = false;
+                int guard = 0;
+                while (!outEos && guard++ < 600) {
+                    int cap = (int) (fs * ch * win / 1_000_000L);
+                    if (got >= cap && cap > 0) break;
+                    if (!inEos) {
+                        int ii = codec.dequeueInputBuffer(10_000);
+                        if (ii >= 0) {
+                            java.nio.ByteBuffer ib = codec.getInputBuffer(ii);
+                            int n = ib == null ? -1 : ex.readSampleData(ib, 0);
+                            if (n < 0) {
+                                codec.queueInputBuffer(ii, 0, 0, 0, android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM);
+                                inEos = true;
+                            } else {
+                                codec.queueInputBuffer(ii, 0, n, ex.getSampleTime(), 0);
+                                ex.advance();
+                            }
+                        }
+                    }
+                    int oi = codec.dequeueOutputBuffer(info, 10_000);
+                    if (oi == android.media.MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                        android.media.MediaFormat of = codec.getOutputFormat();
+                        if (of.containsKey(android.media.MediaFormat.KEY_SAMPLE_RATE)) fs = of.getInteger(android.media.MediaFormat.KEY_SAMPLE_RATE);
+                        if (of.containsKey(android.media.MediaFormat.KEY_CHANNEL_COUNT)) ch = of.getInteger(android.media.MediaFormat.KEY_CHANNEL_COUNT);
+                        if (of.containsKey(android.media.MediaFormat.KEY_PCM_ENCODING))
+                            isFloat = of.getInteger(android.media.MediaFormat.KEY_PCM_ENCODING) == android.media.AudioFormat.ENCODING_PCM_FLOAT;
+                    } else if (oi >= 0) {
+                        java.nio.ByteBuffer ob = codec.getOutputBuffer(oi);
+                        if (ob != null && info.size > 0 && info.presentationTimeUs >= at - 50_000) {
+                            ob.position(info.offset);
+                            ob.limit(info.offset + info.size);
+                            java.nio.ByteBuffer o2 = ob.slice().order(java.nio.ByteOrder.nativeOrder());
+                            int n = isFloat ? info.size / 4 : info.size / 2;
+                            if (got + n > buf.length) buf = java.util.Arrays.copyOf(buf, Math.max(got + n, buf.length * 2));
+                            if (isFloat) { java.nio.FloatBuffer fb = o2.asFloatBuffer(); for (int k = 0; k < n; k++) buf[got++] = fb.get(k); }
+                            else { java.nio.ShortBuffer sb = o2.asShortBuffer(); for (int k = 0; k < n; k++) buf[got++] = sb.get(k) / 32768f; }
+                        }
+                        codec.releaseOutputBuffer(oi, false);
+                        if ((info.flags & android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) outEos = true;
+                    }
+                }
+                int frames = ch > 0 ? got / ch : 0;
+                if (frames == 0) continue;
+                double[][] chs = new double[ch][frames];
+                double sum = 0;
+                for (int f = 0; f < frames; f++) {
+                    double mono = 0;
+                    for (int c = 0; c < ch; c++) { double v = buf[f * ch + c]; chs[c][f] = v; mono += v; }
+                    mono /= ch;
+                    sum += mono * mono;
+                }
+                rms[b] = Math.sqrt(sum / frames);
+                if (loud == null) { loud = new Loudness(fs); loudFs = fs; }
+                if (fs == loudFs) loud.add(chs, fs / 20);
+            }
+            JSArray arr = new JSArray();
+            for (double v : rms) arr.put(v);
+            JSObject o = new JSObject();
+            o.put("rms", arr);
+            double l = loud == null ? Double.NaN : loud.integrated();
+            if (!Double.isNaN(l)) o.put("lufs", l);
+            return o;
+        } finally {
+            if (codec != null) { try { codec.stop(); } catch (Exception ignored) {} try { codec.release(); } catch (Exception ignored) {} }
+            ex.release();
+        }
+    }
+
     /** 휴대폰 설정의 글자 크기 배율 */
     @PluginMethod
     public void fontScale(PluginCall call) {

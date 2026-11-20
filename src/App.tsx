@@ -15,6 +15,7 @@ import { ListsScreen } from './ui/Lists'
 import { RestScreen } from './ui/Rest'
 import { FirstScreen, FoldersPage } from './ui/First'
 import { EasyScreen } from './ui/Easy'
+import { BatteryPage, useBattery } from './ui/Battery'
 import { GoodnightScreen, SleepSheet } from './ui/Sheets'
 
 type Tab = 'now' | 'music' | 'lists' | 'rest'
@@ -52,6 +53,13 @@ export default function App() {
   const openSleep = useCallback(() => setSleeping(true), [])
   const closeSleep = useCallback(() => setSleeping(false), [])
   const closeFolders = useCallback(() => setFolders(false), [])
+  const [battery] = useBattery()
+  const [batteryOpen, setBatteryOpen] = useState(false)
+  const closeBattery = useCallback(() => { setBatteryOpen(false); save('batteryAsked', true) }, [])
+  // 처음 한 번: 배터리 절약에 걸려 있으면 안내한다
+  useEffect(() => {
+    if (battery && !battery.free && !load('batteryAsked', false)) setBatteryOpen(true)
+  }, [battery])
   const player = usePlayer(tracks)
   const output = useOutput(player)
   const lists = usePlaylists()
@@ -92,7 +100,7 @@ export default function App() {
             {tab === 'now' && <NowScreen tracks={tracks} player={player} vol={vol} loud={loud} output={output} lists={lists} onSleep={openSleep} />}
             {tab === 'music' && <MusicScreen tracks={tracks} scan={scan} player={player} lists={lists} onPlayed={() => setTab('now')} onKind={moveKind} />}
             {tab === 'lists' && <ListsScreen tracks={tracks} music={music} player={player} lists={lists} />}
-            {tab === 'rest' && <RestScreen easy={easy} setEasy={setEasy} onFolders={() => setFolders(true)} />}
+            {tab === 'rest' && <RestScreen easy={easy} setEasy={setEasy} onFolders={() => setFolders(true)} battery={battery} onBattery={() => setBatteryOpen(true)} norm={player.normOn} setNorm={player.setNorm} />}
           </>
         )}
       </main>
@@ -111,6 +119,7 @@ export default function App() {
       )}
       {sleeping && <SleepSheet player={player} onClose={closeSleep} />}
       {folders && <FoldersPage tracks={raw.tracks} hidden={hidden} setHidden={setHidden} onClose={closeFolders} />}
+      {batteryOpen && <BatteryPage b={battery} onClose={closeBattery} />}
       {gn && <GoodnightScreen g={gn} onClose={player.dismissGoodnight} onResume={() => { player.dismissGoodnight(); player.toggle() }} />}
     </div>
   )

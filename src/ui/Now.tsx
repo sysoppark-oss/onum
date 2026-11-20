@@ -36,7 +36,7 @@ export function ShapeBar({ t, time, duration, onSeek, ab }: { t: Track; time: nu
           {ab.b != null && (ab.b - ab.a) / duration > 0.14 && <span className="mk b num" aria-hidden="true" style={{ left: `${(ab.b / duration) * 100}%` }}>{fmt(ab.b)}</span>}
         </>
       )}
-      {!ab && hook != null && <span className="hook" aria-hidden="true" style={{ left: `${Math.min(92, Math.max(8, hook * 100))}%` }}>후렴</span>}
+      {!ab && hook != null && !t.talk && <span className="hook" aria-hidden="true" style={{ left: `${Math.min(92, Math.max(8, hook * 100))}%` }}>후렴</span>}
       <span className="head" aria-hidden="true" style={{ left: `${ratio * 100}%` }} />
       {onSeek && (
         <input type="range" className="scrub" min={0} max={Math.max(1, Math.floor(duration))} step={1} value={Math.floor(time)}

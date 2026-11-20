@@ -3,6 +3,7 @@ import type { Track } from './library'
 import { shuffledOrder } from './shuffle'
 import { load, save } from './store'
 import { setNowPlaying } from './native'
+import { cachedShape, getShape, normGain } from './shape'
 
 interface Resume { id: string; pos: number }
 
@@ -66,8 +67,12 @@ export function usePlayer(tracks: Track[]) {
   const abRef = useRef<AB | null>(null)
   const setAb = (v: AB | null) => { abRef.current = v; setAbState(v) }
   const currentTitle = useRef('')
+  // 곡마다 소리 크기 맞추기: 큰 곡은 줄인다
+  const [normOn, setNormOnState] = useState<boolean>(() => load('norm', true))
+  const normRef = useRef(1)
   const gainRef = useRef(gain)
   gainRef.current = gain
+  const vol = () => gainRef.current * normRef.current
 
   /** minutes: 몇 분 뒤 / 'track': 이 곡까지 / null: 끄기. fade: 끝날 때 30초 동안 소리 줄이기 */
   const setSleep = useCallback((v: number | 'track' | null, fade = true) => {
@@ -81,7 +86,7 @@ export function usePlayer(tracks: Track[]) {
   const finishSleep = useCallback(() => {
     const a = audio.current
     a.pause()
-    a.volume = gainRef.current
+    a.volume = vol()
     sleepRef.current = null
     setSleepState(null)
     setPlaying(false)
@@ -98,11 +103,11 @@ export function usePlayer(tracks: Track[]) {
       if (left <= 0) {
         if (a.paused) { sleepRef.current = null; setSleepState(null) } // 이미 멈춰 있으면 조용히 끝낸다
         else finishSleep()
-      } else if (sleep.fade && left < SLEEP_FADE_MS) a.volume = gainRef.current * (left / SLEEP_FADE_MS)
+      } else if (sleep.fade && left < SLEEP_FADE_MS) a.volume = vol() * (left / SLEEP_FADE_MS)
     }
     tick()
     const h = setInterval(tick, 500)
-    return () => { clearInterval(h); a.volume = gainRef.current }
+    return () => { clearInterval(h); a.volume = vol() }
   }, [sleep, finishSleep])
   const byId = useRef(new Map<string, Track>())
   byId.current = new Map(tracks.map((t) => [t.id, t]))
@@ -373,11 +378,38 @@ export function usePlayer(tracks: Track[]) {
 
   const setGain = useCallback((v: number) => {
     const g = Math.min(1, Math.max(0, v))
-    audio.current.volume = g
+    audio.current.volume = g * normRef.current
     setGainState(g)
     save('gain', g)
   }, [])
   useEffect(() => { audio.current.volume = gain }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 곡이 바뀌면 소리 크기를 맞춘다. 아직 안 잰 곡은 재고 나서 0.6초 동안 천천히 바꾼다.
+  const fadeTimer = useRef(0)
+  useEffect(() => {
+    if (!current) return
+    const apply = (k: number, smooth: boolean) => {
+      window.clearInterval(fadeTimer.current)
+      if (sleepRef.current && !sleepRef.current.endOfTrack && sleepRef.current.until - Date.now() < SLEEP_FADE_MS) { normRef.current = k; return }
+      const from = normRef.current
+      if (!smooth || Math.abs(from - k) < 0.01) { normRef.current = k; audio.current.volume = vol(); return }
+      let i = 0
+      fadeTimer.current = window.setInterval(() => {
+        i++
+        normRef.current = from + (k - from) * (i / 12)
+        audio.current.volume = vol()
+        if (i >= 12) window.clearInterval(fadeTimer.current)
+      }, 50)
+    }
+    if (!normOn) { apply(1, true); return }
+    const hit = cachedShape(current)
+    if (hit) { apply(normGain(hit.lufs), false); return }
+    let alive = true
+    getShape(current).then((sh) => { if (alive) apply(normGain(sh?.lufs), true) })
+    return () => { alive = false }
+  }, [current, normOn]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const setNorm = useCallback((v: boolean) => { setNormOnState(v); save('norm', v) }, [])
 
   // ── 다음 곡 미리 알림 ──
   let next: Track | undefined
@@ -393,6 +425,9 @@ export function usePlayer(tracks: Track[]) {
   }
 
   const resumeTrack = resume ? byId.current.get(resume.id) : undefined
+  // 다음 곡을 미리 재 두면 넘어갈 때 소리가 바로 맞는다
+  const nextId = next?.id
+  useEffect(() => { if (normOn && next && next.id !== current?.id) getShape(next) }, [nextId, normOn]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
     current, playing, time, duration, shuffle, repeat, repeatLeft,
@@ -401,7 +436,7 @@ export function usePlayer(tracks: Track[]) {
     setSleep, dismissGoodnight: () => setGoodnight(null),
     playFrom, go, toggle, pause, seek, toggleShuffle, setRepeat, jump, removeAt, move, enqueue, setGain,
     talkPos, talkDone, markDone, rate: curRate, rateEach, setRate, skip, SKIP,
-    ab, abStart, abEnd, abSet, abClear,
+    ab, abStart, abEnd, abSet, abClear, normOn, setNorm,
   }
 }
 
