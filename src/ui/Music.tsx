@@ -124,6 +124,7 @@ export function MusicScreen({ tracks: all, scan, player, lists, onPlayed, onKind
                         <span className="st num">{pct > 0 && <span className="pb" aria-hidden="true"><b style={{ width: `${pct}%` }} /></span>}{state}{t.duration ? ` · ${minutesText(Math.max(1, Math.round(t.duration / 60)))}` : ''}</span>
                       </span>
                     </button>
+                    <button className="mo" onClick={() => setMenu(t)} aria-label={`${l.name} 더 보기`}><Icon n="dots" s={22} /></button>
                   </li>
                 )
               })}
@@ -198,6 +199,7 @@ export function MusicScreen({ tracks: all, scan, player, lists, onPlayed, onKind
                 </span>
                 <span className="d num">{t.duration ? fmt(t.duration) : ''}</span>
               </button>
+              <button className="mo" onClick={() => setMenu(t)} aria-label={`${x.song} 더 보기`}><Icon n="dots" s={22} /></button>
             </li>
           )
         }} />

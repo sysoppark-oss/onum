@@ -36,7 +36,7 @@ export function ShapeBar({ t, time, duration, onSeek, ab }: { t: Track; time: nu
           {ab.b != null && (ab.b - ab.a) / duration > 0.14 && <span className="mk b num" aria-hidden="true" style={{ left: `${(ab.b / duration) * 100}%` }}>{fmt(ab.b)}</span>}
         </>
       )}
-      {!ab && hook != null && !t.talk && <span className="hook" aria-hidden="true" style={{ left: `${Math.min(92, Math.max(8, hook * 100))}%` }}>후렴</span>}
+      {!ab && hook != null && !t.talk && <span className="hook" aria-hidden="true" style={{ left: `${Math.min(88, Math.max(12, hook * 100))}%` }}>후렴(추정)</span>}
       <span className="head" aria-hidden="true" style={{ left: `${ratio * 100}%` }} />
       {onSeek && (
         <input type="range" className="scrub" min={0} max={Math.max(1, Math.floor(duration))} step={1} value={Math.floor(time)}
@@ -188,7 +188,8 @@ function AbBar({ player }: { player: Player }) {
   if (g.b == null) {
     return (
       <section className="abbar" aria-label="구간 반복">
-        <p className="say2" role="status"><em className="num">{fmt(g.a)}</em>부터 듣고 있어요.<br />끝낼 자리에서 「여기까지」를 누르세요.</p>
+        <p className="sr" role="status">구간 반복: {fmt(g.a)}부터 시작했어요. 끝낼 자리에서 여기까지를 누르세요.</p>
+        <p className="say2" aria-hidden="true"><em className="num">{fmt(g.a)}</em>부터 듣고 있어요.<br />끝낼 자리에서 「여기까지」를 누르세요.</p>
         <div className="ab2">
           <button className="set" onClick={player.abStart} aria-label={`시작을 지금 자리로 다시 정하기, 지금 시작 ${fmt(g.a)}`}>여기부터<small className="num">{fmt(g.a)}</small></button>
           <button className="next" onClick={() => setMiss(!player.abEnd())}>여기까지<small className="num">지금 {fmt(player.time)}</small></button>
@@ -200,7 +201,8 @@ function AbBar({ player }: { player: Player }) {
   }
   return (
     <section className="abbar" aria-label="구간 반복">
-      <p className="say2" role="status"><em>{secText(g.b - g.a)}</em> 구간을 계속 들어요 · <span className="num">{g.n}번째</span></p>
+      <p className="sr" role="status">{fmt(g.a)}부터 {fmt(g.b)}까지 구간을 계속 들어요.</p>
+      <p className="say2" aria-hidden="true"><em>{secText(g.b - g.a)}</em> 구간을 계속 들어요 · <span className="num">{g.n}번째</span></p>
       <div className="fine2">
         <div><span>시작<b className="num">{fmt(g.a)}</b></span>
           <button className="num" onClick={() => player.abSet('a', g.a - 1)} aria-label="시작 1초 앞으로">−1초</button>

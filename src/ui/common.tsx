@@ -1,5 +1,6 @@
 // 여러 화면이 함께 쓰는 것: 창 다루기, 긴 목록, 아이콘, 곡 정보, 그림, 음량, 소리 나가는 곳
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { Track } from '../lib/library'
 import type { Player } from '../lib/usePlayer'
 import { parseTitle, type Parsed } from '../lib/title'
@@ -73,6 +74,25 @@ export function useLongPress() {
 
 /* ── 창: 초점 가두기, 뒤로 버튼·Esc로 닫기 ── */
 export const closers: (() => void)[] = []
+// 떠 있는 창들의 바깥 상자. 맨 위 창만 살아 있고 나머지(앱 본문, 아래 창)는 inert
+const layers: HTMLElement[] = []
+function syncInert() {
+  const root = document.getElementById('root')
+  if (root) root.inert = layers.length > 0
+  layers.forEach((el, i) => { el.inert = i < layers.length - 1 })
+}
+
+/** 창은 body 바로 아래에 그린다(뒤 화면을 통째로 inert로 막을 수 있게) */
+export function Layer({ children }: { children: React.ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const el = ref.current!
+    layers.push(el)
+    syncInert()
+    return () => { const i = layers.indexOf(el); if (i >= 0) layers.splice(i, 1); el.inert = false; syncInert() }
+  }, [])
+  return createPortal(<div ref={ref} className="layer-host">{children}</div>, document.body)
+}
 const FOCUSABLE = 'button:not([disabled]), a[href], input:not([type=hidden]), [tabindex]:not([tabindex="-1"])'
 
 export function useDialog<T extends HTMLElement = HTMLDivElement>(onClose: () => void) {
@@ -164,12 +184,14 @@ export function Sheet({ label, onClose, children, tall }: { label: string; onClo
   const box = useDialog(onClose)
   useSwipeClose(box, onClose)
   return (
-    <div className="dim" onClick={onClose}>
-      <div ref={box} tabIndex={-1} className={'sheet' + (tall ? ' tall' : '')} role="dialog" aria-modal="true" aria-label={label} onClick={(e) => e.stopPropagation()}>
-        <span className="grab" aria-hidden="true" />
-        {children}
+    <Layer>
+      <div className="dim" onClick={onClose}>
+        <div ref={box} tabIndex={-1} className={'sheet' + (tall ? ' tall' : '')} role="dialog" aria-modal="true" aria-label={label} onClick={(e) => e.stopPropagation()}>
+          <span className="grab" aria-hidden="true" />
+          {children}
+        </div>
       </div>
-    </div>
+    </Layer>
   )
 }
 
@@ -242,6 +264,7 @@ const STROKE: Record<string, React.ReactNode> = {
   ab: <><line x1="5" y1="5" x2="5" y2="19" /><line x1="19" y1="5" x2="19" y2="19" /><path d="M8 12h8" /><polyline points="13 9 16 12 13 15" /></>,
   move: <><path d="M4 12h14" /><polyline points="13 7 18 12 13 17" /></>,
   undo: <><path d="M9 14 4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 0 12h-3" /></>,
+  dots: <><circle cx="5" cy="12" r="1.2" /><circle cx="12" cy="12" r="1.2" /><circle cx="19" cy="12" r="1.2" /></>,
 }
 const FILLED: Record<string, React.ReactNode> = {
   play: <polygon points="7 4 20 12 7 20" />,

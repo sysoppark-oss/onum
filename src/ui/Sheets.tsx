@@ -7,7 +7,7 @@ import { matches } from '../lib/hangul'
 import { josa, parseTitle } from '../lib/title'
 import { load, save } from '../lib/store'
 import { NIGHT } from '../lib/verses'
-import { Icon, Sheet, VirtualList, useSwipeClose, clock, info, minutesText, nf, useDialog, whoLine } from './common'
+import { Icon, Layer, Sheet, VirtualList, useSwipeClose, clock, info, minutesText, nf, useDialog, whoLine } from './common'
 
 const PRESETS = [15, 30, 60, 120]
 const MAX_MIN = 720
@@ -207,6 +207,7 @@ export function GoodnightScreen({ g, onClose, onResume }: { g: Goodnight; onClos
   const box = useDialog(onClose)
   const song = g.title ? parseTitle(g.title).song : ''
   return (
+    <Layer>
     <div ref={box} tabIndex={-1} className="goodnight" data-theme="night" role="dialog" aria-modal="true" aria-labelledby="gn-h">
       <p className="nt num">{clock(g.at)}{song && ` · ${josa(song, '을', '를')} 마지막으로 멈췄어요`}</p>
       <div className="nv">
@@ -219,6 +220,7 @@ export function GoodnightScreen({ g, onClose, onResume }: { g: Goodnight; onClos
         <button className="go" onClick={onClose}>닫기</button>
       </div>
     </div>
+    </Layer>
   )
 }
 
@@ -252,6 +254,7 @@ export function Page({ label, onClose, children, actions }: { label: string; onC
   const box = useDialog(onClose)
   useSwipeClose(box, onClose)
   return (
+    <Layer>
     <div ref={box} tabIndex={-1} className="layer" role="dialog" aria-modal="true" aria-label={label}>
       <div className="lh">
         <button className="back" onClick={onClose} aria-label="닫기"><Icon n="back" s={26} /></button>
@@ -260,6 +263,7 @@ export function Page({ label, onClose, children, actions }: { label: string; onC
       </div>
       <div className="lb">{children}</div>
     </div>
+    </Layer>
   )
 }
 
