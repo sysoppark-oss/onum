@@ -18,6 +18,7 @@ export interface Track {
   path?: string // 설치형 앱: 휴대폰 안 파일 자리(분석용)
   // 내 편집곡의 한 구간: 원래 곡(src)의 clip.s~clip.e만 든다
   src?: string
+  lrcUrl?: string // PC: 곡 옆에 놓인 같은 이름의 .lrc 가사 파일
   clip?: { s: number; e: number }
   edit?: { id: string; k: number; n: number; from: string }
 }
@@ -53,6 +54,9 @@ export async function scanFiles(
   onProgress: (done: number, total: number) => void,
 ): Promise<ScanResult> {
   const audio = files.filter((f) => AUDIO_EXT.test(f.name))
+  // 같은 폴더·같은 이름의 .lrc 가사 파일
+  const stem = (f: File) => ((f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name).replace(/\.[^./]+$/, '').toLowerCase()
+  const lrcs = new Map(files.filter((f) => /\.lrc$/i.test(f.name)).map((f) => [stem(f), f]))
   const { parseBlob } = await import('music-metadata')
   const tracks: Track[] = []
   let skippedShort = 0
@@ -95,6 +99,7 @@ export async function scanFiles(
       art,
       genre,
       bitrate,
+      lrcUrl: lrcs.has(stem(file)) ? URL.createObjectURL(lrcs.get(stem(file))!) : undefined,
     })
   }
 

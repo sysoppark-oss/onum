@@ -270,6 +270,7 @@ const STROKE: Record<string, React.ReactNode> = {
   car: <><path d="M5 17h14v-5l-2-5H7l-2 5z" /><line x1="5" y1="12" x2="19" y2="12" /><circle cx="8" cy="17" r="1.6" /><circle cx="16" cy="17" r="1.6" /></>,
   move: <><path d="M4 12h14" /><polyline points="13 7 18 12 13 17" /></>,
   undo: <><path d="M9 14 4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 0 12h-3" /></>,
+  share: <><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="6" r="2.5" /><circle cx="18" cy="18" r="2.5" /><line x1="8.2" y1="10.8" x2="15.8" y2="7.2" /><line x1="8.2" y1="13.2" x2="15.8" y2="16.8" /></>,
   trim: <><polyline points="8 4 4 4 4 20 8 20" /><polyline points="16 4 20 4 20 20 16 20" /><line x1="9" y1="12" x2="15" y2="12" /></>,
   level: <><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="17" x2="20" y2="17" /><circle cx="9" cy="7" r="2.4" /><circle cx="15" cy="17" r="2.4" /></>,
   note: <><path d="M9 18V6l10-2v12" /><circle cx="6.5" cy="18" r="2.5" /><circle cx="16.5" cy="16" r="2.5" /></>,
