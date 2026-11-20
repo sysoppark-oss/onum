@@ -9,8 +9,9 @@ import { isNative } from '../lib/native'
 import { Share } from '@capacitor/share'
 import { fmt } from '../lib/library'
 import { tx } from "../lib/i18n";
-import { Icon, info } from './common'
+import { Icon, info, nf } from './common'
 import { Page } from './Sheets'
+import { AI_MB, aiOn, autoSync, downloadAi, useAi } from '../lib/ai'
 
 type Mode = 'view' | 'edit' | 'sync' | 'find'
 
@@ -242,10 +243,70 @@ export function LyricsInline({ t, player, onOpen }: { t: Track; player: Player; 
           </li>
         ))}
       </ol>
+      <AutoSync t={t} synced={sync} />
       <div className="lyi-foot">
-        {!sync && <button className="pillbtn small" onClick={() => onOpen('sync')}>{tx("박자 맞추기")}</button>}
+        {!sync && <button className="pillbtn small" onClick={() => onOpen('sync')}>{tx("직접 맞추기")}</button>}
         <button className="more" onClick={() => onOpen()}>{tx("가사 전체 보기")}<Icon n="chev" s={16} /></button>
       </div>
+    </div>
+  )
+}
+
+/** 저절로 맞추기: 휴대폰 앱에서만. 기능(모델)이 없으면 먼저 받을지 묻는다 */
+export function AutoSync({ t, synced: sync }: { t: Track; synced: boolean }) {
+  const ai = useAi()
+  const [ask, setAsk] = useState(false)
+  if (!aiOn || !ai.st?.ok || !(t.path || !isNative)) return null
+  const mine = ai.job?.id === t.id
+  const err = ai.jobErr?.id === t.id ? ai.jobErr.msg : ''
+  const run = () => { setAsk(false); autoSync(t) }
+  const get = async () => { setAsk(false); if (await downloadAi()) autoSync(t) }
+  const msg = err === 'nomatch' ? tx("노래에서 가사를 찾지 못했어요. 가사가 이 곡과 맞는지 봐 주세요.")
+    : err === 'changed' ? '' : (ai.dlErr && !ai.st.ready) || err === 'no_model' ? tx("기능을 받지 못했어요. 인터넷을 확인하고 다시 해 주세요.")
+    : err ? tx("맞추지 못했어요. 다시 해 보거나 직접 맞춰 주세요.") : ''
+  const pct = (f: number) => nf.format(Math.round(f * 100)) + '%'
+
+  if (ai.dl != null) {
+    return (
+      <div className="ais" role="status">
+        <p className="ais-t"><Icon n="spark" s={18} />{tx("맞추기 기능을 받고 있어요")}<span className="num">{pct(ai.dl)}</span></p>
+        <div className="prog"><span style={{ width: pct(ai.dl) }} /></div>
+        <p className="ais-s">{tx("다 받으면 이 곡부터 맞춰 드릴게요.")}</p>
+      </div>
+    )
+  }
+  if (mine && ai.job) {
+    return (
+      <div className="ais" role="status">
+        <p className="ais-t"><Icon n="spark" s={18} />{ai.job.stage === 'listen' ? tx("노래를 들으며 줄마다 시각을 찾고 있어요") : tx("거의 다 됐어요")}<span className="num">{pct(ai.job.f)}</span></p>
+        <div className="prog"><span style={{ width: pct(ai.job.f) }} /></div>
+        <p className="ais-s">{tx("다른 곡을 들어도 계속 맞춰요. 휴대폰 밖으로는 보내지 않아요.")}</p>
+      </div>
+    )
+  }
+  if (ask) {
+    return (
+      <div className="ais ask">
+        <p className="ais-t"><Icon n="spark" s={18} />{tx("저절로 맞추기 기능을 받을까요?")}</p>
+        <p className="ais-s">{tx("약 {0}MB · 와이파이에서 받기를 권해요", AI_MB)}</p>
+        <div className="ais-acts">
+          <button className="pillbtn ink" onClick={get}>{tx("받기")}</button>
+          <button className="pillbtn" onClick={() => setAsk(false)}>{tx("나중에")}</button>
+        </div>
+      </div>
+    )
+  }
+  if (ai.done === t.id && sync) {
+    return <p className="ais-ok" role="status"><Icon n="check" s={18} /><span><b>{tx("줄마다 시각을 찾았어요")}</b>{tx("어긋나면 「가사 전체 보기」에서 고칠 수 있어요")}</span></p>
+  }
+  if (sync) return null
+  return (
+    <div className="ais">
+      {msg && <p className="ais-err" role="alert">{msg}</p>}
+      <button className="ais-go" onClick={() => (ai.st?.ready ? run() : setAsk(true))} disabled={!!ai.job}>
+        <Icon n="spark" s={20} />
+        <span className="ais-gt"><b>{tx("저절로 맞추기")}</b><span>{ai.job ? tx("다른 곡을 맞추는 중이에요") : tx("노래를 듣고 줄마다 시각을 찾아요")}</span></span>
+      </button>
     </div>
   )
 }

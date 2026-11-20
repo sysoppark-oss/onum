@@ -11,6 +11,8 @@ interface NativeTrack {
 export interface Output { kind: 'speaker' | 'wired' | 'bluetooth'; name?: string; car?: boolean }
 
 /** 휴대폰 미디어 음량: value는 0~max 단계 */
+export interface AiStatus { ok: boolean; ready: boolean; bytes: number }
+export interface AiProgress { stage: 'download' | 'listen'; done: number; total: number }
 export interface Volume { value: number; max: number }
 
 interface MusicScanPlugin {
@@ -23,6 +25,11 @@ interface MusicScanPlugin {
   askNearby(): Promise<Output>
   analyze(opts: { path: string; bars: number }): Promise<{ rms: number[]; lufs?: number; head?: number; tail?: number }>
   quiet(opts: { path: string }): Promise<{ q: number[]; n: number }>
+  aiStatus(): Promise<AiStatus>
+  aiDownload(): Promise<void>
+  aiRemove(): Promise<void>
+  aiTranscribe(opts: { path: string; lang: string }): Promise<{ w: string[]; t: number[] }>
+  addListener(event: 'aiProgress', fn: (p: AiProgress) => void): Promise<PluginListenerHandle>
   askBattery(): Promise<void>
   appSettings(): Promise<void>
   volume(): Promise<Volume>
@@ -157,4 +164,21 @@ export async function nativeExport(parts: { path: string; s: number; e: number }
 /** 새 시험판 내려받기를 브라우저로 연다 */
 export function openDownload(url: string): Promise<boolean> {
   return isNative ? MusicScan.openUrl({ url }).then(() => true, () => false) : Promise.resolve(false)
+}
+
+// 가사 자동 맞추기 AI — 휴대폰 앱에서만 (모델은 사용자가 고를 때만 받는다)
+export function aiStatus(): Promise<AiStatus | null> {
+  return isNative ? MusicScan.aiStatus().catch(() => null) : Promise.resolve(null)
+}
+async function withProgress<T>(fn: () => Promise<T>, onProgress?: (p: AiProgress) => void): Promise<T> {
+  const h = onProgress ? await MusicScan.addListener('aiProgress', onProgress) : null
+  try { return await fn() } finally { h?.remove() }
+}
+export function aiDownload(onProgress?: (p: AiProgress) => void): Promise<void> {
+  return withProgress(() => MusicScan.aiDownload(), onProgress)
+}
+export function aiRemove(): Promise<void> { return isNative ? MusicScan.aiRemove() : Promise.resolve() }
+export async function aiTranscribe(path: string, lang: string, onProgress?: (p: AiProgress) => void): Promise<{ s: string; t: number }[]> {
+  const r = await withProgress(() => MusicScan.aiTranscribe({ path, lang }), onProgress)
+  return r.w.map((s, i) => ({ s, t: r.t[i] }))
 }

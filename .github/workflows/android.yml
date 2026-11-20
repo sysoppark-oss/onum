@@ -39,6 +39,12 @@ jobs:
           echo "WEB_SUM=$(sha256sum web.zip | cut -d' ' -f1)" >> $GITHUB_ENV
           npx cap sync android
 
+      - name: 가사 맞추기 엔진 받기
+        run: |
+          mkdir -p android/app/libs
+          curl -fsSL -o android/app/libs/sherpa-onnx-2.0.2.aar https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.2/sherpa-onnx-2.0.2.aar
+          echo "6420cfb86c2ef8462dadd77b2202b7430487bdfb2bc715e9ce2864871209a80e  android/app/libs/sherpa-onnx-2.0.2.aar" | sha256sum -c -
+
       - name: APK 만들기
         working-directory: android
         run: |

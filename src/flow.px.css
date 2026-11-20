@@ -851,3 +851,31 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .lyi-acts { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .lyi-acts .pillbtn { cursor: pointer; }
 .lyi-acts label.pillbtn:focus-within { outline: 2px solid var(--now); outline-offset: 2px; }
+
+/* 가사 저절로 맞추기 */
+.ais { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.ais .prog { margin-top: 0; }
+.ais-t { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; }
+.ais-t svg { color: var(--ink); flex-shrink: 0; }
+.ais-t .num { margin-left: auto; color: var(--ink2); font-weight: 700; }
+.ais-s { font-size: 13px; line-height: 1.5; color: var(--ink2); }
+.ais.ask { padding: 14px 16px; border-radius: 18px; border: 1px solid var(--line); }
+.ais-acts { display: flex; gap: 8px; margin-top: 4px; }
+.pillbtn.ink { background: var(--ink); color: var(--on-ink); }
+.ais-go { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 60px; padding: 10px 16px; border-radius: 18px; background: var(--sf); text-align: left; }
+.ais-go:active { transform: scale(.98); }
+.ais-go:disabled { opacity: .55; }
+.ais-go > svg { color: var(--ink); flex-shrink: 0; }
+.ais-gt { display: flex; flex-direction: column; min-width: 0; }
+.ais-gt b { font-size: 16px; font-weight: 800; }
+.ais-gt span { font-size: 13px; color: var(--ink2); }
+.ais-ok { display: flex; align-items: flex-start; gap: 8px; margin-top: 12px; font-size: 13px; line-height: 1.5; color: var(--ink2); }
+.ais-ok svg { color: var(--ink); flex-shrink: 0; margin-top: 1px; }
+.ais-err { font-size: 13px; line-height: 1.5; color: var(--warn); }
+.ai-mark { display: inline-flex; align-items: center; justify-content: center; width: 60px; height: 60px; border-radius: 30px; background: var(--sf); color: var(--ink); }
+.ai-facts { margin-top: 28px; display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.ai-facts li { display: flex; flex-direction: column; gap: 2px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+.ai-facts b { font-size: 16px; font-weight: 700; }
+.ai-facts span { font-size: 14px; color: var(--ink2); line-height: 1.45; }
+.ais-ok > span { display: flex; flex-direction: column; gap: 2px; }
+.ais-ok b { font-size: 15px; font-weight: 700; color: var(--ink); }

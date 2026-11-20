@@ -852,3 +852,31 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .lyi-acts { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
 .lyi-acts .pillbtn { cursor: pointer; }
 .lyi-acts label.pillbtn:focus-within { outline: 2px solid var(--now); outline-offset: 2px; }
+
+/* 가사 저절로 맞추기 */
+.ais { margin-top: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem; }
+.ais .prog { margin-top: 0; }
+.ais-t { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9375rem; font-weight: 700; }
+.ais-t svg { color: var(--ink); flex-shrink: 0; }
+.ais-t .num { margin-left: auto; color: var(--ink2); font-weight: 700; }
+.ais-s { font-size: 0.8125rem; line-height: 1.5; color: var(--ink2); }
+.ais.ask { padding: 0.875rem 1rem; border-radius: 1.125rem; border: 1px solid var(--line); }
+.ais-acts { display: flex; gap: 0.5rem; margin-top: 0.25rem; }
+.pillbtn.ink { background: var(--ink); color: var(--on-ink); }
+.ais-go { display: flex; align-items: center; gap: 0.75rem; width: 100%; min-height: 3.75rem; padding: 0.625rem 1rem; border-radius: 1.125rem; background: var(--sf); text-align: left; }
+.ais-go:active { transform: scale(.98); }
+.ais-go:disabled { opacity: .55; }
+.ais-go > svg { color: var(--ink); flex-shrink: 0; }
+.ais-gt { display: flex; flex-direction: column; min-width: 0; }
+.ais-gt b { font-size: 1rem; font-weight: 800; }
+.ais-gt span { font-size: 0.8125rem; color: var(--ink2); }
+.ais-ok { display: flex; align-items: flex-start; gap: 0.5rem; margin-top: 0.75rem; font-size: 0.8125rem; line-height: 1.5; color: var(--ink2); }
+.ais-ok svg { color: var(--ink); flex-shrink: 0; margin-top: 1px; }
+.ais-err { font-size: 0.8125rem; line-height: 1.5; color: var(--warn); }
+.ai-mark { display: inline-flex; align-items: center; justify-content: center; width: 3.75rem; height: 3.75rem; border-radius: 1.875rem; background: var(--sf); color: var(--ink); }
+.ai-facts { margin-top: 1.75rem; display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.ai-facts li { display: flex; flex-direction: column; gap: 2px; padding: 0.875rem 0; border-bottom: 1px solid var(--line); }
+.ai-facts b { font-size: 1rem; font-weight: 700; }
+.ai-facts span { font-size: 0.875rem; color: var(--ink2); line-height: 1.45; }
+.ais-ok > span { display: flex; flex-direction: column; gap: 2px; }
+.ais-ok b { font-size: 0.9375rem; font-weight: 700; color: var(--ink); }

@@ -10,6 +10,7 @@ import { classify, loadOverrides } from '../lib/kind'
 import { Icon, nf } from './common'
 import { LANGS, lang, setLang, tx } from "../lib/i18n";
 import { Page } from './Sheets'
+import { AI_MB, aiAsked, aiOn, downloadAi, refreshAi, setAiAsked } from '../lib/ai'
 
 // 마우스를 쓰는 넓은 화면이면 PC로 본다
 export const isPC = !isNative && window.matchMedia('(pointer: fine) and (min-width: 700px)').matches
@@ -48,6 +49,7 @@ export function FirstScreen({ onDone }: { onDone: (r: ScanResult, hidden: string
   const [busy, setBusy] = useState<{ done: number; total: number } | null>(null)
   const [error, setError] = useState('')
   const [found, setFound] = useState<ScanResult | null>(null)
+  const [offer, setOffer] = useState(false)
   const [hidden, setHidden] = useState<string[]>(() => load('hiddenFolders', []))
 
   async function findOnDevice(auto = false) {
@@ -91,11 +93,18 @@ export function FirstScreen({ onDone }: { onDone: (r: ScanResult, hidden: string
   const kept = useMemo(() => (found ? found.tracks.filter((t) => !hidden.includes(t.folder)) : []), [found, hidden])
   const talkN = useMemo(() => classify(kept, loadOverrides()).size, [kept])
   const count = kept.length
-  const start = () => {
+  const start = async () => {
     if (!found) return
     save('hiddenFolders', hidden)
     if (isNative) save('scanned', true)
+    // 설치형 앱은 처음 한 번, 가사 저절로 맞추기 기능을 받을지 묻는다
+    if (aiOn && !aiAsked() && (await refreshAi())?.ok) { setOffer(true); return }
     onDone(found, hidden)
+  }
+  const answer = (yes: boolean) => {
+    setAiAsked()
+    if (yes) downloadAi()
+    if (found) onDone(found, hidden)
   }
   const pickers = (more: boolean) => (
     <>
@@ -112,6 +121,28 @@ export function FirstScreen({ onDone }: { onDone: (r: ScanResult, hidden: string
       )}
     </>
   )
+
+  if (offer) {
+    return (
+      <div className="page first">
+        <p className="mark">{tx("온음")}</p>
+        <div className="found-big">
+          <span className="ai-mark" aria-hidden="true"><Icon n="spark" s={30} /></span>
+          <h1 className="fb-t">{rt("가사를 저절로 맞추는 기능을\n받아 둘까요?")}</h1>
+          <p className="fb-s">{tx("가사를 넣어 두면 노래를 듣고 줄마다 시각을 찾아, 노래방처럼 지금 부르는 줄을 따라가요.")}</p>
+        </div>
+        <ul className="ai-facts">
+          <li><b className="num">{tx("약 {0}MB", AI_MB)}</b><span>{tx("한 번만 받아요 · 와이파이에서 받기를 권해요")}</span></li>
+          <li><b>{tx("휴대폰 안에서만")}</b><span>{tx("노래와 가사를 어디에도 보내지 않아요")}</span></li>
+          <li><b>{tx("언제든 바꿔요")}</b><span>{tx("쉼 › 보기에서 받거나 지울 수 있어요")}</span></li>
+        </ul>
+        <div className="first-end">
+          <button className="go" onClick={() => answer(true)}>{tx("받기")}</button>
+          <button className="ghost" onClick={() => answer(false)}>{tx("나중에")}</button>
+        </div>
+      </div>
+    )
+  }
 
   if (busy) {
     return (

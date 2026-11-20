@@ -94,6 +94,68 @@ class Analyzer implements AutoCloseable {
         return Arrays.copyOf(buf, got);
     }
 
+    /** 처음부터 끝까지 풀어 한 줄(모노) outRate Hz 소리로. maxSec 넘는 곡은 앞부분만 */
+    float[] mono(int outRate, int maxSec) {
+        ex.seekTo(0, MediaExtractor.SEEK_TO_CLOSEST_SYNC);
+        codec.flush();
+        long secs = Math.min(maxSec, Math.max(1, durUs / 1_000_000 + 2));
+        float[] out = new float[(int) (secs * outRate) + outRate];
+        int nOut = 0;
+        double pos = 0; // 다음 출력 칸이 놓일 입력 자리
+        long inIdx = 0;
+        float prev = 0;
+        boolean inEos = false, outEos = false;
+        long idle = 0;
+        while (!outEos && idle < 400 && nOut < out.length) {
+            if (!inEos) {
+                int ii = codec.dequeueInputBuffer(10_000);
+                if (ii >= 0) {
+                    ByteBuffer ib = codec.getInputBuffer(ii);
+                    int n = ib == null ? -1 : ex.readSampleData(ib, 0);
+                    if (n < 0) { codec.queueInputBuffer(ii, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM); inEos = true; }
+                    else { codec.queueInputBuffer(ii, 0, n, ex.getSampleTime(), 0); ex.advance(); }
+                }
+            }
+            int oi = codec.dequeueOutputBuffer(info, 10_000);
+            if (oi == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
+                MediaFormat of = codec.getOutputFormat();
+                if (of.containsKey(MediaFormat.KEY_SAMPLE_RATE)) fs = of.getInteger(MediaFormat.KEY_SAMPLE_RATE);
+                if (of.containsKey(MediaFormat.KEY_CHANNEL_COUNT)) ch = of.getInteger(MediaFormat.KEY_CHANNEL_COUNT);
+                if (of.containsKey(MediaFormat.KEY_PCM_ENCODING))
+                    isFloat = of.getInteger(MediaFormat.KEY_PCM_ENCODING) == AudioFormat.ENCODING_PCM_FLOAT;
+            } else if (oi >= 0) {
+                idle = 0;
+                ByteBuffer ob = codec.getOutputBuffer(oi);
+                if (ob != null && info.size > 0) {
+                    ob.position(info.offset);
+                    ob.limit(info.offset + info.size);
+                    ByteBuffer o2 = ob.slice().order(ByteOrder.nativeOrder());
+                    int c = Math.max(1, ch);
+                    int n = (isFloat ? info.size / 4 : info.size / 2) / c;
+                    FloatBuffer fb = isFloat ? o2.asFloatBuffer() : null;
+                    ShortBuffer sb = isFloat ? null : o2.asShortBuffer();
+                    double ratio = (double) Math.max(1, fs) / outRate; // 출력 한 칸이 입력 몇 칸인지
+                    for (int f = 0; f < n && nOut < out.length; f++) {
+                        float m = 0;
+                        for (int k = 0; k < c; k++) m += isFloat ? fb.get(f * c + k) : sb.get(f * c + k) / 32768f;
+                        m /= c;
+                        // 입력 칸 inIdx-1 과 inIdx 사이에 놓이는 출력 칸들을 선으로 이어 채운다
+                        while (pos <= inIdx && nOut < out.length) {
+                            double frac = inIdx == 0 ? 1 : pos - (inIdx - 1);
+                            out[nOut++] = (float) (prev + (m - prev) * frac);
+                            pos += ratio;
+                        }
+                        prev = m;
+                        inIdx++;
+                    }
+                }
+                codec.releaseOutputBuffer(oi, false);
+                if ((info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) outEos = true;
+            } else idle++;
+        }
+        return Arrays.copyOf(out, nOut);
+    }
+
     /** 처음부터 끝까지 흘려 풀며 winMs 창마다 크기(dBFS)를 잰다. 표본은 쌓지 않는다(긴 강의도 메모리 걱정 없음). */
     float[] levels(int winMs) {
         ex.seekTo(0, MediaExtractor.SEEK_TO_CLOSEST_SYNC);

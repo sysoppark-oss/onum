@@ -286,6 +286,7 @@ const FILLED: Record<string, React.ReactNode> = {
   pause: <><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></>,
   prev: <><polygon points="19 5 9 12 19 19" /><rect x="5" y="5" width="2.6" height="14" rx="1" /></>,
   next: <><polygon points="5 5 15 12 5 19" /><rect x="16.4" y="5" width="2.6" height="14" rx="1" /></>,
+  spark: <><path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z" /><path d="M19 3v4M17 5h4" /></>,
   moon: <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" />,
 }
 export function Icon({ n, s = 24, w = 2.2 }: { n: string; s?: number; w?: number }) {
