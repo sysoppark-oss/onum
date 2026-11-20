@@ -549,3 +549,16 @@ label.pick:focus-within { outline: 3px solid var(--now); outline-offset: 2px; }
 }
 .go .one { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .page > .pl li.setrow { height: auto; min-height: 68px; }
+
+/* 곡별 소리 크기 */
+.lvl { display: grid; grid-template-columns: 64px minmax(0, 1fr) 64px; align-items: center; gap: 10px; }
+.lvl > button { height: 64px; border-radius: 20px; background: var(--sf); display: inline-flex; align-items: center; justify-content: center; }
+.lvl > button:disabled, .lvl > button.full { color: var(--ink3); }
+.lvl > button:active:not(:disabled) { transform: scale(0.96); }
+.lvl-mid { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.lvl-mid b { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+.dots { display: flex; gap: 8px; }
+.dots i { width: 10px; height: 10px; border-radius: 5px; background: var(--line); box-shadow: inset 0 0 0 1.5px var(--ink3); }
+.dots i.on { background: var(--ink); box-shadow: none; }
+.dots i.no:not(.on) { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line); }
+.tlinks { display: flex; flex-wrap: wrap; justify-content: center; column-gap: 18px; }

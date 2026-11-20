@@ -1,13 +1,14 @@
 // 반복 · 잠들기 · 밤 인사 · 재생 목록 · 곡 추가 · 목록 이름 · 목록 고르기
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Track } from '../lib/library'
-import { RATES, XFADES, type Goodnight, type Player, type Repeat } from '../lib/usePlayer'
+import { LEVELS, RATES, TIMES, XFADES, type Goodnight, type Player, type Repeat } from '../lib/usePlayer'
 import { fmt } from '../lib/library'
 import { ShapeBar } from './Now'
 import type { Playlists } from '../lib/playlists'
 import { matches } from '../lib/hangul'
 import { josa, parseTitle } from '../lib/title'
 import { load, save } from '../lib/store'
+import { getShape } from '../lib/shape'
 import { NIGHT } from '../lib/verses'
 import { Icon, Layer, Sheet, VirtualList, useSwipeClose, clock, info, minutesText, nf, useDialog, whoLine } from './common'
 
@@ -46,7 +47,7 @@ function MinuteInput({ value, onChange, id }: { value: number; onChange: (m: num
 }
 
 /* ───────── 반복 ───────── */
-type Kind = 'none' | 'one' | 'all' | 'timed' | 'part'
+type Kind = 'none' | 'one' | 'times' | 'all' | 'timed' | 'part'
 
 function kindOf(r: Repeat): Kind {
   if (r.limit === 'timed') return 'timed'
@@ -63,6 +64,9 @@ export function RepeatSheet({ player, onClose, count, onApply }: {
   const [scope, setScope] = useState<Repeat['scope']>(count ? 'all' : cur.limit === 'timed' ? cur.scope : 'one')
   const [m, setM] = useState(cur.minutes || 60)
   const [custom, setCustom] = useState(!PRESETS.includes(cur.minutes || 60))
+  const tm = player.times && player.current && player.times.id === player.current.id ? player.times : null
+  const [n, setN] = useState(tm?.n ?? 3)
+  useEffect(() => { if (tm && !count) setKind('times') }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const song = player.current ? info(player.current).song : ''
   const who = count ? `고른 ${nf.format(count)}곡` : ''
   const end = clock(Date.now() + m * 60000)
@@ -70,12 +74,21 @@ export function RepeatSheet({ player, onClose, count, onApply }: {
   let say: React.ReactNode
   if (kind === 'none') say = <>{count ? `${who}을` : '목록을'} <b>한 번</b> 듣고 멈춰요.</>
   else if (kind === 'one') say = <><b>{song}</b>만 계속 반복해요.</>
+  else if (kind === 'times') say = <><b>{song}</b>{josa(song, '을', '를').slice(song.length)} <em className="num">{n}번</em> 듣고<br />다음 곡으로 가요.{tm && <> 지금 <span className="num">{tm.done + 1}</span>번째예요.</>}</>
   else if (kind === 'part') say = <><b>{song}</b>의 <em>한 부분</em>만 계속 들어요.<br />시작과 끝을 정해 주세요.</>
   else if (kind === 'all') say = count ? <>{who}을 <b>계속</b> 반복해요.</> : <>목록이 끝나면 <b>처음부터 다시</b> 들어요.</>
   else say = <>{scope === 'one' && !count ? <><b>{song}</b>만</> : count ? `${who}을` : '목록 전체를'} <em>{minutesText(m)}</em> 동안 반복하고<br /><span className="num">{end}</span>에 멈춰요.</>
 
   const apply = () => {
     if (kind === 'part') { player.abStart(); onClose(); return }
+    if (kind === 'times') {
+      // 몇 번 듣기는 반복 설정을 바꾸지 않는다. 한 곡 반복 중이었으면 목록으로 돌려 놓는다
+      if (cur.scope === 'one') player.setRepeat({ scope: 'all', limit: cur.limit === 'timed' ? 'forever' : cur.limit, minutes: cur.minutes })
+      player.setTimes(n)
+      onClose()
+      return
+    }
+    if (tm) player.setTimes(null)
     const r: Repeat =
       kind === 'none' ? { scope: 'all', limit: 'once', minutes: m }
         : kind === 'one' ? { scope: 'one', limit: 'forever', minutes: m }
@@ -98,6 +111,16 @@ export function RepeatSheet({ player, onClose, count, onApply }: {
       <div className="stopq" role="radiogroup" aria-labelledby="rep-h">
         {opt('none', '반복 안 함', '한 번 듣고 멈춤')}
         {!count && opt('one', '이 곡 계속 반복')}
+        {!count && player.current && opt('times', '이 곡 몇 번 듣기', tm ? `${tm.done + 1}/${tm.n}번째` : '듣고 다음 곡으로')}
+        {kind === 'times' && (
+          <div className="timebox">
+            <div className="chips4" role="radiogroup" aria-label="몇 번 들을까요">
+              {TIMES.map((v) => (
+                <button key={v} className={n === v ? 'on' : undefined} role="radio" aria-checked={n === v} onClick={() => setN(v)}><span className="num">{v}</span>번</button>
+              ))}
+            </div>
+          </div>
+        )}
         {opt('all', count ? '계속 반복' : '목록 계속 반복')}
         {opt('timed', '시간 정해서 반복')}
         {!count && player.current && opt('part', '한 부분만 반복', '구간 반복')}
@@ -438,5 +461,49 @@ export function XfadeChips({ player }: { player: Player }) {
         </button>
       ))}
     </div>
+  )
+}
+
+/* ───────── 곡별 소리 크기 ───────── */
+const LEVEL_NAME: Record<string, string> = { '-6': '많이 작게', '-3': '조금 작게', '0': '원래대로', '3': '조금 크게', '6': '많이 크게' }
+export function LevelSheet({ t, player, onClose }: { t: Track; player: Player; onClose: () => void }) {
+  const [, redraw] = useState(0)
+  useEffect(() => { let alive = true; getShape(t).then(() => { if (alive) redraw((v) => v + 1) }); return () => { alive = false } }, [t])
+  const v = player.levels[t.id] ?? 0
+  const i = Math.max(0, LEVELS.indexOf(v))
+  const room = player.headroom(t)
+  const canUp = i < LEVELS.length - 1 && LEVELS[i + 1] <= room + 0.5
+  const [full, setFull] = useState(false)
+  const x = info(t)
+  const isCur = player.current?.id === t.id
+  const step = (d: 1 | -1) => {
+    if (d === 1 && !canUp) { setFull(true); return }
+    setFull(false)
+    const ni = Math.min(LEVELS.length - 1, Math.max(0, i + d))
+    player.setLevel(t.id, LEVELS[ni])
+  }
+  return (
+    <Sheet label="이 곡 소리 크기" onClose={onClose}>
+      <div>
+        <h2 className="q">이 곡 소리 크기 · {x.song}</h2>
+        <p className="say" role="status">
+          {full ? <>이 곡은 이미 <b>가장 크게</b> 나와요.<br />더 키우려면 휴대폰 소리를 올려 주세요.</>
+            : v === 0 ? <>다른 곡과 <b>같은 크기</b>로 들어요.</> : <>이 곡만 <b>{LEVEL_NAME[String(v)]}</b> 들어요.</>}
+        </p>
+      </div>
+      <div className="lvl">
+        <button onClick={() => step(-1)} disabled={i === 0} aria-label="작게"><Icon n="minus" s={26} /></button>
+        <div className="lvl-mid" aria-hidden="true">
+          <b>{LEVEL_NAME[String(v)]}</b>
+          <span className="dots">{LEVELS.map((l, k) => <i key={l} className={(k === i ? 'on' : '') + (l > room + 0.5 ? ' no' : '')} />)}</span>
+        </div>
+        <button onClick={() => step(1)} aria-disabled={!canUp} className={canUp ? undefined : 'full'} aria-label="크게"><Icon n="plus" s={26} /></button>
+      </div>
+      <p className="hint">{isCur ? '누르는 대로 바로 바뀌어요. ' : ''}이 곡을 틀 때마다 이 크기로 들어요. 휴대폰 소리 크기는 그대로예요.</p>
+      <div className="nb">
+        {v !== 0 && <button className="ghost" onClick={() => { player.setLevel(t.id, 0); setFull(false) }}>원래대로</button>}
+        <button className="go" onClick={onClose}>닫기</button>
+      </div>
+    </Sheet>
   )
 }

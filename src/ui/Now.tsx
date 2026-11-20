@@ -8,7 +8,7 @@ import { load, save } from '../lib/store'
 import { BARS, cachedShape, getShape, type Shape } from '../lib/shape'
 import type { Playlists } from '../lib/playlists'
 import { Icon, SAFE_VOLUME, clock, fromLine, info, minutesText, nf, outputIcon, outputLabel, secText, whoLine, type Vol } from './common'
-import { QueuePage, RepeatSheet, SpeedSheet, TrimSheet } from './Sheets'
+import { LevelSheet, QueuePage, RepeatSheet, SpeedSheet, TrimSheet } from './Sheets'
 
 /* ── 소리 모양 ── */
 export function ShapeBar({ t, time, duration, onSeek, ab, mark }: { t: Track; time: number; duration: number; onSeek?: (s: number) => void; ab?: AB | null; mark?: number | null }) {
@@ -82,6 +82,8 @@ export function VolumeRow({ vol, loud, guide, onCar }: { vol: Vol; loud: boolean
 /* ── 반복 버튼의 짧은 말 ── */
 function repeatShort(p: Player): { label: string; on: boolean; one: boolean } {
   const r = p.repeat
+  const tm = p.times && p.current && p.times.id === p.current.id ? p.times : null
+  if (tm && r.scope !== 'one') return { label: `${tm.done + 1}/${tm.n}번`, on: true, one: true }
   if (r.limit === 'timed') return { label: minutesText(Math.max(1, Math.ceil(p.repeatLeft / 60000))), on: true, one: r.scope === 'one' }
   if (r.limit === 'forever') return { label: r.scope === 'one' ? '한 곡' : '목록', on: true, one: r.scope === 'one' }
   return { label: '반복', on: false, one: false }
@@ -130,9 +132,18 @@ function buildFlow(p: Player, now: number): Flow {
     return { rows, more: listLabel }
   }
 
+  // 이 곡 몇 번 듣기: 남은 횟수만큼 다시 듣고 나서 목록으로
+  const tm = p.times && p.times.id === cur.id ? p.times : null
+  const again = tm ? Math.max(0, tm.n - tm.done - 1) : 0
+  const repRow: Row | null = again > 0 ? {
+    kind: 'rep', at: known ? now + Math.max(0, dur - p.time) * 1000 : null,
+    title: `${ci.song} · ${tm!.done + 2}번째`, sub: again > 1 ? `${again}번 더 듣고 다음 곡으로` : '한 번 더 듣고 다음 곡으로',
+  } : null
+
   // 목록
   const ahead: { t: Track; at: number | null; i: number }[] = []
-  let at: number | null = known ? endCur : null
+  const firstAt: number | null = known ? (again > 0 ? now + (Math.max(0, dur - p.time) + again * loop - p.xfade) * 1000 : endCur) : null
+  let at = firstAt
   for (let i = p.index + 1; i < q.length; i++) {
     ahead.push({ t: q[i], at, i })
     at = at != null && len(q[i]) > 0 ? at + len(q[i]) * 1000 : null
@@ -142,7 +153,7 @@ function buildFlow(p: Player, now: number): Flow {
   if (!ahead.length && r.limit !== 'once' && q.length > 0) {
     // 마지막 곡: 처음으로 돌아간다
     wrap = true
-    if (!p.shuffle) ahead.push({ t: q[0], at: known ? endCur : null, i: 0 })
+    if (!p.shuffle) ahead.push({ t: q[0], at: firstAt, i: 0 })
   }
   const cutAt = Math.min(sleepAt, timedEnd)
   const playable = ahead.filter((a) => a.at == null || a.at < cutAt)
@@ -150,13 +161,14 @@ function buildFlow(p: Player, now: number): Flow {
     s && sleepAt <= timedEnd && (sleepAt < (listEnd ?? Infinity) || r.limit !== 'once') ? sleepRow(sleepAt)
       : isFinite(timedEnd) ? { kind: 'stop', at: playable.length < ahead.length ? ahead[playable.length].at : listEnd, title: '반복을 마치고 멈춰요', sub: '듣던 곡까지 듣고 멈춰요' }
         : null
-  const room = (stop ? 1 : 2) + extraRow()
+  const room = Math.max(1, (stop ? 1 : 2) + extraRow() - (repRow ? 1 : 0))
   const shown = playable.slice(0, room)
   const rows: Row[] = shown.map((a) => {
     const x = info(a.t)
     return { kind: 'next', at: a.at, title: x.song, sub: whoLine(x) || fromLine(x, a.t) || ' ', jump: a.i }
   })
-  if (wrap && p.shuffle && !stop) rows.push({ kind: 'end', at: known ? endCur : null, title: '처음부터 다시 섞어 들어요', sub: '목록 계속 반복' })
+  if (repRow) rows.unshift(repRow)
+  if (wrap && p.shuffle && !stop) rows.push({ kind: 'end', at: firstAt, title: '처음부터 다시 섞어 들어요', sub: '목록 계속 반복' })
   if (!playable.length && !stop && r.limit === 'once') rows.push({ kind: 'end', at: known ? endCur : null, title: '이 곡이 끝나면 멈춰요', sub: '마지막 곡이에요' })
   if (stop) rows.push(stop)
   const rest = playable.length - shown.length
@@ -235,7 +247,7 @@ function AbBar({ player }: { player: Player }) {
 }
 
 /** 멈췄을 때: 그 자리에서 다시 듣기(책갈피) · 그 자리부터 구간 반복 */
-function PausedBar({ player, onTrim }: { player: Player; onTrim: () => void }) {
+function PausedBar({ player, onTrim, onLevel }: { player: Player; onTrim: () => void; onLevel: () => void }) {
   const t = player.time
   return (
     <section className="abbar paused" aria-labelledby="pz-h">
@@ -249,7 +261,10 @@ function PausedBar({ player, onTrim }: { player: Player; onTrim: () => void }) {
         <button className="next" onClick={() => { player.setBookmark(t); player.play() }}>여기부터 다시 듣기<small>언제든 이 자리로 돌아와요</small></button>
         <button className="set" onClick={() => { player.abStart(); player.play() }}>여기부터 구간 반복<small>끝을 정해 그 사이만</small></button>
       </div>
-      <button className="textlink" onClick={onTrim}>이 곡을 늘 일정 부분만 듣기(시작·끝 지점)</button>
+      <div className="tlinks">
+        <button className="textlink" onClick={onTrim}>이 곡 시작·끝 정하기</button>
+        <button className="textlink" onClick={onLevel}>이 곡 소리 크기</button>
+      </div>
     </section>
   )
 }
@@ -269,6 +284,8 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
   const [speedOpen, setSpeedOpen] = useState(false)
   const [trimOpen, setTrimOpen] = useState(false)
   const closeTrim = useCallback(() => setTrimOpen(false), [])
+  const [levelOpen, setLevelOpen] = useState(false)
+  const closeLevel = useCallback(() => setLevelOpen(false), [])
   const [nearbyAsked, setNearbyAsked] = useState<boolean>(() => load('nearbyAsked', false))
   const closeSpeed = useCallback(() => setSpeedOpen(false), [])
   const closeRepeat = useCallback(() => setRepeatOpen(false), [])
@@ -357,7 +374,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
       <VolumeRow vol={vol} loud={loud} guide={!!output && output.kind !== 'speaker' && !output.car}
         onCar={output?.kind === 'bluetooth' && output.car === undefined && !nearbyAsked ? () => { save('nearbyAsked', true); setNearbyAsked(true); askNearby() } : undefined} />
 
-      {cur && player.ab ? <AbBar player={player} /> : cur && !player.playing && player.time > 0.5 && !(player.duration > 0 && player.time >= player.duration - 0.5) ? <PausedBar player={player} onTrim={() => setTrimOpen(true)} /> : (
+      {cur && player.ab ? <AbBar player={player} /> : cur && !player.playing && player.time > 0.5 && !(player.duration > 0 && player.time >= player.duration - 0.5) ? <PausedBar player={player} onTrim={() => setTrimOpen(true)} onLevel={() => setLevelOpen(true)} /> : (
       <section className="flow" aria-labelledby="flow-h">
         <div className="flow-h">
           {player.bookmark != null ? (
@@ -404,6 +421,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
       {repeatOpen && <RepeatSheet player={player} onClose={closeRepeat} />}
       {speedOpen && <SpeedSheet player={player} onClose={closeSpeed} />}
       {trimOpen && cur && <TrimSheet t={cur} player={player} onClose={closeTrim} />}
+      {levelOpen && cur && <LevelSheet t={cur} player={player} onClose={closeLevel} />}
       {queueOpen && <QueuePage player={player} tracks={tracks} lists={lists} onClose={closeQueue} />}
     </div>
   )

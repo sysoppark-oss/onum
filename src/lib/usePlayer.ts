@@ -22,6 +22,13 @@ export const RATES = [0.8, 1, 1.2, 1.5, 2]
 export interface Trim { s?: number; e?: number }
 /** 곡 사이 넘김: 0은 끊김 없이, 나머지는 겹치는 초 */
 export const XFADES = [0, 2, 4, 6]
+/** 곡별 소리 크기(dB): 작게 2단계 · 그대로 · 크게 2단계 */
+export const LEVELS = [-6, -3, 0, 3, 6]
+/** 이 곡 몇 번 듣기 */
+export const TIMES = [2, 3, 5, 10]
+export interface Times { id: string; n: number; done: number }
+const db = (v: number) => Math.pow(10, v / 20)
+const FADE_OUT = 200, FADE_IN = 350 // 일시 정지·다시 재생 때 짧게 줄이고 키우기(ms)
 const SKIP = 10 // 강의 건너뛰기(초)
 const SLEEP_FADE_MS = 30000
 const DEFAULT_REPEAT: Repeat = { scope: 'all', limit: 'forever', minutes: 60 }
@@ -95,6 +102,14 @@ export function usePlayer(tracks: Track[]) {
   // 곡마다 소리 크기 맞추기: 큰 곡은 줄인다
   const [normOn, setNormOnState] = useState<boolean>(() => load('norm', true))
   const normRef = useRef(1)
+  // 곡별 소리 크기(dB). 맞추기로 줄어든 만큼까지만 키울 수 있다(재생기는 원래보다 크게 못 낸다)
+  const [levels, setLevels] = useState<Record<string, number>>(() => load('level', {}))
+  // 이 곡 몇 번 듣기: 다른 곡으로 가면 풀린다
+  const [times, setTimesState] = useState<Times | null>(null)
+  const timesRef = useRef(times)
+  timesRef.current = times
+  const fadingOut = useRef(false)
+  const ppTimer = useRef(0)
   const gainRef = useRef(gain)
   gainRef.current = gain
   const vol = () => gainRef.current * normRef.current
@@ -240,6 +255,16 @@ export function usePlayer(tracks: Track[]) {
       stop()
       return
     }
+    const tm = timesRef.current
+    if (tm && cur && tm.id === cur.id && tm.done + 1 < tm.n && !(r.scope === 'one' && r.limit === 'once')) {
+      setTimesState({ ...tm, done: tm.done + 1 })
+      const a = audio.current
+      a.currentTime = bounds(cur, a.duration).from
+      endFired.current = false
+      a.play().catch(() => {})
+      return
+    }
+    if (tm) setTimesState(null)
     if (r.scope === 'one') {
       if (r.limit === 'once') { stop(); return }
       const a = audio.current
@@ -264,6 +289,8 @@ export function usePlayer(tracks: Track[]) {
     if (!cur || cur.talk || !q.length) return null
     if (r.scope === 'one' || (r.limit === 'timed' && left.current <= 0)) return null
     if (sleepRef.current?.endOfTrack || abRef.current) return null
+    const tm = timesRef.current
+    if (tm && tm.id === cur.id && tm.done + 1 < tm.n) return null
     let ni = i + 1, nq: string[] | undefined
     if (ni >= q.length) {
       if (r.limit === 'once') return null
@@ -307,6 +334,7 @@ export function usePlayer(tracks: Track[]) {
     audio.current = nx
     spare.current = old
     endFired.current = false
+    if (timesRef.current) setTimesState(null) // 몇 번 듣기를 다 마치고 넘어간다
     if (p.q) setQueue(p.q)
     setIndex(p.i)
     count(p.t)
@@ -326,14 +354,53 @@ export function usePlayer(tracks: Track[]) {
     } else old.pause()
   }, [bounds]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  /** 일시 정지: 0.2초 동안 소리를 줄이고 멈춘다(뚝 끊기지 않게) */
+  const softPause = useCallback(() => {
+    const a = audio.current
+    window.clearInterval(ppTimer.current)
+    setPlaying(false)
+    if (a.paused) return
+    if (xfading.current || a.volume < 0.02 || document.visibilityState === 'hidden') { a.pause(); fadingOut.current = false; return }
+    fadingOut.current = true
+    const v0 = a.volume, t0 = performance.now()
+    ppTimer.current = window.setInterval(() => {
+      const f = Math.min(1, (performance.now() - t0) / FADE_OUT)
+      a.volume = v0 * (1 - f)
+      if (f >= 1) { window.clearInterval(ppTimer.current); a.pause(); a.volume = vol(); fadingOut.current = false }
+    }, 25)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** 다시 재생: 0.35초 동안 소리를 키운다 */
+  const softPlay = useCallback(() => {
+    const a = audio.current
+    if (!a.src) return
+    window.clearInterval(ppTimer.current)
+    const wasFading = fadingOut.current
+    fadingOut.current = false
+    if (!a.paused && !wasFading) return
+    const target = () => vol()
+    const v0 = wasFading ? a.volume : 0
+    a.volume = v0
+    const t0 = performance.now()
+    a.play().then(() => {
+      setPlaying(true)
+      ppTimer.current = window.setInterval(() => {
+        if (audio.current !== a) { window.clearInterval(ppTimer.current); return }
+        const f = Math.min(1, (performance.now() - t0) / FADE_IN)
+        a.volume = v0 + (target() - v0) * f
+        if (f >= 1) window.clearInterval(ppTimer.current)
+      }, 25)
+    }).catch(() => { a.volume = target(); setPlaying(false) })
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   const toggle = useCallback(() => {
     const a = audio.current
     if (!a.src) return
-    if (a.paused) a.play().then(() => setPlaying(true)).catch(() => {})
-    else { a.pause(); setPlaying(false) }
-  }, [])
+    if (a.paused || fadingOut.current) softPlay()
+    else softPause()
+  }, [softPlay, softPause])
 
-  const pause = useCallback(() => { audio.current.pause(); setPlaying(false) }, [])
+  const pause = softPause
 
   const seek = useCallback((sec: number) => { audio.current.currentTime = sec }, [])
 
@@ -415,7 +482,7 @@ export function usePlayer(tracks: Track[]) {
     const a = audio.current
     const sync = () => {
       if (!a.src) return
-      const on = !a.paused && !a.ended
+      const on = !a.paused && !a.ended && !fadingOut.current
       setPlaying((p) => (p === on ? p : on))
       setTime((t) => (Math.abs(t - a.currentTime) < 0.2 ? t : a.currentTime))
       if (a.duration && isFinite(a.duration)) setDuration((d) => (d === a.duration ? d : a.duration))
@@ -483,10 +550,14 @@ export function usePlayer(tracks: Track[]) {
   // 알림·잠금 화면·차 버튼에서 온 명령
   const goRef = useRef(go)
   goRef.current = go
+  const softPlayRef = useRef(softPlay)
+  softPlayRef.current = softPlay
+  const softPauseRef = useRef(softPause)
+  softPauseRef.current = softPause
   useEffect(() => onMediaAction((m) => {
     const a = audio.current
-    if (m.action === 'play') { if (a.src) a.play().then(() => setPlaying(true)).catch(() => {}) }
-    else if (m.action === 'pause') { a.pause(); setPlaying(false) }
+    if (m.action === 'play') softPlayRef.current()
+    else if (m.action === 'pause') softPauseRef.current()
     else if (m.action === 'next') goRef.current(1)
     else if (m.action === 'prev') goRef.current(-1)
     else if (m.action === 'seek' && m.pos != null) a.currentTime = m.pos
@@ -502,8 +573,8 @@ export function usePlayer(tracks: Track[]) {
       artwork: current.art ? [{ src: current.art }] : [],
     })
     // 차·이어폰 버튼: '재생'은 늘 재생, '멈춤'은 늘 멈춤(뒤집기로 하면 이미 재생 중일 때 '재생'이 멈춰 버린다)
-    navigator.mediaSession.setActionHandler('play', () => { audio.current.play().then(() => setPlaying(true)).catch(() => {}) })
-    navigator.mediaSession.setActionHandler('pause', () => { audio.current.pause(); setPlaying(false) })
+    navigator.mediaSession.setActionHandler('play', () => softPlayRef.current())
+    navigator.mediaSession.setActionHandler('pause', () => softPauseRef.current())
     navigator.mediaSession.setActionHandler('nexttrack', () => go(1))
     navigator.mediaSession.setActionHandler('previoustrack', () => go(-1))
   }, [current, toggle, go])
@@ -570,7 +641,7 @@ export function usePlayer(tracks: Track[]) {
     a.currentTime = bookmark
     if (a.paused) a.play().then(() => setPlaying(true)).catch(() => {})
   }, [bookmark])
-  const play = useCallback(() => { const a = audio.current; if (a.src && a.paused) a.play().then(() => setPlaying(true)).catch(() => {}) }, [])
+  const play = useCallback(() => { if (audio.current.paused || fadingOut.current) softPlay() }, [softPlay])
   const abEnd = useCallback(() => {
     const g = abRef.current
     const t = audio.current.currentTime
@@ -625,13 +696,32 @@ export function usePlayer(tracks: Track[]) {
         if (i >= 12) window.clearInterval(fadeTimer.current)
       }, 50)
     }
-    if (!normOn) { apply(1, true); return }
+    const lv = db(levels[current.id] ?? 0)
+    const k = (base: number) => Math.min(1, base * lv)
+    if (!normOn) { apply(k(1), true); return }
     const hit = cachedShape(current)
-    if (hit) { apply(normGain(hit.lufs), false); return }
+    if (hit) { apply(k(normGain(hit.lufs)), lvChanged.current); lvChanged.current = false; return }
     let alive = true
-    getShape(current).then((sh) => { if (alive) apply(normGain(sh?.lufs), true) })
+    getShape(current).then((sh) => { if (alive) apply(k(normGain(sh?.lufs)), true) })
     return () => { alive = false }
-  }, [current, normOn]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [current, normOn, current ? levels[current.id] : 0]) // eslint-disable-line react-hooks/exhaustive-deps
+  const lvChanged = useRef(false)
+  /** 이 곡을 얼마나 더 키울 수 있나(dB). 맞추기로 줄인 만큼 */
+  const headroom = useCallback((t: Track) => {
+    const sh = cachedShape(t)
+    const base = normOn ? normGain(sh?.lufs) : 1
+    return -20 * Math.log10(base)
+  }, [normOn])
+  const setLevel = useCallback((id: string, v: number) => {
+    lvChanged.current = true
+    setLevels((old) => { const n = { ...old }; if (v) n[id] = v; else delete n[id]; save('level', n); return n })
+  }, [])
+  // 다른 곡으로 가면 '몇 번 듣기'는 풀린다
+  useEffect(() => { if (times && current?.id !== times.id) setTimesState(null) }, [current?.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  const setTimes = useCallback((n: number | null) => {
+    const id = queueRef.current[indexRef.current]
+    setTimesState(n && id ? { id, n, done: 0 } : null)
+  }, [])
 
   const setNorm = useCallback((v: boolean) => { setNormOnState(v); save('norm', v) }, [])
   const setTrim = useCallback((id: string, tr: Trim | null) => {
@@ -648,6 +738,7 @@ export function usePlayer(tracks: Track[]) {
   if (current) {
     if (timeUp || (repeat.scope === 'one' && repeat.limit === 'once')) nextNote = '이 곡이 끝나면 멈춰요'
     else if (repeat.scope === 'one') { next = current; nextNote = '같은 곡을 다시 틀어요' }
+    else if (times && times.id === current.id && times.done + 1 < times.n) { next = current; nextNote = `같은 곡을 한 번 더(${times.done + 2}/${times.n}번째)` }
     else if (index + 1 < queue.length) next = byId.current.get(queue[index + 1])
     else if (repeat.limit === 'once') nextNote = '마지막 곡이에요'
     else if (shuffle && queue.length > 1) nextNote = '다시 섞어서 이어 틀어요'
@@ -668,6 +759,7 @@ export function usePlayer(tracks: Track[]) {
     talkPos, talkDone, markDone, rate: curRate, rateEach, setRate, skip, SKIP,
     ab, abStart, abEnd, abSet, abClear, abSpan, bookmark, setBookmark, backToMark, play, normOn, setNorm,
     bounds, trims, setTrim, skipSilence, setSkipSilence, xfade, setXfade, listPos,
+    levels, setLevel, headroom, times, setTimes,
   }
 }
 
