@@ -272,6 +272,7 @@ public class MusicScanPlugin extends Plugin {
             double[] rms = new double[bars];
             Loudness loud = null;
             int loudFs = 0;
+            double eL = 0, eR = 0; // 한쪽만 나오는 곡 찾기
             for (int b = 0; b < bars; b++) {
                 long at = (long) ((b + 0.5) * durUs / bars) - win / 2;
                 float[] buf = an.decode(Math.max(0, at), win);
@@ -283,6 +284,7 @@ public class MusicScanPlugin extends Plugin {
                 for (int f = 0; f < frames; f++) {
                     double mono = 0;
                     for (int c = 0; c < ch; c++) { double v = buf[f * ch + c]; chs[c][f] = v; mono += v; }
+                    if (ch >= 2) { eL += chs[0][f] * chs[0][f]; eR += chs[1][f] * chs[1][f]; }
                     mono /= ch;
                     sum += mono * mono;
                 }
@@ -310,6 +312,8 @@ public class MusicScanPlugin extends Plugin {
             if (!Double.isNaN(l)) o.put("lufs", l);
             o.put("head", head);
             o.put("tail", tail);
+            double hi = Math.max(eL, eR), lo = Math.min(eL, eR);
+            o.put("side", hi <= 1e-9 || lo > hi * 1e-4 ? 0 : (eL > eR ? 1 : 2));
             return o;
         }
     }

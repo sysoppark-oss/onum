@@ -130,7 +130,7 @@ export function askBattery(): void { if (isNative) MusicScan.askBattery().catch(
 export function openAppSettings(): void { if (isNative) MusicScan.appSettings().catch(() => {}) }
 
 /** 설치형 앱: 휴대폰이 직접 곡을 나눠 재기(구간마다 rms, 전체 소리 크기) */
-export function nativeAnalyze(path: string, bars: number): Promise<{ rms: number[]; lufs?: number; head?: number; tail?: number } | null> {
+export function nativeAnalyze(path: string, bars: number): Promise<{ rms: number[]; lufs?: number; head?: number; tail?: number; side?: 0 | 1 | 2 } | null> {
   return isNative ? MusicScan.analyze({ path, bars }).catch(() => null) : Promise.resolve(null)
 }
 

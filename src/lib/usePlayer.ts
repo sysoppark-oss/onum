@@ -4,6 +4,7 @@ import { shuffledOrder } from './shuffle'
 import { load, save } from './store'
 import { onMediaAction, setNowPlaying } from './native'
 import { cachedShape, getShape, normGain } from './shape'
+import { setMonoFix } from './monofix'
 
 interface Resume { id: string; pos: number }
 
@@ -188,10 +189,12 @@ export function usePlayer(tracks: Track[]) {
     endFired.current = false
     window.clearTimeout(endTimer.current)
     a.src = t.url
+    setMonoFix(a, cachedShape(t)?.side ?? 0)
     a.currentTime = at ?? (t.talk && !talkDoneRef.current[t.id] ? talkPosRef.current[t.id] ?? 0 : bounds(t).from)
     a.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
     count(t)
     // 처음 듣는 곡은 아직 앞 무음을 모른다: 재고 나서 아직 무음 안이면 건너뛴다
+    if (!cachedShape(t)) getShape(t).then((sh) => { if (sh?.side && audio.current === a && a.src === t.url) setMonoFix(a, sh.side) })
     if (at == null && !t.talk && skipSilRef.current && !cachedShape(t)) {
       getShape(t).then((sh) => {
         const h = sh?.head ?? 0
@@ -323,6 +326,7 @@ export function usePlayer(tracks: Track[]) {
     if (!nx) { nx = new Audio(); spare.current = nx }
     const b = bounds(p.t)
     if (spareFor.current !== p.t.id) { nx.src = p.t.url; nx.currentTime = b.from }
+    setMonoFix(nx, cachedShape(p.t)?.side ?? 0)
     spareFor.current = ''
     const xf = xfadeRef.current
     const nxa = nx as HTMLAudioElement & { preservesPitch?: boolean }

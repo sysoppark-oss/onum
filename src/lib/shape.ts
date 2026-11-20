@@ -12,6 +12,14 @@ export interface Shape {
   lufs?: number | null // 곡 전체 소리 크기(ITU-R BS.1770 방식, 8kHz로 낮춰 잰 값)
   head?: number // 앞쪽 무음(초)
   tail?: number // 뒤쪽 무음(초)
+  side?: 0 | 1 | 2 // 한쪽에서만 소리가 나는 곡: 1 왼쪽만, 2 오른쪽만, 0 양쪽
+}
+
+/** 두 갈래의 에너지로 한쪽만 나오는 곡인지 본다(작은 쪽이 큰 쪽보다 40dB 넘게 작으면) */
+export function sideOf(eL: number, eR: number): 0 | 1 | 2 {
+  const hi = Math.max(eL, eR), lo = Math.min(eL, eR)
+  if (hi <= 1e-9 || lo > hi * 1e-4) return 0
+  return eL > eR ? 1 : 2
 }
 
 const memo = new Map<string, Shape>()
@@ -21,7 +29,7 @@ export function cachedShape(t: Track): Shape | undefined {
   const hit = memo.get(t.id)
   if (hit) return hit
   const saved = load<Shape | null>('shape:' + t.id, null)
-  if (saved && saved.bars?.length === BARS && saved.lufs !== undefined && saved.head !== undefined) { memo.set(t.id, saved); return saved }
+  if (saved && saved.bars?.length === BARS && saved.lufs !== undefined && saved.head !== undefined && saved.side !== undefined) { memo.set(t.id, saved); return saved }
   return undefined
 }
 
@@ -50,7 +58,7 @@ async function analyze(t: Track): Promise<Shape | null> {
     const r = await nativeAnalyze(t.path, BARS)
     if (!r || r.rms.length !== BARS) return null
     const bars = toBars(r.rms)
-    const shape: Shape = { bars, hook: findHook(bars), lufs: r.lufs ?? null, head: r.head ?? 0, tail: r.tail ?? 0 }
+    const shape: Shape = { bars, hook: findHook(bars), lufs: r.lufs ?? null, head: r.head ?? 0, tail: r.tail ?? 0, side: r.side ?? 0 }
     memo.set(t.id, shape)
     save('shape:' + t.id, shape)
     return shape
@@ -81,7 +89,13 @@ async function analyze(t: Track): Promise<Shape | null> {
   }
   const bars = toBars(raw)
   const { head, tail } = silence(chs, audio.sampleRate)
-  const shape: Shape = { bars, hook: findHook(bars), lufs: loudness(chs, audio.sampleRate), head, tail }
+  let side: 0 | 1 | 2 = 0
+  if (chs.length >= 2) {
+    let eL = 0, eR = 0
+    for (let i = 0; i < n; i += 8) { eL += chs[0][i] * chs[0][i]; eR += chs[1][i] * chs[1][i] }
+    side = sideOf(eL, eR)
+  }
+  const shape: Shape = { bars, hook: findHook(bars), lufs: loudness(chs, audio.sampleRate), head, tail, side }
   memo.set(t.id, shape)
   save('shape:' + t.id, shape)
   return shape
