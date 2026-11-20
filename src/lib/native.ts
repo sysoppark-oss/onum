@@ -16,7 +16,7 @@ export interface Volume { value: number; max: number }
 interface MusicScanPlugin {
   scan(opts: { minMs: number }): Promise<{ tracks: NativeTrack[]; skippedFolder: number }>
   art(opts: { id: number; albumId: number; size: number }): Promise<{ dataUrl?: string }>
-  nowPlaying(opts: { playing: boolean; title?: string; artist?: string }): Promise<void>
+  nowPlaying(opts: { playing: boolean; stop?: boolean; title?: string; artist?: string; pos?: number; dur?: number; rate?: number }): Promise<void>
   output(): Promise<Output>
   fontScale(): Promise<{ scale: number }>
   battery(): Promise<{ free: boolean; maker: string }>
@@ -27,6 +27,7 @@ interface MusicScanPlugin {
   setVolume(opts: { value: number }): Promise<Volume>
   addListener(event: 'volumeChanged', fn: (v: Volume) => void): Promise<PluginListenerHandle>
   addListener(event: 'outputChanged', fn: (o: Output) => void): Promise<PluginListenerHandle>
+  addListener(event: 'mediaAction', fn: (a: MediaAction) => void): Promise<PluginListenerHandle>
 }
 
 const MusicScan = registerPlugin<MusicScanPlugin>('MusicScan')
@@ -75,9 +76,19 @@ export function nativeArt(t: Track): Promise<string | undefined> {
   return p
 }
 
-export function setNowPlaying(playing: boolean, t?: Track): void {
+/** 재생 알림·잠금 화면을 지금 상태로. t가 없으면 알림을 없앤다. */
+export function setNowPlaying(playing: boolean, t?: Track, pos = 0, dur = 0, rate = 1): void {
   if (!isNative) return
-  MusicScan.nowPlaying({ playing, title: t?.title, artist: t?.artist }).catch(() => {})
+  if (!t) { MusicScan.nowPlaying({ playing: false, stop: true }).catch(() => {}); return }
+  MusicScan.nowPlaying({ playing, title: t.title, artist: t.artist, pos, dur, rate }).catch(() => {})
+}
+
+export interface MediaAction { action: 'play' | 'pause' | 'next' | 'prev' | 'seek'; pos?: number }
+/** 알림·잠금 화면·차 버튼 */
+export function onMediaAction(fn: (a: MediaAction) => void): () => void {
+  if (!isNative) return () => {}
+  const h = MusicScan.addListener('mediaAction', fn)
+  return () => { h.then((x) => x.remove()).catch(() => {}) }
 }
 
 export function getOutput(): Promise<Output | null> {

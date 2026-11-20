@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Track } from './library'
 import { shuffledOrder } from './shuffle'
 import { load, save } from './store'
-import { setNowPlaying } from './native'
+import { onMediaAction, setNowPlaying } from './native'
 import { cachedShape, getShape, normGain } from './shape'
 
 interface Resume { id: string; pos: number }
@@ -312,8 +312,31 @@ export function usePlayer(tracks: Track[]) {
     a.playbackRate = curRate
   }, [curRate, curId])
 
-  // 설치형 앱: 재생 중에는 알림을 띄워 화면이 꺼져도 멈추지 않게
-  useEffect(() => { setNowPlaying(playing, current) }, [playing, current])
+  // 설치형 앱: 알림·잠금 화면을 지금 상태로(재생 중이면 화면이 꺼져도 멈추지 않게 붙잡는다)
+  const notify = useCallback(() => {
+    const a = audio.current
+    setNowPlaying(!a.paused && !a.ended, byId.current.get(queueRef.current[indexRef.current]), a.currentTime || 0, isFinite(a.duration) ? a.duration : 0, a.playbackRate || 1)
+  }, [])
+  useEffect(() => { notify() }, [playing, current, notify])
+  useEffect(() => {
+    const a = audio.current
+    a.addEventListener('seeked', notify)
+    a.addEventListener('ratechange', notify)
+    a.addEventListener('loadedmetadata', notify)
+    return () => { a.removeEventListener('seeked', notify); a.removeEventListener('ratechange', notify); a.removeEventListener('loadedmetadata', notify) }
+  }, [notify])
+
+  // 알림·잠금 화면·차 버튼에서 온 명령
+  const goRef = useRef(go)
+  goRef.current = go
+  useEffect(() => onMediaAction((m) => {
+    const a = audio.current
+    if (m.action === 'play') { if (a.src) a.play().then(() => setPlaying(true)).catch(() => {}) }
+    else if (m.action === 'pause') { a.pause(); setPlaying(false) }
+    else if (m.action === 'next') goRef.current(1)
+    else if (m.action === 'prev') goRef.current(-1)
+    else if (m.action === 'seek' && m.pos != null) a.currentTime = m.pos
+  }), [])
 
   // 잠금 화면·이어폰 버튼
   useEffect(() => {

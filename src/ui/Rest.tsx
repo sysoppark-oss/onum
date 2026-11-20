@@ -4,6 +4,7 @@ import { DAILY, today } from '../lib/verses'
 import { Icon } from './common'
 import { Page } from './Sheets'
 import type { Battery } from './Battery'
+import { EFFECTIVE, PRIVACY } from '../lib/privacy'
 
 const REPO = 'https://github.com/sysoppark-oss/onum'
 const MAIL = 'sysoppark@gmail.com'
@@ -14,6 +15,8 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, norm,
 }) {
   const [about, setAbout] = useState(false)
   const [reading, setReading] = useState(false)
+  const [privacy, setPrivacy] = useState(false)
+  const closePrivacy = useCallback(() => setPrivacy(false), [])
   const closeAbout = useCallback(() => setAbout(false), [])
   const closeReading = useCallback(() => setReading(false), [])
   const v = today()
@@ -69,9 +72,13 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, norm,
         )}
       </ul>
 
-      <button className="why" onClick={() => setAbout(true)}>온음이 무료인 이유 <Icon n="chev" s={16} /></button>
+      <div className="whys">
+        <button className="why" onClick={() => setAbout(true)}>온음이 무료인 이유 <Icon n="chev" s={16} /></button>
+        <button className="why" onClick={() => setPrivacy(true)}>개인정보 처리방침 <Icon n="chev" s={16} /></button>
+      </div>
       {about && <AboutPage onClose={closeAbout} />}
       {reading && <ReadPage onClose={closeReading} />}
+      {privacy && <PrivacyPage onClose={closePrivacy} />}
     </div>
   )
 }
@@ -133,6 +140,22 @@ function AboutPage({ onClose }: { onClose: () => void }) {
         <p>궁금한 점, 고칠 점, 신앙에 대한 물음 모두 반가워요.</p>
 
         <p className="bless">음악을 듣는 모든 순간이 평안하시기를 빕니다.</p>
+      </article>
+    </Page>
+  )
+}
+
+function PrivacyPage({ onClose }: { onClose: () => void }) {
+  return (
+    <Page label="개인정보 처리방침" onClose={onClose}>
+      <article className="about">
+        <p className="lmeta">시행일 {EFFECTIVE}</p>
+        {PRIVACY.map(([h, ps]) => (
+          <section key={h}>
+            <h3>{h}</h3>
+            {ps.map((p) => <p key={p}>{p}</p>)}
+          </section>
+        ))}
       </article>
     </Page>
   )

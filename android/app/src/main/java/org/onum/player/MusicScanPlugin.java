@@ -47,11 +47,32 @@ import java.io.InputStream;
 )
 public class MusicScanPlugin extends Plugin {
 
+    private static MusicScanPlugin inst;
+
+    /** 알림·잠금 화면·차 버튼 → 화면(JS) */
+    static void emit(String action) {
+        MusicScanPlugin p = inst;
+        if (p == null) return;
+        JSObject o = new JSObject();
+        o.put("action", action);
+        p.notifyListeners("mediaAction", o, true);
+    }
+
+    static void emitSeek(long ms) {
+        MusicScanPlugin p = inst;
+        if (p == null) return;
+        JSObject o = new JSObject();
+        o.put("action", "seek");
+        o.put("pos", ms / 1000.0);
+        p.notifyListeners("mediaAction", o, true);
+    }
+
     private AudioDeviceCallback deviceCallback;
     private BroadcastReceiver volumeReceiver;
 
     @Override
     public void load() {
+        inst = this;
         AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
         deviceCallback = new AudioDeviceCallback() {
             @Override
@@ -444,21 +465,20 @@ public class MusicScanPlugin extends Plugin {
         call.resolve(ret);
     }
 
-    /** 화면이 꺼져도 음악이 멈추지 않게 재생 알림(포그라운드 서비스)을 켜고 끈다. */
+    /** 재생 알림·잠금 화면을 지금 상태로. 재생 중이면 포그라운드로 붙잡고, 멈추면 알림만 남긴다. stop이면 알림을 없앤다. */
     @PluginMethod
     public void nowPlaying(PluginCall call) {
-        boolean playing = call.getBoolean("playing", false);
         Intent i = new Intent(getContext(), PlaybackService.class);
-        if (playing) {
-            if (Build.VERSION.SDK_INT >= 33 && getPermissionState("notify") != PermissionState.GRANTED) {
-                requestPermissionForAlias("notify", call, "notifyCallback");
-                return;
-            }
-            startService(call, i);
-        } else {
+        if (call.getBoolean("stop", false)) {
             getContext().stopService(i);
             call.resolve();
+            return;
         }
+        if (Build.VERSION.SDK_INT >= 33 && getPermissionState("notify") != PermissionState.GRANTED && call.getBoolean("playing", false)) {
+            requestPermissionForAlias("notify", call, "notifyCallback");
+            return;
+        }
+        startService(call, i);
     }
 
     @PermissionCallback
@@ -470,8 +490,13 @@ public class MusicScanPlugin extends Plugin {
     private void startService(PluginCall call, Intent i) {
         i.putExtra("title", call.getString("title", "온음"));
         i.putExtra("artist", call.getString("artist", ""));
+        i.putExtra("playing", call.getBoolean("playing", false));
+        i.putExtra("pos", (long) (call.getDouble("pos", 0.0) * 1000));
+        i.putExtra("dur", (long) (call.getDouble("dur", 0.0) * 1000));
+        i.putExtra("rate", call.getFloat("rate", 1f));
         try {
-            if (Build.VERSION.SDK_INT >= 26) getContext().startForegroundService(i);
+            // 재생은 포그라운드로, 멈춤은 알림만 고친다(백그라운드에서 포그라운드 시작은 막혀 있다)
+            if (Build.VERSION.SDK_INT >= 26 && call.getBoolean("playing", false)) getContext().startForegroundService(i);
             else getContext().startService(i);
             call.resolve();
         } catch (Exception e) {
