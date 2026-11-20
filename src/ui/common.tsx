@@ -76,9 +76,65 @@ export function useDialog<T extends HTMLElement = HTMLDivElement>(onClose: () =>
   return box
 }
 
+/** 손가락으로 아래로 끌어내리면 닫힌다(창 맨 위에 있을 때만). 빠르게 튕기면 짧게 끌어도 닫힌다. */
+export function useSwipeClose(box: React.RefObject<HTMLElement | null>, onClose: () => void) {
+  const close = useRef(onClose)
+  close.current = onClose
+  useEffect(() => {
+    const el = box.current
+    if (!el) return
+    let y0 = 0, t0 = 0, dy = 0, armed = false, on = false
+    const start = (e: TouchEvent) => {
+      armed = false
+      if (e.touches.length !== 1) return
+      const tg = e.target as HTMLElement
+      // 재생 위치·음량 막대, 글자 칸에서는 끌지 않는다
+      if (tg.closest('input, textarea, .shape, .track')) return
+      const inner = tg.closest('.sheet-list') as HTMLElement | null
+      if (el.scrollTop > 0 || (inner && inner.scrollTop > 0)) return
+      armed = true; on = false; dy = 0
+      y0 = e.touches[0].clientY; t0 = Date.now()
+    }
+    const move = (e: TouchEvent) => {
+      if (!armed) return
+      const d = e.touches[0].clientY - y0
+      if (!on) {
+        if (d < -4) { armed = false; return } // 위로 밀면 그냥 스크롤
+        if (d < 10) return
+        on = true; y0 += 10; t0 = Date.now()
+        el.style.transition = 'none'
+      }
+      e.preventDefault()
+      dy = Math.max(0, e.touches[0].clientY - y0)
+      el.style.transform = `translateY(${dy}px)`
+    }
+    const end = () => {
+      if (!on) { armed = false; return }
+      on = armed = false
+      const v = dy / Math.max(1, Date.now() - t0)
+      el.style.transition = 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1)'
+      if (dy > Math.min(el.offsetHeight * 0.25, 160) || (v > 0.11 && dy > 48)) {
+        el.style.transform = 'translateY(100%)'
+        setTimeout(() => close.current(), 200)
+      } else el.style.transform = ''
+    }
+    el.addEventListener('touchstart', start, { passive: true })
+    el.addEventListener('touchmove', move, { passive: false })
+    el.addEventListener('touchend', end)
+    el.addEventListener('touchcancel', end)
+    return () => {
+      el.removeEventListener('touchstart', start)
+      el.removeEventListener('touchmove', move)
+      el.removeEventListener('touchend', end)
+      el.removeEventListener('touchcancel', end)
+    }
+  }, [box])
+}
+
 /** 아래에서 올라오는 창 */
 export function Sheet({ label, onClose, children, tall }: { label: string; onClose: () => void; children: React.ReactNode; tall?: boolean }) {
   const box = useDialog(onClose)
+  useSwipeClose(box, onClose)
   return (
     <div className="dim" onClick={onClose}>
       <div ref={box} tabIndex={-1} className={'sheet' + (tall ? ' tall' : '')} role="dialog" aria-modal="true" aria-label={label} onClick={(e) => e.stopPropagation()}>

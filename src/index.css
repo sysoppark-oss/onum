@@ -70,6 +70,9 @@ mark { background: none; color: var(--now-text); font-weight: 800; }
 .tabs button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.1875rem; font-size: 0.8125rem; font-weight: 600; color: var(--ink2); }
 .tabs button.on { color: var(--ink); font-weight: 800; }
 
+/* 휴대폰 맨 위 상태 표시줄 자리: 내용이 그 밑으로 지나가며 겹쳐 보이지 않게 */
+.statusbar { position: fixed; top: 0; left: 0; right: 0; height: var(--top); z-index: 30; background: var(--bg); pointer-events: none; }
+
 /* ───────── 지금 ───────── */
 .top { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; min-height: 2.75rem; }
 .mark { font-size: 1.0625rem; font-weight: 800; letter-spacing: -0.03em; }

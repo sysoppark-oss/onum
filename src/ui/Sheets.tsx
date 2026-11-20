@@ -7,7 +7,7 @@ import { matches } from '../lib/hangul'
 import { josa, parseTitle } from '../lib/title'
 import { load, save } from '../lib/store'
 import { NIGHT } from '../lib/verses'
-import { Icon, Sheet, VirtualList, clock, info, minutesText, nf, useDialog, whoLine } from './common'
+import { Icon, Sheet, VirtualList, useSwipeClose, clock, info, minutesText, nf, useDialog, whoLine } from './common'
 
 const PRESETS = [15, 30, 60, 120]
 const MAX_MIN = 720
@@ -221,6 +221,7 @@ export function EditRows({ tracks, currentId, lockCurrent, onTap, onMove, onRemo
 /** 겹쳐 뜨는 전체 화면 */
 export function Page({ label, onClose, children, actions }: { label: string; onClose: () => void; children: React.ReactNode; actions?: React.ReactNode }) {
   const box = useDialog(onClose)
+  useSwipeClose(box, onClose)
   return (
     <div ref={box} tabIndex={-1} className="layer" role="dialog" aria-modal="true" aria-label={label}>
       <div className="lh">

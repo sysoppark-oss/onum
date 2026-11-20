@@ -64,6 +64,7 @@ export default function App() {
   const gn = player.goodnight
   return (
     <div className="app">
+      <div className="statusbar" aria-hidden="true" />
       <main className={'main' + (easy ? ' no-tabs' : '') + (player.current && tab !== 'now' && !easy ? ' with-mini' : '')}>
         {easy ? (
           <EasyScreen tracks={tracks} player={player} vol={vol} loud={loud} onNormal={() => setEasy(false)} onSleep={openSleep} />
