@@ -21,7 +21,9 @@ jobs:
       - name: 도구 설치
         run: |
           pip install --quiet torch==2.4.1 --index-url https://download.pytorch.org/whl/cpu
-          pip install --quiet openai-whisper==20240930 onnx==1.17.0 onnxruntime==1.20.1 'numpy<2'
+          pip install --quiet 'setuptools<70' wheel 'numpy<2' tiktoken more-itertools numba tqdm
+          pip install --quiet --no-build-isolation --no-deps openai-whisper==20240930
+          pip install --quiet onnx==1.17.0 onnxruntime==1.20.1
       - name: Whisper base를 시각 정보까지 내도록 바꾸기
         run: |
           mkdir w && cd w
