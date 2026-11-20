@@ -262,6 +262,7 @@ const STROKE: Record<string, React.ReactNode> = {
   rew: <><path d="M4 12a8 8 0 1 0 2.3-5.6" /><polyline points="4 3 4 8 9 8" /></>,
   fwd: <><path d="M20 12a8 8 0 1 1-2.3-5.6" /><polyline points="20 3 20 8 15 8" /></>,
   ab: <><line x1="5" y1="5" x2="5" y2="19" /><line x1="19" y1="5" x2="19" y2="19" /><path d="M8 12h8" /><polyline points="13 9 16 12 13 15" /></>,
+  car: <><path d="M5 17h14v-5l-2-5H7l-2 5z" /><line x1="5" y1="12" x2="19" y2="12" /><circle cx="8" cy="17" r="1.6" /><circle cx="16" cy="17" r="1.6" /></>,
   move: <><path d="M4 12h14" /><polyline points="13 7 18 12 13 17" /></>,
   undo: <><path d="M9 14 4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 0 12h-3" /></>,
   dots: <><circle cx="5" cy="12" r="1.2" /><circle cx="12" cy="12" r="1.2" /><circle cx="19" cy="12" r="1.2" /></>,
@@ -347,11 +348,12 @@ export function useOutput(player: Player): Output | null {
 }
 
 export function outputLabel(o: Output): string {
+  if (o.kind === 'bluetooth' && o.car) return o.name ? `차 · ${o.name}` : '차 오디오'
   if (o.kind === 'bluetooth') return o.name ? `블루투스 · ${o.name}` : '블루투스'
   if (o.kind === 'wired') return '이어폰'
   return '휴대폰 스피커'
 }
 
 export function outputIcon(o: Output): string {
-  return o.kind === 'bluetooth' ? 'bt' : o.kind === 'wired' ? 'headset' : 'phone'
+  return o.kind === 'bluetooth' ? (o.car ? 'car' : 'bt') : o.kind === 'wired' ? 'headset' : 'phone'
 }

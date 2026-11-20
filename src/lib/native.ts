@@ -8,7 +8,7 @@ interface NativeTrack {
 }
 
 /** 소리가 나가는 곳 */
-export interface Output { kind: 'speaker' | 'wired' | 'bluetooth'; name?: string }
+export interface Output { kind: 'speaker' | 'wired' | 'bluetooth'; name?: string; car?: boolean }
 
 /** 휴대폰 미디어 음량: value는 0~max 단계 */
 export interface Volume { value: number; max: number }
@@ -20,6 +20,7 @@ interface MusicScanPlugin {
   output(): Promise<Output>
   fontScale(): Promise<{ scale: number }>
   battery(): Promise<{ free: boolean; maker: string }>
+  askNearby(): Promise<Output>
   analyze(opts: { path: string; bars: number }): Promise<{ rms: number[]; lufs?: number }>
   askBattery(): Promise<void>
   appSettings(): Promise<void>
@@ -131,4 +132,9 @@ export function openAppSettings(): void { if (isNative) MusicScan.appSettings().
 /** 설치형 앱: 휴대폰이 직접 곡을 나눠 재기(구간마다 rms, 전체 소리 크기) */
 export function nativeAnalyze(path: string, bars: number): Promise<{ rms: number[]; lufs?: number } | null> {
   return isNative ? MusicScan.analyze({ path, bars }).catch(() => null) : Promise.resolve(null)
+}
+
+/** 차 오디오인지 알아보려고 "근처 기기" 권한을 묻는다 */
+export function askNearby(): Promise<Output | null> {
+  return isNative ? MusicScan.askNearby().catch(() => null) : Promise.resolve(null)
 }

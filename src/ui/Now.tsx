@@ -3,14 +3,15 @@ import { useCallback, useEffect, useState } from 'react'
 import { fmt, type Track } from '../lib/library'
 import type { AB, Player } from '../lib/usePlayer'
 import { byLecture, lectureOf } from '../lib/kind'
-import type { Output } from '../lib/native'
+import { askNearby, type Output } from '../lib/native'
+import { load, save } from '../lib/store'
 import { BARS, cachedShape, getShape, type Shape } from '../lib/shape'
 import type { Playlists } from '../lib/playlists'
 import { Icon, SAFE_VOLUME, clock, fromLine, info, minutesText, nf, outputIcon, outputLabel, secText, whoLine, type Vol } from './common'
 import { QueuePage, RepeatSheet, SpeedSheet } from './Sheets'
 
 /* ── 소리 모양 ── */
-export function ShapeBar({ t, time, duration, onSeek, ab }: { t: Track; time: number; duration: number; onSeek?: (s: number) => void; ab?: AB | null }) {
+export function ShapeBar({ t, time, duration, onSeek, ab, mark }: { t: Track; time: number; duration: number; onSeek?: (s: number) => void; ab?: AB | null; mark?: number | null }) {
   const [shape, setShape] = useState<Shape | null | undefined>(() => cachedShape(t))
   useEffect(() => {
     let alive = true
@@ -35,7 +36,13 @@ export function ShapeBar({ t, time, duration, onSeek, ab }: { t: Track; time: nu
           {ab.b != null && (ab.b - ab.a) / duration > 0.14 && <span className="mk b num" aria-hidden="true" style={{ left: `${(ab.b / duration) * 100}%` }}>{fmt(ab.b)}</span>}
         </>
       )}
-      {!ab && hook != null && !t.talk && <span className="hook" aria-hidden="true" style={{ left: `${Math.min(88, Math.max(12, hook * 100))}%` }}>후렴(추정)</span>}
+      {!ab && mark != null && duration > 0 && (
+        <>
+          <span className="bmk" aria-hidden="true" style={{ left: `${(mark / duration) * 100}%` }} />
+          <span className={'mk num' + (mark / duration < 0.12 ? ' b' : '')} aria-hidden="true" style={{ left: `${(mark / duration) * 100}%` }}>↺ {fmt(mark)}</span>
+        </>
+      )}
+      {!ab && mark == null && hook != null && !t.talk && <span className="hook" aria-hidden="true" style={{ left: `${Math.min(88, Math.max(12, hook * 100))}%` }}>후렴(추정)</span>}
       <span className="head" aria-hidden="true" style={{ left: `${ratio * 100}%` }} />
       {onSeek && (
         <input type="range" className="scrub" min={0} max={Math.max(1, Math.floor(duration))} step={1} value={Math.floor(time)}
@@ -47,7 +54,7 @@ export function ShapeBar({ t, time, duration, onSeek, ab }: { t: Track; time: nu
 }
 
 /* ── 음량 ── */
-export function VolumeRow({ vol, loud, guide }: { vol: Vol; loud: boolean; guide: boolean }) {
+export function VolumeRow({ vol, loud, guide, onCar }: { vol: Vol; loud: boolean; guide: boolean; onCar?: () => void }) {
   const p = vol.percent
   return (
     <>
@@ -62,7 +69,12 @@ export function VolumeRow({ vol, loud, guide }: { vol: Vol; loud: boolean; guide
         </div>
         <span className="val num" aria-hidden="true">{p}%</span>
       </div>
-      {loud && <p className="warn" role="status"><Icon n="warn" s={15} w={2.6} />이어폰 권장 음량({SAFE_VOLUME}%)을 넘었어요</p>}
+      {loud && (
+        <div className="warnrow">
+          <p className="warn" role="status"><Icon n="warn" s={15} w={2.6} />이어폰 권장 음량({SAFE_VOLUME}%)을 넘었어요</p>
+          {onCar && <button className="carq" onClick={onCar}>차 스피커예요</button>}
+        </div>
+      )}
     </>
   )
 }
@@ -196,6 +208,7 @@ function AbBar({ player }: { player: Player }) {
           <button className="set" onClick={player.abStart} aria-label={`시작을 지금 자리로 다시 정하기, 지금 시작 ${fmt(g.a)}`}>여기부터<small className="num">{fmt(g.a)}</small></button>
           <button className="next" onClick={() => setMiss(!player.abEnd())}>여기까지<small className="num">지금 {fmt(player.time)}</small></button>
         </div>
+        <button className="quick" onClick={() => setMiss(!player.abSpan(10))}><span className="num">{fmt(g.a)}</span>부터 10초만 반복</button>
         {miss && <p className="ferr" role="alert">시작보다 1초 넘게 지난 뒤에 눌러 주세요.</p>}
         <div className="abx"><span className="t2">막대를 끌어 자리를 옮긴 뒤 눌러도 돼요</span><button onClick={player.abClear}>그만두기</button></div>
       </section>
@@ -218,6 +231,25 @@ function AbBar({ player }: { player: Player }) {
   )
 }
 
+/** 멈췄을 때: 그 자리에서 다시 듣기(책갈피) · 그 자리부터 구간 반복 */
+function PausedBar({ player }: { player: Player }) {
+  const t = player.time
+  return (
+    <section className="abbar paused" aria-labelledby="pz-h">
+      <h2 className="say2" id="pz-h"><em className="num">{fmt(t)}</em>에서 멈췄어요</h2>
+      <div className="nudge" role="group" aria-label="멈춘 자리 다듬기">
+        <button className="num" onClick={() => player.skip(-5)} aria-label="멈춘 자리를 5초 되돌리기">−5초</button>
+        <span>막대를 끌거나 눌러서 자리를 다듬어요</span>
+        <button className="num" onClick={() => player.skip(5)} aria-label="멈춘 자리를 5초 넘기기">+5초</button>
+      </div>
+      <div className="ab2">
+        <button className="next" onClick={() => { player.setBookmark(t); player.play() }}>여기부터 다시 듣기<small>언제든 이 자리로 돌아와요</small></button>
+        <button className="set" onClick={() => { player.abStart(); player.play() }}>여기부터 구간 반복<small>끝을 정해 그 사이만</small></button>
+      </div>
+    </section>
+  )
+}
+
 /** 시계 칸이 멈춰 있을 때도 30초마다 다시 계산한다 */
 function useNow(ms: number) {
   const [now, setNow] = useState(Date.now)
@@ -231,6 +263,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
   const [repeatOpen, setRepeatOpen] = useState(false)
   const [queueOpen, setQueueOpen] = useState(false)
   const [speedOpen, setSpeedOpen] = useState(false)
+  const [nearbyAsked, setNearbyAsked] = useState<boolean>(() => load('nearbyAsked', false))
   const closeSpeed = useCallback(() => setSpeedOpen(false), [])
   const closeRepeat = useCallback(() => setRepeatOpen(false), [])
   const closeQueue = useCallback(() => setQueueOpen(false), [])
@@ -277,7 +310,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
       {shown && (
         <>
           <ShapeBar t={shown} time={cur ? player.time : player.resumePos} duration={cur ? player.duration : shown.duration}
-            onSeek={cur ? player.seek : undefined} ab={cur ? player.ab : null} />
+            onSeek={cur ? player.seek : undefined} ab={cur ? player.ab : null} mark={cur ? player.bookmark : null} />
           <div className="times num" aria-hidden="true">
             <span>{fmt(cur ? player.time : player.resumePos)}</span>
             <span>−{fmt(Math.max(0, (cur ? player.duration : shown.duration) - (cur ? player.time : player.resumePos)))}</span>
@@ -315,12 +348,19 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
 
       )}
 
-      <VolumeRow vol={vol} loud={loud} guide={!!output && output.kind !== 'speaker'} />
+      <VolumeRow vol={vol} loud={loud} guide={!!output && output.kind !== 'speaker' && !output.car}
+        onCar={output?.kind === 'bluetooth' && output.car === undefined && !nearbyAsked ? () => { save('nearbyAsked', true); setNearbyAsked(true); askNearby() } : undefined} />
 
-      {cur && player.ab ? <AbBar player={player} /> : (
+      {cur && player.ab ? <AbBar player={player} /> : cur && !player.playing && player.time > 0.5 && !(player.duration > 0 && player.time >= player.duration - 0.5) ? <PausedBar player={player} /> : (
       <section className="flow" aria-labelledby="flow-h">
         <div className="flow-h">
-          <h2 id="flow-h">이어서</h2>
+          {player.bookmark != null ? (
+            <span className="bmchip">
+              <button className="bm-go" onClick={player.backToMark}><Icon n="rew" s={18} /><span className="num">{fmt(player.bookmark)}</span>부터 다시</button>
+              <button className="bm-x" onClick={() => player.setBookmark(null)} aria-label="책갈피 지우기"><Icon n="x" s={16} /></button>
+              <h2 id="flow-h" className="sr">이어서</h2>
+            </span>
+          ) : <h2 id="flow-h">이어서</h2>}
           <button className={'until' + (s ? ' set' : '')} aria-haspopup="dialog" onClick={onSleep}>
             <Icon n="moon" s={16} />
             {s ? (s.endOfTrack ? '이 곡 끝나면 멈춤' : <><span className="num">{clock(s.until, false)}</span> 멈춤</>) : '잠들기'}

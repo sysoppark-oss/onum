@@ -71,7 +71,7 @@ export default function App() {
   const lists = usePlaylists()
   const vol = useVolume(player)
   // 휴대폰의 실제 음량을 알 때만, 이어폰·블루투스로 들을 때만 경고한다
-  const loud = vol.native && vol.percent > SAFE_VOLUME && output?.kind !== 'speaker'
+  const loud = vol.native && vol.percent > SAFE_VOLUME && output?.kind !== 'speaker' && !output?.car // 차 스피커는 귀에 대지 않으니 경고하지 않는다
 
   // 설치형 앱: 휴대폰의 글자 크기 설정을 따라간다
   useEffect(() => {

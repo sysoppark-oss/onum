@@ -66,6 +66,8 @@ export function usePlayer(tracks: Track[]) {
   const [ab, setAbState] = useState<AB | null>(null)
   const abRef = useRef<AB | null>(null)
   const setAb = (v: AB | null) => { abRef.current = v; setAbState(v) }
+  // ── 책갈피: 언제든 이 자리로 돌아가기 ──
+  const [bookmark, setBookmarkState] = useState<number | null>(null)
   const currentTitle = useRef('')
   // 곡마다 소리 크기 맞추기: 큰 곡은 줄인다
   const [normOn, setNormOnState] = useState<boolean>(() => load('norm', true))
@@ -301,7 +303,7 @@ export function usePlayer(tracks: Track[]) {
 
   // 다른 곡으로 넘어가면 구간 반복은 저절로 풀린다
   const curId = current?.id
-  useEffect(() => { setAb(null) }, [curId]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setAb(null); setBookmarkState(null) }, [curId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 빠르기: 강의에만. 목소리 높이는 그대로.
   const curRate = current?.talk ? (rateEach ? rateById[current.id] ?? rate : rate) : 1
@@ -395,7 +397,28 @@ export function usePlayer(tracks: Track[]) {
   }, [])
 
   /** 여기부터 / 여기까지 / 1초씩 다듬기 / 끝내기 */
-  const abStart = useCallback(() => setAb({ a: audio.current.currentTime, b: null, n: 1 }), [])
+  const abStart = useCallback(() => { setBookmarkState(null); setAb({ a: audio.current.currentTime, b: null, n: 1 }) }, [])
+  /** 시작부터 sec초만큼을 바로 반복 */
+  const abSpan = useCallback((sec: number) => {
+    const g = abRef.current
+    const a = audio.current
+    const from = g ? g.a : a.currentTime
+    const d = isFinite(a.duration) ? a.duration : from + sec
+    const to = Math.min(d - 0.2, from + sec)
+    if (to <= from + 1) return false
+    setBookmarkState(null)
+    setAb({ a: from, b: to, n: 1 })
+    a.currentTime = from
+    return true
+  }, [])
+  const setBookmark = useCallback((sec: number | null) => setBookmarkState(sec), [])
+  const backToMark = useCallback(() => {
+    if (bookmark == null) return
+    const a = audio.current
+    a.currentTime = bookmark
+    if (a.paused) a.play().then(() => setPlaying(true)).catch(() => {})
+  }, [bookmark])
+  const play = useCallback(() => { const a = audio.current; if (a.src && a.paused) a.play().then(() => setPlaying(true)).catch(() => {}) }, [])
   const abEnd = useCallback(() => {
     const g = abRef.current
     const t = audio.current.currentTime
@@ -484,7 +507,7 @@ export function usePlayer(tracks: Track[]) {
     setSleep, dismissGoodnight: () => setGoodnight(null),
     playFrom, go, toggle, pause, seek, toggleShuffle, setRepeat, jump, removeAt, move, enqueue, setGain,
     talkPos, talkDone, markDone, rate: curRate, rateEach, setRate, skip, SKIP,
-    ab, abStart, abEnd, abSet, abClear, normOn, setNorm,
+    ab, abStart, abEnd, abSet, abClear, abSpan, bookmark, setBookmark, backToMark, play, normOn, setNorm,
   }
 }
 

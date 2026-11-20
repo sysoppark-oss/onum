@@ -42,7 +42,8 @@ import java.io.InputStream;
     permissions = {
         @Permission(alias = "audio", strings = { Manifest.permission.READ_MEDIA_AUDIO }),
         @Permission(alias = "storage", strings = { Manifest.permission.READ_EXTERNAL_STORAGE }),
-        @Permission(alias = "notify", strings = { Manifest.permission.POST_NOTIFICATIONS })
+        @Permission(alias = "notify", strings = { Manifest.permission.POST_NOTIFICATIONS }),
+        @Permission(alias = "nearby", strings = { Manifest.permission.BLUETOOTH_CONNECT })
     }
 )
 public class MusicScanPlugin extends Plugin {
@@ -113,11 +114,51 @@ public class MusicScanPlugin extends Plugin {
         }
     }
 
+    /** 블루투스 기기가 차 오디오인지(차·핸즈프리 분류). 알 수 없으면 null */
+    @android.annotation.SuppressLint("MissingPermission")
+    private Boolean isCar(AudioDeviceInfo d) {
+        if (Build.VERSION.SDK_INT < 28) return null;
+        if (Build.VERSION.SDK_INT >= 31 && ContextCompat.checkSelfPermission(getContext(), Manifest.permission.BLUETOOTH_CONNECT)
+            != android.content.pm.PackageManager.PERMISSION_GRANTED) return null;
+        try {
+            String addr = d.getAddress();
+            if (addr == null || addr.isEmpty()) return null;
+            android.bluetooth.BluetoothManager bm = (android.bluetooth.BluetoothManager) getContext().getSystemService(Context.BLUETOOTH_SERVICE);
+            android.bluetooth.BluetoothAdapter ad = bm != null ? bm.getAdapter() : null;
+            if (ad == null) return null;
+            android.bluetooth.BluetoothClass c = ad.getRemoteDevice(addr).getBluetoothClass();
+            if (c == null) return null;
+            int k = c.getDeviceClass();
+            return k == android.bluetooth.BluetoothClass.Device.AUDIO_VIDEO_CAR_AUDIO
+                || k == android.bluetooth.BluetoothClass.Device.AUDIO_VIDEO_HANDSFREE;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** "근처 기기" 권한을 묻는다(차 오디오인지 알아보려고). 답한 뒤 소리 나가는 곳을 다시 알려 준다 */
+    @PluginMethod
+    public void askNearby(PluginCall call) {
+        if (Build.VERSION.SDK_INT < 31 || getPermissionState("nearby") == PermissionState.GRANTED) {
+            call.resolve(currentOutput());
+            return;
+        }
+        requestPermissionForAlias("nearby", call, "nearbyCallback");
+    }
+
+    @PermissionCallback
+    private void nearbyCallback(PluginCall call) {
+        JSObject o = currentOutput();
+        notifyListeners("outputChanged", o);
+        call.resolve(o);
+    }
+
     /** 소리가 나가는 곳: 블루투스 > 유선 이어폰 > 휴대폰 스피커 */
     private JSObject currentOutput() {
         AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
         String kind = "speaker";
         String name = null;
+        Boolean car = null;
         for (AudioDeviceInfo d : am.getDevices(AudioManager.GET_DEVICES_OUTPUTS)) {
             int t = d.getType();
             if (t == AudioDeviceInfo.TYPE_BLUETOOTH_A2DP
@@ -127,6 +168,7 @@ public class MusicScanPlugin extends Plugin {
                 kind = "bluetooth";
                 CharSequence n = d.getProductName();
                 if (n != null) name = n.toString();
+                car = isCar(d);
                 break;
             }
             if (t == AudioDeviceInfo.TYPE_WIRED_HEADPHONES
@@ -138,6 +180,7 @@ public class MusicScanPlugin extends Plugin {
         JSObject o = new JSObject();
         o.put("kind", kind);
         if (name != null) o.put("name", name);
+        if (car != null) o.put("car", car.booleanValue());
         return o;
     }
 
