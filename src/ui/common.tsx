@@ -43,6 +43,34 @@ export function fromLine(p: Parsed, t: Track): string {
   return t.album
 }
 
+/** "4분 20초" */
+export function secText(sec: number): string {
+  const s = Math.max(0, Math.round(sec)), m = Math.floor(s / 60), r = s % 60
+  return m ? (r ? `${m}분 ${r}초` : `${m}분`) : `${r}초`
+}
+
+/** 길게 누르기(0.55초). 목록 하나에 하나 만들고 줄마다 bind로 붙인다. 오른쪽 클릭·Shift+F10도 같다. */
+export function useLongPress() {
+  const timer = useRef(0)
+  const fired = useRef(false)
+  const at = useRef<[number, number]>([0, 0])
+  const stop = () => window.clearTimeout(timer.current)
+  return (onLong: () => void) => ({
+    onPointerDown: (e: React.PointerEvent) => {
+      fired.current = false
+      at.current = [e.clientX, e.clientY]
+      stop()
+      timer.current = window.setTimeout(() => { fired.current = true; navigator.vibrate?.(12); onLong() }, 550)
+    },
+    onPointerMove: (e: React.PointerEvent) => { if (Math.hypot(e.clientX - at.current[0], e.clientY - at.current[1]) > 10) stop() },
+    onPointerUp: stop,
+    onPointerCancel: stop,
+    onPointerLeave: stop,
+    onContextMenu: (e: React.MouseEvent) => { e.preventDefault(); stop(); if (!fired.current) { fired.current = true; onLong() } },
+    onClickCapture: (e: React.MouseEvent) => { if (fired.current) { e.preventDefault(); e.stopPropagation(); fired.current = false } },
+  })
+}
+
 /* ── 창: 초점 가두기, 뒤로 버튼·Esc로 닫기 ── */
 export const closers: (() => void)[] = []
 const FOCUSABLE = 'button:not([disabled]), a[href], input:not([type=hidden]), [tabindex]:not([tabindex="-1"])'
@@ -209,6 +237,11 @@ const STROKE: Record<string, React.ReactNode> = {
   mail: <><rect x="3" y="5" width="18" height="14" rx="2" /><polyline points="3 7 12 13 21 7" /></>,
   code: <><polyline points="8 6 2 12 8 18" /><polyline points="16 6 22 12 16 18" /></>,
   text: <><line x1="5" y1="6" x2="19" y2="6" /><line x1="12" y1="6" x2="12" y2="19" /></>,
+  rew: <><path d="M4 12a8 8 0 1 0 2.3-5.6" /><polyline points="4 3 4 8 9 8" /></>,
+  fwd: <><path d="M20 12a8 8 0 1 1-2.3-5.6" /><polyline points="20 3 20 8 15 8" /></>,
+  ab: <><line x1="5" y1="5" x2="5" y2="19" /><line x1="19" y1="5" x2="19" y2="19" /><path d="M8 12h8" /><polyline points="13 9 16 12 13 15" /></>,
+  move: <><path d="M4 12h14" /><polyline points="13 7 18 12 13 17" /></>,
+  undo: <><path d="M9 14 4 9l5-5" /><path d="M4 9h10a6 6 0 0 1 0 12h-3" /></>,
 }
 const FILLED: Record<string, React.ReactNode> = {
   play: <polygon points="7 4 20 12 7 20" />,

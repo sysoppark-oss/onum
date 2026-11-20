@@ -1,16 +1,17 @@
 // 「지금」: 곡 · 소리 모양 · 조작 · 음량 · 흐름(앞으로 무엇이 언제) · 오늘의 한 문장
 import { useCallback, useEffect, useState } from 'react'
 import { fmt, type Track } from '../lib/library'
-import type { Player } from '../lib/usePlayer'
+import type { AB, Player } from '../lib/usePlayer'
+import { byLecture, lectureOf } from '../lib/kind'
 import type { Output } from '../lib/native'
 import { BARS, cachedShape, getShape, type Shape } from '../lib/shape'
 import { today } from '../lib/verses'
 import type { Playlists } from '../lib/playlists'
-import { Icon, SAFE_VOLUME, clock, fromLine, info, minutesText, nf, outputIcon, outputLabel, whoLine, type Vol } from './common'
-import { QueuePage, RepeatSheet } from './Sheets'
+import { Icon, SAFE_VOLUME, clock, fromLine, info, minutesText, nf, outputIcon, outputLabel, secText, whoLine, type Vol } from './common'
+import { QueuePage, RepeatSheet, SpeedSheet } from './Sheets'
 
 /* ── 소리 모양 ── */
-export function ShapeBar({ t, time, duration, onSeek }: { t: Track; time: number; duration: number; onSeek?: (s: number) => void }) {
+export function ShapeBar({ t, time, duration, onSeek, ab }: { t: Track; time: number; duration: number; onSeek?: (s: number) => void; ab?: AB | null }) {
   const [shape, setShape] = useState<Shape | null | undefined>(() => cachedShape(t))
   useEffect(() => {
     let alive = true
@@ -27,7 +28,15 @@ export function ShapeBar({ t, time, duration, onSeek }: { t: Track; time: number
       {Array.from({ length: BARS }, (_, i) => (
         <i key={i} className={i / BARS < ratio ? 'done' : undefined} style={{ height: `${(bars ? bars[i] : 0.14) * 100}%` }} />
       ))}
-      {hook != null && <span className="hook" aria-hidden="true" style={{ left: `${Math.min(92, Math.max(8, hook * 100))}%` }}>후렴</span>}
+      {ab && duration > 0 && (
+        <>
+          <span className={'band' + (ab.b == null ? ' open' : '')} aria-hidden="true"
+            style={{ left: `${(ab.a / duration) * 100}%`, right: ab.b == null ? 0 : `${100 - (ab.b / duration) * 100}%` }} />
+          <span className={'mk num' + (ab.a / duration < 0.12 ? ' b' : '')} aria-hidden="true" style={{ left: `${(ab.a / duration) * 100}%` }}>{fmt(ab.a)}</span>
+          {ab.b != null && (ab.b - ab.a) / duration > 0.14 && <span className="mk b num" aria-hidden="true" style={{ left: `${(ab.b / duration) * 100}%` }}>{fmt(ab.b)}</span>}
+        </>
+      )}
+      {!ab && hook != null && <span className="hook" aria-hidden="true" style={{ left: `${Math.min(92, Math.max(8, hook * 100))}%` }}>후렴</span>}
       <span className="head" aria-hidden="true" style={{ left: `${ratio * 100}%` }} />
       {onSeek && (
         <input type="range" className="scrub" min={0} max={Math.max(1, Math.floor(duration))} step={1} value={Math.floor(time)}
@@ -145,6 +154,66 @@ function buildFlow(p: Player, now: number): Flow {
   return { rows, more }
 }
 
+/** 강의: 다음 강의들과 시작 시각(빠르기 반영) */
+function buildTalkFlow(p: Player, now: number): Flow {
+  const cur = p.current!
+  const q = p.queueTracks
+  const r = p.rate || 1
+  const dur = p.duration || cur.duration || 0
+  const endCur = now + (Math.max(0, dur - p.time) / r) * 1000
+  const s = p.sleep
+  const sleepAt = s ? (s.endOfTrack ? endCur : s.until) : Infinity
+  const rows: Row[] = []
+  let at: number | null = dur > 0 ? endCur : null
+  let rest = 0
+  for (let i = p.index + 1; i < q.length; i++) {
+    const t = q[i]
+    if (at != null && at >= sleepAt) { rest += q.length - i; break }
+    if (rows.length < (s ? 1 : 2)) {
+      const l = lectureOf(t)
+      rows.push({ kind: 'next', at, title: l.no ? `${l.no} · ${l.name}` : l.name, sub: [t.folder, t.duration ? minutesText(Math.round(t.duration / 60)) : ''].filter(Boolean).join(' · '), jump: i })
+    } else rest++
+    const left = t.duration > 0 ? t.duration - (p.talkDone[t.id] ? 0 : p.talkPos[t.id] ?? 0) : 0
+    at = at != null && left > 0 ? at + (left / r) * 1000 : null
+  }
+  if (!rows.length && !s) rows.push({ kind: 'end', at: dur > 0 ? endCur : null, title: '이 강의가 끝나면 멈춰요', sub: '마지막 강의예요' })
+  if (s) rows.push({ kind: 'stop', at: sleepAt, title: s.endOfTrack ? '이 강의가 끝나면 멈춰요' : s.fade ? '소리를 줄이며 멈춰요' : '멈춰요', sub: s.fade && !s.endOfTrack ? '30초 동안 서서히 작아져요' : '잠들기 예약' })
+  return { rows, more: rest > 0 ? `${cur.folder} · 남은 ${nf.format(rest)}강` : `재생 목록 ${nf.format(q.length)}개 보기` }
+}
+
+/** 구간 반복: 시작 정하기 → 끝 정하기 → 반복 중 */
+function AbBar({ player }: { player: Player }) {
+  const g = player.ab!
+  const [miss, setMiss] = useState(false)
+  if (g.b == null) {
+    return (
+      <section className="abbar" aria-label="구간 반복">
+        <p className="say2" role="status"><em className="num">{fmt(g.a)}</em>부터 듣고 있어요.<br />끝낼 자리에서 「여기까지」를 누르세요.</p>
+        <div className="ab2">
+          <button className="set" onClick={player.abStart} aria-label={`시작을 지금 자리로 다시 정하기, 지금 시작 ${fmt(g.a)}`}>여기부터<small className="num">{fmt(g.a)}</small></button>
+          <button className="next" onClick={() => setMiss(!player.abEnd())}>여기까지<small className="num">지금 {fmt(player.time)}</small></button>
+        </div>
+        {miss && <p className="ferr" role="alert">시작보다 1초 넘게 지난 뒤에 눌러 주세요.</p>}
+        <div className="abx"><span className="t2">막대를 끌어 자리를 옮긴 뒤 눌러도 돼요</span><button onClick={player.abClear}>그만두기</button></div>
+      </section>
+    )
+  }
+  return (
+    <section className="abbar" aria-label="구간 반복">
+      <p className="say2" role="status"><em>{secText(g.b - g.a)}</em> 구간을 계속 들어요 · <span className="num">{g.n}번째</span></p>
+      <div className="fine2">
+        <div><span>시작<b className="num">{fmt(g.a)}</b></span>
+          <button className="num" onClick={() => player.abSet('a', g.a - 1)} aria-label="시작 1초 앞으로">−1초</button>
+          <button className="num" onClick={() => player.abSet('a', g.a + 1)} aria-label="시작 1초 뒤로">+1초</button></div>
+        <div><span>끝<b className="num">{fmt(g.b)}</b></span>
+          <button className="num" onClick={() => player.abSet('b', g.b! - 1)} aria-label="끝 1초 앞으로">−1초</button>
+          <button className="num" onClick={() => player.abSet('b', g.b! + 1)} aria-label="끝 1초 뒤로">+1초</button></div>
+      </div>
+      <div className="abx"><span className="t2">다음 곡으로 가면 저절로 풀려요</span><button onClick={player.abClear}>구간 반복 끝내기</button></div>
+    </section>
+  )
+}
+
 /** 시계 칸이 멈춰 있을 때도 30초마다 다시 계산한다 */
 function useNow(ms: number) {
   const [now, setNow] = useState(Date.now)
@@ -157,6 +226,8 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
 }) {
   const [repeatOpen, setRepeatOpen] = useState(false)
   const [queueOpen, setQueueOpen] = useState(false)
+  const [speedOpen, setSpeedOpen] = useState(false)
+  const closeSpeed = useCallback(() => setSpeedOpen(false), [])
   const closeRepeat = useCallback(() => setRepeatOpen(false), [])
   const closeQueue = useCallback(() => setQueueOpen(false), [])
   useNow(30000)
@@ -166,19 +237,24 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
   const verse = today()
   const rp = repeatShort(player)
   const p = shown ? info(shown) : null
+  const talk = !!shown?.talk
+  const lec = talk && shown ? lectureOf(shown) : null
+  const music = tracks.filter((t) => !t.talk)
 
   const press = () => {
     if (cur) player.toggle()
-    else if (shown) player.playFrom(tracks, shown.id, player.resumePos)
+    else if (shown) player.playFrom(talk ? tracks.filter((t) => t.talk && t.folder === shown.folder).sort(byLecture) : music, shown.id, player.resumePos, talk)
     else {
       if (!player.shuffle) player.toggleShuffle()
-      player.playFrom(tracks, tracks[Math.floor(Math.random() * tracks.length)].id)
+      const pool = music.length ? music : tracks
+      player.playFrom(pool, pool[Math.floor(Math.random() * pool.length)].id)
     }
   }
-  const flow = cur ? buildFlow(player, now) : null
+  const flow = cur ? (cur.talk ? buildTalkFlow(player, now) : buildFlow(player, now)) : null
   const s = player.sleep
-  const from = cur ? fromLine(p!, cur) : shown ? `이어서 듣기 · ${fmt(player.resumePos)}부터` : `${nf.format(tracks.length)}곡이 준비됐어요`
-  const who = p ? p.singer : ''
+  const from = talk && lec ? [shown!.folder, lec.no].filter(Boolean).join(' · ') + (cur ? '' : ` · ${fmt(player.resumePos)}부터 이어서`) : cur ? fromLine(p!, cur) : shown ? `이어서 듣기 · ${fmt(player.resumePos)}부터` : `${nf.format(tracks.length)}곡이 준비됐어요`
+  const who = lec ? lec.speaker : p ? p.singer : ''
+  const r = player.rate || 1
 
   return (
     <div className="page now">
@@ -189,14 +265,16 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
 
       <div className="song">
         {from && <p className="from">{from}</p>}
-        <h1>{p ? p.song : '모든 곡 골고루 섞어 듣기'}</h1>
-        {(who || p?.original) && <p className="who">{who}{p?.original && <span>{who ? ' · ' : ''}원곡 {p.original}</span>}</p>}
+        <h1>{lec ? lec.name : p ? p.song : '모든 곡 골고루 섞어 듣기'}</h1>
+        {talk ? (
+          <p className="who">{who}{shown!.duration > 0 && <span>{who ? ' · ' : ''}{minutesText(Math.round(shown!.duration / 60))}</span>}</p>
+        ) : (who || p?.original) && <p className="who">{who}{p?.original && <span>{who ? ' · ' : ''}원곡 {p.original}</span>}</p>}
       </div>
 
       {shown && (
         <>
           <ShapeBar t={shown} time={cur ? player.time : player.resumePos} duration={cur ? player.duration : shown.duration}
-            onSeek={cur ? player.seek : undefined} />
+            onSeek={cur ? player.seek : undefined} ab={cur ? player.ab : null} />
           <div className="times num" aria-hidden="true">
             <span>{fmt(cur ? player.time : player.resumePos)}</span>
             <span>−{fmt(Math.max(0, (cur ? player.duration : shown.duration) - (cur ? player.time : player.resumePos)))}</span>
@@ -204,7 +282,21 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
         </>
       )}
 
-      <div className="ctl">
+      {talk ? (
+        <div className="ctl">
+          <button className="small" aria-haspopup="dialog" onClick={() => setSpeedOpen(true)} disabled={!cur} aria-label={`빠르기 ${r}배`}>
+            <span className="spd num">{r.toFixed(1)}×</span>빠르기
+          </button>
+          <button className="jump" onClick={() => player.skip(-player.SKIP)} disabled={!cur} aria-label={`${player.SKIP}초 뒤로`}><Icon n="rew" s={30} /><b className="num">{player.SKIP}초</b></button>
+          <button className="play" onClick={press} aria-label={player.playing ? '일시 정지' : cur ? '재생' : '이어서 듣기'}>
+            <Icon n={player.playing ? 'pause' : 'play'} s={30} />
+          </button>
+          <button className="jump" onClick={() => player.skip(player.SKIP)} disabled={!cur} aria-label={`${player.SKIP}초 앞으로`}><Icon n="fwd" s={30} /><b className="num">{player.SKIP}초</b></button>
+          <button className={'small' + (player.ab ? ' on' : '')} aria-pressed={!!player.ab} disabled={!cur}
+            onClick={() => (player.ab ? player.abClear() : player.abStart())}><Icon n="ab" />구간</button>
+        </div>
+      ) : (
+        <div className="ctl">
         <button className={'small' + (player.shuffle ? ' on' : '')} aria-pressed={player.shuffle} onClick={player.toggleShuffle}>
           <Icon n="shuffle" />섞기
         </button>
@@ -218,8 +310,11 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
         </button>
       </div>
 
+      )}
+
       <VolumeRow vol={vol} loud={loud} guide={!!output && output.kind !== 'speaker'} />
 
+      {cur && player.ab ? <AbBar player={player} /> : (
       <section className="flow" aria-labelledby="flow-h">
         <div className="flow-h">
           <h2 id="flow-h">이어서</h2>
@@ -260,8 +355,10 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
           <p className="wr">{verse.ref} · 개역한글</p>
         </div>
       </section>
+      )}
 
       {repeatOpen && <RepeatSheet player={player} onClose={closeRepeat} />}
+      {speedOpen && <SpeedSheet player={player} onClose={closeSpeed} />}
       {queueOpen && <QueuePage player={player} tracks={tracks} lists={lists} onClose={closeQueue} />}
     </div>
   )

@@ -14,6 +14,10 @@ export interface Repeat {
 }
 export interface Sleep { until: number; endOfTrack: boolean; fade: boolean }
 export interface Goodnight { at: number; title: string }
+/** 구간 반복: a부터 b까지(초). b가 없으면 끝 지점을 고르는 중 */
+export interface AB { a: number; b: number | null; n: number }
+export const RATES = [0.8, 1, 1.2, 1.5, 2]
+const SKIP = 10 // 강의 건너뛰기(초)
 const SLEEP_FADE_MS = 30000
 const DEFAULT_REPEAT: Repeat = { scope: 'all', limit: 'forever', minutes: 60 }
 
@@ -47,6 +51,20 @@ export function usePlayer(tracks: Track[]) {
   const [goodnight, setGoodnight] = useState<Goodnight | null>(null)
   const [last, setLast] = useState<Record<string, number>>(() => load('last', {})) // 곡마다 마지막으로 들은 때
   const sleepRef = useRef<Sleep | null>(null)
+  // ── 강의: 들은 자리·다 들음·빠르기 ──
+  const [talkPos, setTalkPos] = useState<Record<string, number>>(() => load('talkPos', {}))
+  const [talkDone, setTalkDone] = useState<Record<string, boolean>>(() => load('talkDone', {}))
+  const talkPosRef = useRef(talkPos)
+  talkPosRef.current = talkPos
+  const talkDoneRef = useRef(talkDone)
+  talkDoneRef.current = talkDone
+  const [rate, setRateState] = useState<number>(() => load('rate', 1))
+  const [rateEach, setRateEachState] = useState<boolean>(() => load('rateEach', false))
+  const [rateById, setRateById] = useState<Record<string, number>>(() => load('rateById', {}))
+  // ── 구간 반복 ──
+  const [ab, setAbState] = useState<AB | null>(null)
+  const abRef = useRef<AB | null>(null)
+  const setAb = (v: AB | null) => { abRef.current = v; setAbState(v) }
   const currentTitle = useRef('')
   const gainRef = useRef(gain)
   gainRef.current = gain
@@ -89,6 +107,10 @@ export function usePlayer(tracks: Track[]) {
   const byId = useRef(new Map<string, Track>())
   byId.current = new Map(tracks.map((t) => [t.id, t]))
 
+  const queueRef = useRef(queue)
+  queueRef.current = queue
+  const indexRef = useRef(index)
+  indexRef.current = index
   const current = index >= 0 ? byId.current.get(queue[index]) : undefined
   currentTitle.current = current?.title ?? ''
 
@@ -100,17 +122,17 @@ export function usePlayer(tracks: Track[]) {
     save('repeat', r)
   }, [])
 
-  const start = useCallback((t: Track, at = 0) => {
+  const start = useCallback((t: Track, at?: number) => {
     const a = audio.current
     a.src = t.url
-    a.currentTime = at
+    a.currentTime = at ?? (t.talk && !talkDoneRef.current[t.id] ? talkPosRef.current[t.id] ?? 0 : 0)
     a.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
     setPlays((old) => { const n = { ...old, [t.id]: (old[t.id] ?? 0) + 1 }; save('plays', n); return n })
     setLast((old) => { const n = { ...old, [t.id]: Date.now() }; save('last', n); return n })
   }, [])
 
   /** 목록에서 곡을 누르면: 그 목록을 대기열로 */
-  const playFrom = useCallback((list: Track[], id: string, at = 0, keepOrder = false) => {
+  const playFrom = useCallback((list: Track[], id: string, at?: number, keepOrder = false) => {
     const ids = list.map((t) => t.id)
     let q = ids
     let i = ids.indexOf(id)
@@ -150,6 +172,13 @@ export function usePlayer(tracks: Track[]) {
     const r = repeat
     const stop = () => { audio.current.pause(); setPlaying(false) }
     if (sleepRef.current?.endOfTrack) { finishSleep(); return } // "이 곡까지" 잠들기
+    const cur = byId.current.get(queueRef.current[indexRef.current])
+    if (cur?.talk) {
+      setTalkDone((old) => { const n = { ...old, [cur.id]: true }; save('talkDone', n); return n })
+      setTalkPos((old) => { const n = { ...old }; delete n[cur.id]; save('talkPos', n); return n })
+      go(1, false)
+      return
+    }
     // 정한 시간이 지났으면 듣던 곡까지만 틀고 멈춘다
     if (r.limit === 'timed' && left.current <= 0) {
       setRepeat({ ...r, limit: 'once' })
@@ -195,6 +224,11 @@ export function usePlayer(tracks: Track[]) {
   useEffect(() => {
     const a = audio.current
     const onTime = () => {
+      const g = abRef.current
+      if (g && g.b != null && a.currentTime >= g.b) {
+        a.currentTime = g.a
+        setAb({ ...g, n: g.n + 1 })
+      }
       setTime(a.currentTime)
       // 재생된 시간만큼만 남은 시간을 줄인다(멈춰 있던 동안은 세지 않는다)
       if (left.current > 0) {
@@ -224,10 +258,30 @@ export function usePlayer(tracks: Track[]) {
   // 이어 듣기: 5초마다 위치 저장
   useEffect(() => {
     if (!current) return
-    const h = setInterval(() => save('resume', { id: current.id, pos: audio.current.currentTime }), 5000)
-    save('resume', { id: current.id, pos: audio.current.currentTime })
-    return () => clearInterval(h)
+    const keep = () => {
+      const pos = audio.current.currentTime
+      save('resume', { id: current.id, pos })
+      if (current.talk && pos > 5 && !talkDoneRef.current[current.id]) {
+        setTalkPos((old) => { const n = { ...old, [current.id]: Math.floor(pos) }; save('talkPos', n); return n })
+      }
+    }
+    const h = setInterval(keep, 5000)
+    keep()
+    return () => { clearInterval(h); keep() }
   }, [current])
+
+  // 다른 곡으로 넘어가면 구간 반복은 저절로 풀린다
+  const curId = current?.id
+  useEffect(() => { setAb(null) }, [curId]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 빠르기: 강의에만. 목소리 높이는 그대로.
+  const curRate = current?.talk ? (rateEach ? rateById[current.id] ?? rate : rate) : 1
+  useEffect(() => {
+    const a = audio.current as HTMLAudioElement & { preservesPitch?: boolean }
+    a.preservesPitch = true
+    a.defaultPlaybackRate = curRate
+    a.playbackRate = curRate
+  }, [curRate, curId])
 
   // 설치형 앱: 재생 중에는 알림을 띄워 화면이 꺼져도 멈추지 않게
   useEffect(() => { setNowPlaying(playing, current) }, [playing, current])
@@ -282,6 +336,41 @@ export function usePlayer(tracks: Track[]) {
     setQueue([...queue, ...add])
   }, [queue, playFrom])
 
+  const skip = useCallback((sec: number) => {
+    const a = audio.current
+    a.currentTime = Math.min(Math.max(0, a.currentTime + sec), Math.max(0, (a.duration || 0) - 0.5))
+  }, [])
+
+  /** 여기부터 / 여기까지 / 1초씩 다듬기 / 끝내기 */
+  const abStart = useCallback(() => setAb({ a: audio.current.currentTime, b: null, n: 1 }), [])
+  const abEnd = useCallback(() => {
+    const g = abRef.current
+    const t = audio.current.currentTime
+    if (!g || t < g.a + 1) return false
+    setAb({ ...g, b: t })
+    audio.current.currentTime = g.a
+    return true
+  }, [])
+  const abSet = useCallback((which: 'a' | 'b', sec: number) => {
+    const g = abRef.current
+    if (!g) return
+    const d = audio.current.duration || Infinity
+    if (which === 'a') setAb({ ...g, a: Math.max(0, Math.min(sec, (g.b ?? d) - 1)) })
+    else if (g.b != null) setAb({ ...g, b: Math.min(d - 0.2, Math.max(sec, g.a + 1)) })
+  }, [])
+  const abClear = useCallback(() => setAb(null), [])
+
+  const setRate = useCallback((v: number, each: boolean) => {
+    setRateEachState(each); save('rateEach', each)
+    if (each && current) setRateById((old) => { const n = { ...old, [current.id]: v }; save('rateById', n); return n })
+    else { setRateState(v); save('rate', v) }
+  }, [current])
+
+  const markDone = useCallback((id: string, done: boolean) => {
+    setTalkDone((old) => { const n = { ...old }; if (done) n[id] = true; else delete n[id]; save('talkDone', n); return n })
+    setTalkPos((old) => { const n = { ...old }; delete n[id]; save('talkPos', n); return n })
+  }, [])
+
   const setGain = useCallback((v: number) => {
     const g = Math.min(1, Math.max(0, v))
     audio.current.volume = g
@@ -311,6 +400,8 @@ export function usePlayer(tracks: Track[]) {
     queueTracks, index, next, nextNote, gain, plays, last, sleep, sleepLeft, goodnight,
     setSleep, dismissGoodnight: () => setGoodnight(null),
     playFrom, go, toggle, pause, seek, toggleShuffle, setRepeat, jump, removeAt, move, enqueue, setGain,
+    talkPos, talkDone, markDone, rate: curRate, rateEach, setRate, skip, SKIP,
+    ab, abStart, abEnd, abSet, abClear,
   }
 }
 

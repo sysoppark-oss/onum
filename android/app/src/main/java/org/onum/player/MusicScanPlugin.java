@@ -186,7 +186,7 @@ public class MusicScanPlugin extends Plugin {
         int minMs = call.getInt("minMs", 30000);
         ContentResolver cr = getContext().getContentResolver();
         Uri uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
-        String[] cols = {
+        java.util.ArrayList<String> colList = new java.util.ArrayList<>(java.util.Arrays.asList(
             MediaStore.Audio.Media._ID,
             MediaStore.Audio.Media.TITLE,
             MediaStore.Audio.Media.ARTIST,
@@ -195,11 +195,19 @@ public class MusicScanPlugin extends Plugin {
             MediaStore.Audio.Media.DURATION,
             MediaStore.Audio.Media.DATA,
             MediaStore.Audio.Media.DATE_ADDED,
-            MediaStore.Audio.Media.SIZE
-        };
-        // 벨소리·알림음·알람은 빼고 음악만
-        String sel = MediaStore.Audio.Media.IS_MUSIC + " != 0 AND "
-            + MediaStore.Audio.Media.DURATION + " >= ?";
+            MediaStore.Audio.Media.SIZE,
+            MediaStore.Audio.Media.IS_PODCAST
+        ));
+        // 강의 구분에 쓰는 휴대폰 표시: 오디오북(안드로이드 10+), 장르·음질(안드로이드 11+)
+        boolean q = android.os.Build.VERSION.SDK_INT >= 29;
+        boolean r = android.os.Build.VERSION.SDK_INT >= 30;
+        if (q) colList.add(MediaStore.Audio.Media.IS_AUDIOBOOK);
+        if (r) { colList.add(MediaStore.Audio.Media.GENRE); colList.add(MediaStore.Audio.Media.BITRATE); }
+        String[] cols = colList.toArray(new String[0]);
+        // 벨소리·알림음·알람은 빼고 음악·팟캐스트·오디오북만
+        String kinds = MediaStore.Audio.Media.IS_MUSIC + " != 0 OR " + MediaStore.Audio.Media.IS_PODCAST + " != 0"
+            + (q ? " OR " + MediaStore.Audio.Media.IS_AUDIOBOOK + " != 0" : "");
+        String sel = "(" + kinds + ") AND " + MediaStore.Audio.Media.DURATION + " >= ?";
         String[] args = { String.valueOf(minMs) };
 
         JSArray out = new JSArray();
@@ -229,6 +237,14 @@ public class MusicScanPlugin extends Plugin {
                     t.put("folder", parts.length > 1 ? parts[parts.length - 2] : "");
                     t.put("added", c.getLong(7));
                     t.put("size", c.getLong(8));
+                    boolean talk = c.getInt(9) != 0;
+                    if (q) talk = talk || c.getInt(c.getColumnIndexOrThrow(MediaStore.Audio.Media.IS_AUDIOBOOK)) != 0;
+                    t.put("talkFlag", talk);
+                    if (r) {
+                        String g = c.getString(c.getColumnIndexOrThrow(MediaStore.Audio.Media.GENRE));
+                        if (g != null) t.put("genre", g);
+                        t.put("bitrate", c.getLong(c.getColumnIndexOrThrow(MediaStore.Audio.Media.BITRATE)));
+                    }
                     out.put(t);
                 }
             }

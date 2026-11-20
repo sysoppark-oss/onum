@@ -1,7 +1,7 @@
 // 반복 · 잠들기 · 밤 인사 · 재생 목록 · 곡 추가 · 목록 이름 · 목록 고르기
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Track } from '../lib/library'
-import type { Goodnight, Player, Repeat } from '../lib/usePlayer'
+import { RATES, type Goodnight, type Player, type Repeat } from '../lib/usePlayer'
 import type { Playlists } from '../lib/playlists'
 import { matches } from '../lib/hangul'
 import { josa, parseTitle } from '../lib/title'
@@ -44,7 +44,7 @@ function MinuteInput({ value, onChange, id }: { value: number; onChange: (m: num
 }
 
 /* ───────── 반복 ───────── */
-type Kind = 'none' | 'one' | 'all' | 'timed'
+type Kind = 'none' | 'one' | 'all' | 'timed' | 'part'
 
 function kindOf(r: Repeat): Kind {
   if (r.limit === 'timed') return 'timed'
@@ -68,10 +68,12 @@ export function RepeatSheet({ player, onClose, count, onApply }: {
   let say: React.ReactNode
   if (kind === 'none') say = <>{count ? `${who}을` : '목록을'} <b>한 번</b> 듣고 멈춰요.</>
   else if (kind === 'one') say = <><b>{song}</b>만 계속 반복해요.</>
+  else if (kind === 'part') say = <><b>{song}</b>의 <em>한 부분</em>만 계속 들어요.<br />시작과 끝을 정해 주세요.</>
   else if (kind === 'all') say = count ? <>{who}을 <b>계속</b> 반복해요.</> : <>목록이 끝나면 <b>처음부터 다시</b> 들어요.</>
   else say = <>{scope === 'one' && !count ? <><b>{song}</b>만</> : count ? `${who}을` : '목록 전체를'} <em>{minutesText(m)}</em> 동안 반복하고<br /><span className="num">{end}</span>에 멈춰요.</>
 
   const apply = () => {
+    if (kind === 'part') { player.abStart(); onClose(); return }
     const r: Repeat =
       kind === 'none' ? { scope: 'all', limit: 'once', minutes: m }
         : kind === 'one' ? { scope: 'one', limit: 'forever', minutes: m }
@@ -96,6 +98,7 @@ export function RepeatSheet({ player, onClose, count, onApply }: {
         {!count && opt('one', '이 곡 계속 반복')}
         {opt('all', count ? '계속 반복' : '목록 계속 반복')}
         {opt('timed', '시간 정해서 반복')}
+        {!count && player.current && opt('part', '한 부분만 반복', '구간 반복')}
         {kind === 'timed' && (
           <div className="timebox">
             {!count && (
@@ -113,7 +116,33 @@ export function RepeatSheet({ player, onClose, count, onApply }: {
         )}
       </div>
       {kind === 'timed' && <p className="hint">일시 정지한 동안은 시간을 세지 않아요. 시간이 다 되면 듣던 곡까지 듣고 멈춰요.</p>}
-      <button className="go" onClick={apply}>{count ? '듣기' : '적용'}</button>
+      <button className="go" onClick={apply}>{count ? '듣기' : kind === 'part' ? '시작과 끝 정하기' : '적용'}</button>
+    </Sheet>
+  )
+}
+
+/* ───────── 빠르기(강의) ───────── */
+export function SpeedSheet({ player, onClose }: { player: Player; onClose: () => void }) {
+  const [v, setV] = useState(player.rate || 1)
+  const [each, setEach] = useState(player.rateEach)
+  const say = v === 1 ? <><em>보통 빠르기</em>로 들어요.</>
+    : <><em className="num">{v}배</em> {v > 1 ? '빠르게' : '느리게'} 들어요.<br />목소리 높이는 그대로예요.</>
+  return (
+    <Sheet label="빠르기" onClose={onClose}>
+      <div>
+        <h2 className="q">빠르기</h2>
+        <p className="say" role="status">{say}</p>
+      </div>
+      <div className="chips4" role="radiogroup" aria-label="빠르기">
+        {RATES.map((r) => (
+          <button key={r} className={'num' + (v === r ? ' on' : '')} role="radio" aria-checked={v === r} onClick={() => setV(r)}>{r.toFixed(1)}×</button>
+        ))}
+      </div>
+      <div className="fade">
+        <span id="each-l">강의마다 빠르기를 따로 기억하기</span>
+        <button className="sw" role="switch" aria-checked={each} aria-labelledby="each-l" onClick={() => setEach(!each)} />
+      </div>
+      <button className="go" onClick={() => { player.setRate(v, each); onClose() }}>적용</button>
     </Sheet>
   )
 }

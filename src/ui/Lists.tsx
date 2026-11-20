@@ -18,7 +18,7 @@ function meta(items: Track[]): string {
 
 interface Auto { id: string; name: string; sub: string; items: Track[] }
 
-export function ListsScreen({ tracks, player, lists }: { tracks: Track[]; player: Player; lists: Playlists }) {
+export function ListsScreen({ tracks, music, player, lists }: { tracks: Track[]; music: Track[]; player: Player; lists: Playlists }) {
   const [open, setOpen] = useState<string | null>(null)
   const [auto, setAuto] = useState<string | null>(null)
   const [naming, setNaming] = useState(false)
@@ -30,6 +30,7 @@ export function ListsScreen({ tracks, player, lists }: { tracks: Track[]; player
 
   const autos = useMemo<Auto[]>(() => {
     const now = Date.now()
+    const tracks = music // 저절로 모이는 목록에는 강의를 넣지 않는다
     const often = tracks.filter((t) => (player.plays[t.id] ?? 0) >= 2)
       .sort((a, b) => player.plays[b.id] - player.plays[a.id]).slice(0, 100)
     const fresh = tracks.filter((t) => now - t.added < 14 * DAY).sort((a, b) => b.added - a.added)
@@ -42,7 +43,7 @@ export function ListsScreen({ tracks, player, lists }: { tracks: Track[]; player
       { id: 'fresh', name: '새로 들어온 곡', sub: '최근 2주 동안 추가된 곡', items: fresh },
       { id: 'old', name: '한동안 안 들은 곡', sub: '석 달 넘게 듣지 않은 곡', items: old },
     ]
-  }, [tracks, player.plays, player.last])
+  }, [music, player.plays, player.last])
 
   const pl = lists.items.find((p) => p.id === open)
   const au = autos.find((a) => a.id === auto)

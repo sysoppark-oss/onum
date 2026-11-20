@@ -11,6 +11,10 @@ export interface Track {
   added: number // 추가한 때(ms)
   nativeId?: number // 설치형 앱: MediaStore 번호
   albumId?: number
+  talkFlag?: boolean // 휴대폰이 팟캐스트·오디오북으로 표시한 파일
+  genre?: string
+  bitrate?: number // bps
+  talk?: boolean // 강의(앱이 가른 결과)
 }
 
 const AUDIO_EXT = /\.(mp3|m4a|aac|flac|wav|ogg|opus)$/i
@@ -55,13 +59,15 @@ export async function scanFiles(
     const folder = folderOf(file)
     if (SKIP_FOLDER.test(folder)) { skippedFolder++; return }
     const guess = fromName(file.name)
-    let title = guess.title, artist = guess.artist, album = '', duration = 0, art: string | undefined
+    let title = guess.title, artist = guess.artist, album = '', duration = 0, art: string | undefined, genre: string | undefined, bitrate: number | undefined
     try {
       const meta = await parseBlob(file, { duration: false, skipCovers: false })
       title = meta.common.title || title
       artist = meta.common.artist || artist
       album = meta.common.album || ''
       duration = meta.format.duration || 0
+      genre = meta.common.genre?.[0]
+      bitrate = meta.format.bitrate
       const pic = meta.common.picture?.[0]
       if (pic) art = URL.createObjectURL(new Blob([pic.data as BlobPart], { type: pic.format }))
     } catch {
@@ -82,6 +88,8 @@ export async function scanFiles(
       folder,
       duration,
       art,
+      genre,
+      bitrate,
     })
   }
 

@@ -412,6 +412,71 @@ label.pick:focus-within { outline: 3px solid var(--now); outline-offset: 2px; }
 .elist .x1 { font-size: 22px; font-weight: 800; }
 .elist .x2 { font-size: 17px; }
 
+
+/* ───────── 강의 ───────── */
+.seg-top { margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 16px; background: var(--sf); }
+.seg-top button { min-height: 48px; border-radius: 12px; font-size: 16px; font-weight: 600; color: var(--ink2); text-align: center; }
+.seg-top button span { margin-left: 6px; font-weight: 500; }
+.seg-top button.on { background: var(--bg); color: var(--ink); font-weight: 800; box-shadow: 0 0 0 1px var(--line); }
+.fold { margin-top: 22px; display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.fold h2 { font-size: 17px; font-weight: 800; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fold span { font-size: 13px; color: var(--ink2); font-weight: 600; flex-shrink: 0; }
+.lec { margin: 6px 0 0; }
+.lec li { border-bottom: 1px solid var(--line); }
+.lec li:last-child { border-bottom: 0; }
+.lec .lrow { min-height: 76px; gap: 14px; }
+.lec .no { width: 44px; flex-shrink: 0; font-size: 15px; font-weight: 800; text-align: center; }
+.lec .st { margin-top: 6px; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink2); font-weight: 600; white-space: nowrap; overflow: hidden; }
+.lec .pb { width: 64px; height: 4px; border-radius: 2px; background: var(--line); position: relative; overflow: hidden; flex-shrink: 0; }
+.lec .pb b { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink); border-radius: 2px; }
+.lec li.done .x1 { color: var(--ink2); }
+.lec li.now .no, .lec li.now .x1 { color: var(--now-text); font-weight: 800; }
+.lec li.now .pb b { background: var(--now); }
+.lrow, .lmain { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+.fb-k { margin-top: 6px; font-size: 16px; font-weight: 700; color: var(--ink2); }
+
+/* 강의 듣기 조작 */
+.ctl .jump { width: min(64px, 17vw); min-height: 60px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; border-radius: 14px; }
+.ctl .jump b { font-size: 12px; font-weight: 800; }
+.spd { font-size: 17px; font-weight: 800; letter-spacing: -0.02em; line-height: 24px; }
+.jump:active { transform: scale(.96); }
+
+/* 구간 반복 */
+.shape .band { position: absolute; top: -10px; bottom: -10px; background: color-mix(in srgb, var(--now) 14%, transparent); border-left: 2px solid var(--now); border-right: 2px solid var(--now); border-radius: 4px; pointer-events: none; }
+.shape .band.open { border-right: 0; background: linear-gradient(90deg, color-mix(in srgb, var(--now) 16%, transparent), transparent); }
+.shape .mk { position: absolute; top: -30px; transform: translateX(calc(-100% - 4px)); font-size: 12px; font-weight: 800; color: var(--now-text); white-space: nowrap; pointer-events: none; }
+.shape .mk.b { transform: translateX(4px); }
+.abbar { margin-top: 14px; padding: 14px; border-radius: 20px; box-shadow: inset 0 0 0 2px var(--now); display: flex; flex-direction: column; gap: 12px; }
+.say2 { font-size: 16px; font-weight: 600; line-height: 1.45; }
+.say2 em { font-style: normal; font-weight: 800; color: var(--now-text); }
+.ab2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ab2 button { min-height: 56px; border-radius: 16px; background: var(--sf); font-size: 16px; font-weight: 800; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; text-align: center; }
+.ab2 button small { font-size: 13px; font-weight: 600; opacity: .85; }
+.ab2 button.set { background: var(--now); color: var(--bg); }
+.ab2 button.next { background: var(--ink); color: var(--on-ink); }
+.abbar .ferr { margin: 0; }
+.fine2 { display: flex; flex-direction: column; gap: 6px; }
+.fine2 div { display: flex; align-items: center; gap: 6px; }
+.fine2 span { flex: 1; font-size: 15px; font-weight: 700; }
+.fine2 span b { margin-left: 6px; font-weight: 800; }
+.fine2 button { min-height: 44px; padding: 0 12px; border-radius: 12px; background: var(--sf); font-size: 14px; font-weight: 700; }
+.abx { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.abx .t2 { font-size: 13px; font-weight: 600; color: var(--ink2); flex: 1 1 140px; }
+.abx button { min-height: 44px; padding: 0 14px; border-radius: 22px; background: var(--sf); font-size: 14px; font-weight: 700; white-space: nowrap; }
+
+/* 길게 누르기 창 */
+.who-s { display: flex; flex-direction: column; gap: 2px; }
+.who-s p:first-child { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+.who-s p:last-child { font-size: 14px; color: var(--ink2); }
+.menu { display: flex; flex-direction: column; gap: 8px; }
+.menu button { display: flex; align-items: center; gap: 14px; min-height: 56px; padding: 0 16px; border-radius: 14px; background: var(--sf); font-size: 16px; font-weight: 600; text-align: left; }
+.menu button .one { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.menu button small { margin-left: auto; font-size: 13px; color: var(--ink2); font-weight: 600; white-space: nowrap; }
+.menu svg { flex-shrink: 0; }
+.chips4 { display: grid; grid-template-columns: repeat(auto-fit, minmax(56px, 1fr)); gap: 6px; }
+.chips4 button { min-height: 52px; border-radius: 16px; background: var(--sf); font-size: 16px; font-weight: 700; text-align: center; }
+.chips4 button.on { background: var(--ink); color: var(--on-ink); font-weight: 800; }
+
 /* 움직임을 줄이도록 한 휴대폰: 상태는 그대로, 움직임만 뺀다 */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }

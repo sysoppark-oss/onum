@@ -4,6 +4,7 @@ import { fromName, type ScanResult, type Track } from './library'
 interface NativeTrack {
   id: number; title: string; artist: string; album: string; albumId: number
   duration: number; path: string; folder: string; added: number; size: number
+  talkFlag?: boolean; genre?: string; bitrate?: number
 }
 
 /** 소리가 나가는 곳 */
@@ -47,6 +48,9 @@ export async function scanDevice(): Promise<ScanResult> {
       added: n.added * 1000,
       nativeId: n.id,
       albumId: n.albumId,
+      talkFlag: n.talkFlag,
+      genre: n.genre,
+      bitrate: n.bitrate || undefined,
     }
   })
   tracks.sort((a, b) => a.title.localeCompare(b.title, 'ko'))

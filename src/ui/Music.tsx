@@ -4,7 +4,9 @@ import { fmt, type ScanResult, type Track } from '../lib/library'
 import { findRange, matches } from '../lib/hangul'
 import type { Player, Repeat } from '../lib/usePlayer'
 import type { Playlists } from '../lib/playlists'
-import { Icon, VirtualList, info, nf } from './common'
+import { Icon, Sheet, VirtualList, info, minutesText, nf, useLongPress } from './common'
+import { byLecture, lectureOf, natural } from '../lib/kind'
+import { load, save } from '../lib/store'
 import { ChooseListSheet, RepeatSheet } from './Sheets'
 
 type By = 'program' | 'singer' | 'original' | 'folder'
@@ -24,9 +26,20 @@ function Hl({ text, q }: { text: string; q: string }) {
   return <>{ch.slice(0, r[0]).join('')}<mark>{ch.slice(r[0], r[0] + r[1]).join('')}</mark>{ch.slice(r[0] + r[1]).join('')}</>
 }
 
-export function MusicScreen({ tracks, scan, player, lists, onPlayed }: {
-  tracks: Track[]; scan: ScanResult; player: Player; lists: Playlists; onPlayed: () => void
+export type MoveKind = (t: Track, scope: 'one' | 'folder', talk: boolean) => void
+
+export function MusicScreen({ tracks: all, scan, player, lists, onPlayed, onKind }: {
+  tracks: Track[]; scan: ScanResult; player: Player; lists: Playlists; onPlayed: () => void; onKind: MoveKind
 }) {
+  const [mode, setModeState] = useState<'music' | 'talk'>(() => load('libMode', 'music'))
+  const setMode = (m: 'music' | 'talk') => { setModeState(m); save('libMode', m) }
+  const tracks = useMemo(() => all.filter((t) => !t.talk), [all])
+  const talks = useMemo(() => all.filter((t) => t.talk), [all])
+  const [menu, setMenu] = useState<Track | null>(null)
+  const [saveIds, setSaveIds] = useState<string[] | null>(null)
+  const closeMenu = useCallback(() => setMenu(null), [])
+  const closeSaveIds = useCallback(() => setSaveIds(null), [])
+  const lp = useLongPress()
   const [q, setQ] = useState('')
   const [group, setGroup] = useState<Group | null>(null)
   const [picked, setPicked] = useState<string[]>([])
@@ -58,7 +71,20 @@ export function MusicScreen({ tracks, scan, player, lists, onPlayed }: {
   }, [filtered, group])
 
   const pick = (id: string) => setPicked((old) => (old.includes(id) ? old.filter((x) => x !== id) : [...old, id]))
-  const byId = useMemo(() => new Map(tracks.map((t) => [t.id, t])), [tracks])
+  const byId = useMemo(() => new Map(all.map((t) => [t.id, t])), [all])
+
+  // 강의: 폴더마다 1강, 2강 순서
+  const talkGroups = useMemo(() => {
+    const m = new Map<string, Track[]>()
+    for (const t of talks) {
+      if (q) { const x = info(t); if (!(matches(x.song, q) || matches(t.folder, q) || matches(x.singer, q))) continue }
+      const a = m.get(t.folder) ?? []
+      a.push(t)
+      m.set(t.folder, a)
+    }
+    for (const a of m.values()) a.sort(byLecture)
+    return [...m.entries()].sort((a, b) => natural.compare(a[0], b[0]))
+  }, [talks, q])
   const pickedTracks = () => picked.map((id) => byId.get(id)).filter((t): t is Track => !!t)
   const hidden = scan.skippedShort + scan.skippedFolder
   const showNames = group != null && group.name == null
@@ -67,15 +93,63 @@ export function MusicScreen({ tracks, scan, player, lists, onPlayed }: {
     <button key={key} className={on ? 'on' : undefined} aria-pressed={on} onClick={onClick}>{label}</button>
   )
 
+  const talk = mode === 'talk' && talks.length > 0
+
+  const talkView = (
+    <>
+      {q && <p className="found num" role="status">'{q}' · {nf.format(talkGroups.reduce((n, g) => n + g[1].length, 0))}개 찾았어요</p>}
+      {talkGroups.length === 0 && <p className="empty">맞는 강의가 없어요.</p>}
+      {talkGroups.map(([f, items]) => {
+        const done = items.filter((t) => player.talkDone[t.id]).length
+        const numbered = items.some((t) => lectureOf(t).no)
+        const unit = numbered ? '강' : '개'
+        return (
+          <section key={f} aria-label={f}>
+            <div className="fold"><h2>{f || '이름 없는 폴더'}</h2><span className="num">{done ? `${nf.format(items.length)}${unit} 중 ${nf.format(done)}${unit} 다 들음` : `${nf.format(items.length)}${unit}`}</span></div>
+            <ul className="lec">
+              {items.map((t, i) => {
+                const l = lectureOf(t)
+                const isDone = !!player.talkDone[t.id]
+                const now = player.current?.id === t.id
+                const pos = now ? player.time : player.talkPos[t.id] ?? 0
+                const pct = isDone ? 100 : t.duration ? Math.min(100, (pos / t.duration) * 100) : 0
+                const state = isDone ? '다 들음' : pos > 5 ? `${Math.max(1, Math.floor(pos / 60))}분까지 들음` : '처음'
+                return (
+                  <li key={t.id} className={(isDone ? 'done' : '') + (now ? ' now' : '')}>
+                    <button className="lrow" aria-current={now ? 'true' : undefined} {...lp(() => setMenu(t))}
+                      onClick={() => { player.playFrom(items, t.id, isDone ? 0 : undefined, true); onPlayed() }}>
+                      <span className="no num">{l.no || i + 1}</span>
+                      <span className="x">
+                        <span className="x1">{l.name}</span>
+                        <span className="st num">{pct > 0 && <span className="pb" aria-hidden="true"><b style={{ width: `${pct}%` }} /></span>}{state}{t.duration ? ` · ${minutesText(Math.max(1, Math.round(t.duration / 60)))}` : ''}</span>
+                      </span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </section>
+        )
+      })}
+    </>
+  )
+
   return (
-    <div className={'page lib' + (picked.length ? ' picking' : '')}>
+    <div className={'page lib' + (picked.length && !talk ? ' picking' : '')}>
       <h1>음악</h1>
+      {talks.length > 0 && (
+        <div className="seg-top" role="group" aria-label="음악과 강의">
+          <button className={mode === 'music' ? 'on' : undefined} aria-pressed={mode === 'music'} onClick={() => setMode('music')}>음악<span className="num">{nf.format(tracks.length)}</span></button>
+          <button className={mode === 'talk' ? 'on' : undefined} aria-pressed={mode === 'talk'} onClick={() => setMode('talk')}>강의<span className="num">{nf.format(talks.length)}</span></button>
+        </div>
+      )}
       <label className="search">
         <Icon n="search" s={20} />
         <span className="sr">곡, 부른 사람, 원곡, 프로그램 찾기</span>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="곡·부른 사람 찾기 (초성도 돼요)" autoComplete="off" enterKeyHint="search" />
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={talk ? '강의 찾기 (초성도 돼요)' : '곡·부른 사람 찾기 (초성도 돼요)'} autoComplete="off" enterKeyHint="search" />
         {q && <button className="clear" onClick={() => setQ('')} aria-label="찾는 글자 지우기"><Icon n="x" s={18} /></button>}
       </label>
+      {talk ? talkView : (<>
       <div className="groups" role="group" aria-label="모아 보기">
         {chip(group == null, <>전체<span className="num">{nf.format(tracks.length)}</span></>, () => setGroup(null), 'all')}
         {programs.map(([p, n]) => chip(group?.by === 'program' && group.name === p, <>{p}<span className="num">{nf.format(n)}</span></>, () => setGroup({ by: 'program', name: p }), 'p' + p))}
@@ -117,7 +191,7 @@ export function MusicScreen({ tracks, scan, player, lists, onPlayed }: {
               <button className="pick" aria-pressed={at >= 0} onClick={() => pick(t.id)} aria-label={`${x.song} 고르기`}>
                 <span className="dot num" aria-hidden="true">{at >= 0 ? at + 1 : ''}</span>
               </button>
-              <button className="lmain" aria-current={now ? 'true' : undefined} onClick={() => player.playFrom(filtered, t.id)}>
+              <button className="lmain" aria-current={now ? 'true' : undefined} {...lp(() => setMenu(t))} onClick={() => player.playFrom(filtered, t.id)}>
                 <span className="x">
                   <span className="x1"><Hl text={x.song} q={q} /></span>
                   <span className="x2">{parts.length ? parts.flatMap((p, i) => (i ? [' · ', p] : [p])) : t.album || ' '}</span>
@@ -128,7 +202,8 @@ export function MusicScreen({ tracks, scan, player, lists, onPlayed }: {
           )
         }} />
       )}
-      {picked.length > 0 && (
+      </>)}
+      {picked.length > 0 && !talk && (
         <div className="bar" role="region" aria-label="고른 곡">
           <button className="bx" onClick={() => setPicked([])} aria-label="고른 것 모두 풀기"><Icon n="x" s={20} /></button>
           <p role="status"><b className="num">{nf.format(picked.length)}곡 골랐어요</b><span>고른 순서대로 들어요</span></p>
@@ -146,7 +221,40 @@ export function MusicScreen({ tracks, scan, player, lists, onPlayed }: {
           onPlayed()
         }} />
       )}
+      {menu && <ItemMenu t={menu} player={player} onClose={closeMenu} onKind={onKind}
+        onSave={() => setSaveIds([menu.id])} onPlay={() => {
+          const list = menu.talk ? talks.filter((x) => x.folder === menu.folder).sort(byLecture) : tracks
+          player.playFrom(list, menu.id, 0, menu.talk)
+          onPlayed()
+        }} />}
+      {saveIds && <ChooseListSheet lists={lists} ids={saveIds} onClose={closeSaveIds} onDone={(name) => setNote(`"${name}" 목록에 담았어요`)} />}
       {saving && <ChooseListSheet lists={lists} ids={picked} onClose={closeSave} onDone={(name) => { setPicked([]); setNote(`"${name}" 목록에 담았어요`) }} />}
     </div>
+  )
+}
+
+/** 길게 눌렀을 때 */
+function ItemMenu({ t, player, onClose, onKind, onSave, onPlay }: {
+  t: Track; player: Player; onClose: () => void; onKind: MoveKind; onSave: () => void; onPlay: () => void
+}) {
+  const x = info(t)
+  const l = t.talk ? lectureOf(t) : null
+  const done = !!player.talkDone[t.id]
+  const go = (fn: () => void) => () => { fn(); onClose() }
+  const where = t.talk ? '음악으로' : '강의로'
+  return (
+    <Sheet label={l ? l.name : x.song} onClose={onClose}>
+      <div className="who-s">
+        <p>{l ? (l.no ? `${l.no} · ${l.name}` : l.name) : x.song}</p>
+        <p className="num">{[t.talk ? t.folder : x.singer, t.duration ? minutesText(Math.max(1, Math.round(t.duration / 60))) : ''].filter(Boolean).join(' · ')}</p>
+      </div>
+      <div className="menu">
+        <button onClick={go(onPlay)}><Icon n="play" s={20} />처음부터 듣기</button>
+        <button onClick={() => { onClose(); onSave() }}><Icon n="list" s={20} />목록에 담기</button>
+        {t.talk && <button onClick={go(() => player.markDone(t.id, !done))}><Icon n={done ? 'undo' : 'check'} s={20} />{done ? '안 들은 것으로 되돌리기' : '다 들은 것으로 표시'}</button>}
+        <button onClick={go(() => onKind(t, 'one', !t.talk))}><Icon n="move" s={20} />{where} 옮기기<small>{t.talk ? '강의가 아니에요' : '강의예요'}</small></button>
+        {t.folder && <button onClick={go(() => onKind(t, 'folder', !t.talk))}><Icon n="move" s={20} /><span className="one">「{t.folder}」 폴더 모두 {where}</span></button>}
+      </div>
+    </Sheet>
   )
 }

@@ -4,6 +4,7 @@ import { scanFiles, type ScanResult, type Track } from '../lib/library'
 import { isNative, scanDevice } from '../lib/native'
 import { load, save } from '../lib/store'
 import { NAME } from '../lib/verses'
+import { classify, loadOverrides } from '../lib/kind'
 import { Icon, nf } from './common'
 import { Page } from './Sheets'
 
@@ -83,7 +84,9 @@ export function FirstScreen({ onDone }: { onDone: (r: ScanResult, hidden: string
   }
 
   const toggle = (f: string) => setHidden((h) => (h.includes(f) ? h.filter((x) => x !== f) : [...h, f]))
-  const count = found ? found.tracks.filter((t) => !hidden.includes(t.folder)).length : 0
+  const kept = useMemo(() => (found ? found.tracks.filter((t) => !hidden.includes(t.folder)) : []), [found, hidden])
+  const talkN = useMemo(() => classify(kept, loadOverrides()).size, [kept])
+  const count = kept.length
   const start = () => {
     if (!found) return
     save('hiddenFolders', hidden)
@@ -126,8 +129,9 @@ export function FirstScreen({ onDone }: { onDone: (r: ScanResult, hidden: string
       <div className="page first">
         <p className="mark">온음</p>
         <div className="found-big">
-          <p className="fb-n num">{nf.format(count)}<span>곡</span></p>
+          <p className="fb-n num">{nf.format(count - talkN)}<span>곡</span></p>
           <h1 className="fb-t">{isNative ? '휴대폰에서 음악을 찾았어요' : '음악을 찾았어요'}</h1>
+          {talkN > 0 && <p className="fb-k num">강의 {nf.format(talkN)}개는 따로 모았어요</p>}
           <p className="fb-s">통화 녹음, 음성 메모, 30초보다 짧은 소리{skipped > 0 && <> <span className="num">{nf.format(skipped)}개</span></>}는 빼&nbsp;두었어요.</p>
         </div>
         <div className="folders">

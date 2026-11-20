@@ -1,7 +1,8 @@
 // 온음 — 「흐름」 화면
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { App as CapApp } from '@capacitor/app'
-import type { ScanResult } from './lib/library'
+import type { ScanResult, Track } from './lib/library'
+import { classify, loadOverrides, saveOverrides, type KindOverrides } from './lib/kind'
 import { usePlayer, type Player } from './lib/usePlayer'
 import { usePlaylists } from './lib/playlists'
 import { getFontScale, isNative } from './lib/native'
@@ -24,7 +25,25 @@ export default function App() {
   const [raw, setRaw] = useState<ScanResult | null>(null)
   const [hidden, setHidden] = useState<string[]>(() => load('hiddenFolders', []))
   const scan = useMemo<ScanResult | null>(() => raw && { ...raw, tracks: raw.tracks.filter((t) => !hidden.includes(t.folder)) }, [raw, hidden])
-  const tracks = useMemo(() => scan?.tracks ?? [], [scan])
+  // 강의와 음악 가르기(사용자가 옮긴 것은 기억)
+  const [kinds, setKinds] = useState<KindOverrides>(loadOverrides)
+  const tracks = useMemo(() => {
+    const base = scan?.tracks ?? []
+    const talk = classify(base, kinds)
+    return base.map((t) => (talk.has(t.id) === !!t.talk ? t : { ...t, talk: talk.has(t.id) }))
+  }, [scan, kinds])
+  const music = useMemo(() => tracks.filter((t) => !t.talk), [tracks])
+  const moveKind = (t: Track, scope: 'one' | 'folder', talk: boolean) => {
+    setKinds((o) => {
+      const n: KindOverrides = { ids: { ...o.ids }, folders: { ...o.folders } }
+      if (scope === 'folder') {
+        n.folders[t.folder] = talk ? 'talk' : 'music'
+        for (const x of tracks) if (x.folder === t.folder) delete n.ids[x.id]
+      } else n.ids[t.id] = talk ? 'talk' : 'music'
+      saveOverrides(n)
+      return n
+    })
+  }
   const [tab, setTab] = useState<Tab>('now')
   const [easy, setEasyState] = useState<boolean>(() => load('easy', false))
   const setEasy = (v: boolean) => { setEasyState(v); save('easy', v); if (v) setTab('now') }
@@ -71,8 +90,8 @@ export default function App() {
         ) : (
           <>
             {tab === 'now' && <NowScreen tracks={tracks} player={player} vol={vol} loud={loud} output={output} lists={lists} onSleep={openSleep} />}
-            {tab === 'music' && <MusicScreen tracks={tracks} scan={scan} player={player} lists={lists} onPlayed={() => setTab('now')} />}
-            {tab === 'lists' && <ListsScreen tracks={tracks} player={player} lists={lists} />}
+            {tab === 'music' && <MusicScreen tracks={tracks} scan={scan} player={player} lists={lists} onPlayed={() => setTab('now')} onKind={moveKind} />}
+            {tab === 'lists' && <ListsScreen tracks={tracks} music={music} player={player} lists={lists} />}
             {tab === 'rest' && <RestScreen easy={easy} setEasy={setEasy} onFolders={() => setFolders(true)} />}
           </>
         )}
