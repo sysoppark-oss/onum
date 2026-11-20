@@ -1,7 +1,8 @@
 // 「쉼」: 오늘의 한 문장, 말씀 천천히 보기, 찬송가 반주(준비 중), 보기 설정, 온음이 무료인 이유
 import { CURRENT } from '../lib/version'
 import { useCallback, useState } from 'react'
-import { DAILY, today } from '../lib/verses'
+import { dayIndex, type Verse } from '../lib/verses'
+import { MOODS, YEAR } from '../lib/verses365'
 import { setKjv, shown, useKjv } from '../lib/kjv'
 import { Icon } from './common'
 import { Page, XfadeChips } from './Sheets'
@@ -27,15 +28,18 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
   const closePrivacy = useCallback(() => setPrivacy(false), [])
   const closeAbout = useCallback(() => setAbout(false), [])
   const closeReading = useCallback(() => setReading(false), [])
-  const v = today()
+  const v = shown(YEAR[dayIndex()], kjv)
+  const [mood, setMood] = useState(false)
+  const closeMood = useCallback(() => setMood(false), [])
   return (
     <div className="page rest-page">
       <div className="ph"><h1>쉼</h1></div>
       <section className="rest" aria-labelledby="rest-h">
         <h2 className="wl" id="rest-h">오늘의 한 문장</h2>
-        <p className="rest-w">{v.text}</p>
-        <p className="wr">{v.ref} · 개역한글</p>
+        <p className="rest-w" lang={v.lang}>{v.text}</p>
+        <p className="wr">{v.ref} · {v.ver}</p>
         <button className="go rest-go" onClick={() => setReading(true)}>말씀 천천히 보기</button>
+        <button className="ghost rest-mood" onClick={() => setMood(true)}>지금 내 마음에 맞는 말씀</button>
         <p className="rest-n">듣고 있는 음악은 그대로 흘러요</p>
       </section>
 
@@ -107,27 +111,58 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
       {about && <AboutPage onClose={closeAbout} />}
       {reading && <ReadPage onClose={closeReading} />}
       {privacy && <PrivacyPage onClose={closePrivacy} />}
+      {mood && <MoodPage onClose={closeMood} />}
     </div>
   )
 }
 
-/** 말씀을 한 문장씩 크게 */
-export function ReadPage({ onClose }: { onClose: () => void }) {
-  const start = Math.max(0, DAILY.findIndex((d) => d.ref === today().ref))
-  const [i, setI] = useState(start)
-  const v0 = DAILY[i]
+const moodName = (id: string) => MOODS.find((m) => m.id === id)?.name ?? ''
+
+/** 말씀을 한 문장씩 크게. list가 없으면 365구절을 오늘부터 */
+export function ReadPage({ onClose, list, title = '말씀 천천히 보기', startAt }: { onClose: () => void; list?: (Verse & { m: string })[]; title?: string; startAt?: number }) {
+  const all = list ?? YEAR
+  const [i, setI] = useState(() => startAt ?? (list ? 0 : dayIndex()))
+  const v0 = all[i]
   const v = shown(v0, useKjv())
+  const n = all.length
   return (
-    <Page label="말씀 천천히 보기" onClose={onClose}>
+    <Page label={title} onClose={onClose}>
       <div className="read">
+        {!list && <p className="read-m">{i === dayIndex() ? '오늘' : `${i + 1}번째`} · {moodName(v0.m)}</p>}
         <p className="read-w" aria-live="polite" lang={v.lang}>{v.text}</p>
         <p className="wr">{v.ref} · {v.ver}</p>
       </div>
       <div className="nb">
-        <button className="ghost" onClick={() => setI((i + DAILY.length - 1) % DAILY.length)}>앞 말씀</button>
-        <button className="go" onClick={() => setI((i + 1) % DAILY.length)}>다음 말씀</button>
+        <button className="ghost" onClick={() => setI((i + n - 1) % n)}>앞 말씀</button>
+        <button className="go" onClick={() => setI((i + 1) % n)}>다음 말씀</button>
       </div>
-      <p className="hint num">{i + 1} / {DAILY.length}</p>
+      <p className="hint num">{i + 1} / {n}</p>
+    </Page>
+  )
+}
+
+/** 지금 내 마음: 마음을 고르면 그 마음의 말씀 */
+export function MoodPage({ onClose }: { onClose: () => void }) {
+  const [pick, setPick] = useState<string | null>(null)
+  const closePick = useCallback(() => setPick(null), [])
+  const groups = MOODS.reduce<{ g: string; gName: string; ms: typeof MOODS }[]>((a, m) => {
+    const last = a[a.length - 1]
+    if (last && last.g === m.g) last.ms.push(m); else a.push({ g: m.g, gName: m.gName, ms: [m] })
+    return a
+  }, [])
+  const list = pick ? YEAR.filter((v) => v.m === pick) : []
+  return (
+    <Page label="지금 내 마음" onClose={onClose}>
+      <p className="say">지금 마음에 가까운 것을 고르세요. 그 마음에 맞는 말씀을 보여 드려요.</p>
+      {groups.map((g) => (
+        <section key={g.g} className="moods" aria-labelledby={'mg-' + g.g}>
+          <h3 id={'mg-' + g.g}><b>{g.g}</b> {g.gName}</h3>
+          <div className="mchips">
+            {g.ms.map((m) => <button key={m.id} onClick={() => setPick(m.id)}>{m.name}</button>)}
+          </div>
+        </section>
+      ))}
+      {pick && <ReadPage onClose={closePick} list={list} title={moodName(pick)} startAt={Math.floor(Math.random() * list.length)} />}
     </Page>
   )
 }

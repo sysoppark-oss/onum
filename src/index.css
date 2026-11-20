@@ -605,3 +605,14 @@ label.pick:focus-within { outline: 0.1875rem solid var(--now); outline-offset: 2
 
 /* 영어 말씀(KJV) */
 [lang=en].nw, .read [lang=en], .wn-q.en-v p, .vstrip [lang=en], .name[lang=en] { font-family: Georgia, 'Times New Roman', serif; }
+
+/* 365구절 · 지금 내 마음 */
+.rest-mood { margin-top: 0.625rem; width: 100%; }
+.read-m { font-size: 0.875rem; font-weight: 700; color: var(--ink2); }
+.moods { display: flex; flex-direction: column; gap: 0.625rem; }
+.moods h3 { font-size: 0.9375rem; font-weight: 700; color: var(--ink2); }
+.moods h3 b { display: inline-flex; align-items: center; justify-content: center; width: 1.625rem; height: 1.625rem; margin-right: 0.25rem; border-radius: 0.8125rem; background: var(--ink); color: var(--on-ink); font-size: 0.875rem; font-weight: 800; }
+.mchips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.mchips button { min-height: 3rem; padding: 0 1.125rem; border-radius: 1.5rem; background: var(--sf); font-size: 1rem; font-weight: 700; }
+.mchips button:active { transform: scale(0.97); }
+.rest-w[lang=en] { font-family: Georgia, 'Times New Roman', serif; }

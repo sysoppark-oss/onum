@@ -604,3 +604,14 @@ label.pick:focus-within { outline: 3px solid var(--now); outline-offset: 2px; }
 
 /* 영어 말씀(KJV) */
 [lang=en].nw, .read [lang=en], .wn-q.en-v p, .vstrip [lang=en], .name[lang=en] { font-family: Georgia, 'Times New Roman', serif; }
+
+/* 365구절 · 지금 내 마음 */
+.rest-mood { margin-top: 10px; width: 100%; }
+.read-m { font-size: 14px; font-weight: 700; color: var(--ink2); }
+.moods { display: flex; flex-direction: column; gap: 10px; }
+.moods h3 { font-size: 15px; font-weight: 700; color: var(--ink2); }
+.moods h3 b { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; margin-right: 4px; border-radius: 13px; background: var(--ink); color: var(--on-ink); font-size: 14px; font-weight: 800; }
+.mchips { display: flex; flex-wrap: wrap; gap: 8px; }
+.mchips button { min-height: 48px; padding: 0 18px; border-radius: 24px; background: var(--sf); font-size: 16px; font-weight: 700; }
+.mchips button:active { transform: scale(0.97); }
+.rest-w[lang=en] { font-family: Georgia, 'Times New Roman', serif; }
