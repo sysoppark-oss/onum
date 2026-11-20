@@ -8,6 +8,8 @@ import { load, save } from '../lib/store'
 import { BARS, cachedShape, getShape, type Shape } from '../lib/shape'
 import type { Playlists } from '../lib/playlists'
 import { Icon, SAFE_VOLUME, clock, fromLine, info, minutesText, nf, outputIcon, outputLabel, secText, whoLine, type Vol } from './common'
+import { LyricsPage } from './Lyrics'
+import { useLyrics } from '../lib/lyrics'
 import { LevelSheet, PracticeSheet, QueuePage, RepeatSheet, SpeedSheet, TrimSheet } from './Sheets'
 import { NoteFloat } from './Notes'
 import { ChooseEditSheet } from './Edits'
@@ -302,6 +304,9 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
   const [levelOpen, setLevelOpen] = useState(false)
   const [pracOpen, setPracOpen] = useState(false)
   const closePrac = useCallback(() => setPracOpen(false), [])
+  const [lyOpen, setLyOpen] = useState(false)
+  const closeLy = useCallback(() => setLyOpen(false), [])
+  const hasLy = !!useLyrics(player.current ?? undefined)
   const closeLevel = useCallback(() => setLevelOpen(false), [])
   const [nearbyAsked, setNearbyAsked] = useState<boolean>(() => load('nearbyAsked', false))
   const closeSpeed = useCallback(() => setSpeedOpen(false), [])
@@ -345,10 +350,15 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
         {talk ? (
           <p className="who">{who}{shown!.duration > 0 && <span>{who ? ' · ' : ''}{minutesText(Math.round(shown!.duration / 60))}</span>}</p>
         ) : (who || p?.original) && <p className="who">{who}{p?.original && <span>{who ? ' · ' : ''}원곡 {p.original}</span>}</p>}
-        {cur && !talk && (player.practice || player.ab) && (
-          <button className={'prac' + (player.practice ? ' on' : '')} onClick={() => setPracOpen(true)} aria-haspopup="dialog">
-            {player.practice ? <>연습 중 · <span className="num">{[player.practice.r && player.practice.r !== 1 ? `${player.practice.r}×` : '', player.practice.k ? `키 ${player.practice.k > 0 ? '+' : '−'}${Math.abs(player.practice.k)}` : ''].filter(Boolean).join(' · ')}</span></> : '빠르기·키 바꾸기'}
-          </button>
+        {cur && !talk && (
+          <div className="chiprow">
+            <button className={'prac' + (hasLy ? ' on' : '')} onClick={() => setLyOpen(true)} aria-haspopup="dialog">{hasLy ? '가사 보기' : '가사 넣기'}</button>
+            {(player.practice || player.ab) && (
+              <button className={'prac' + (player.practice ? ' on' : '')} onClick={() => setPracOpen(true)} aria-haspopup="dialog">
+                {player.practice ? <>연습 중 · <span className="num">{[player.practice.r && player.practice.r !== 1 ? `${player.practice.r}×` : '', player.practice.k ? `키 ${player.practice.k > 0 ? '+' : '−'}${Math.abs(player.practice.k)}` : ''].filter(Boolean).join(' · ')}</span></> : '빠르기·키 바꾸기'}
+              </button>
+            )}
+          </div>
         )}
       </div>
 
@@ -458,6 +468,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
       {trimOpen && cur && <TrimSheet t={cur} player={player} onClose={closeTrim} />}
       {levelOpen && cur && <LevelSheet t={cur} player={player} onClose={closeLevel} />}
       {pracOpen && cur && <PracticeSheet t={cur} player={player} onClose={closePrac} />}
+      {lyOpen && cur && <LyricsPage t={cur} player={player} onClose={closeLy} />}
       {queueOpen && <QueuePage player={player} tracks={tracks} lists={lists} onClose={closeQueue} />}
     </div>
   )
