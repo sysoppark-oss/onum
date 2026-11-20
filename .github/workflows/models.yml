@@ -1,0 +1,46 @@
+name: 가사 맞추기 AI 모델 만들기
+
+# Whisper(MIT)를 sherpa-onnx 스크립트(Apache-2.0)로 '단어 시각을 낼 수 있는 꼴'로 바꿔
+# 릴리스 ai-models 에 올린다. 앱은 사용자가 고를 때만 여기서 받는다. 한 번만 돌리면 된다.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/models.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: 도구 설치
+        run: |
+          pip install --quiet torch==2.4.1 --index-url https://download.pytorch.org/whl/cpu
+          pip install --quiet openai-whisper==20240930 onnx==1.17.0 onnxruntime==1.20.1 'numpy<2'
+      - name: Whisper base를 시각 정보까지 내도록 바꾸기
+        run: |
+          mkdir w && cd w
+          base=https://raw.githubusercontent.com/k2-fsa/sherpa-onnx/master/scripts/whisper
+          curl -sSLO $base/export-onnx.py
+          curl -sSLO $base/export-onnx-with-attention.py
+          cp export-onnx.py export_onnx.py
+          python3 export-onnx-with-attention.py --model base
+          ls -la
+          mkdir out
+          cp base-encoder.int8.onnx out/whisper-base-encoder.int8.onnx
+          cp base-decoder.int8.onnx out/whisper-base-decoder.int8.onnx
+          cp base-tokens.txt out/whisper-base-tokens.txt
+          cd out && sha256sum * > SHA256SUMS && cat SHA256SUMS && ls -la
+      - name: 릴리스에 올리기
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view ai-models -R ${{ github.repository }} >/dev/null 2>&1 || \
+            gh release create ai-models -R ${{ github.repository }} --title "가사 맞추기 AI 모델" \
+              --notes "Whisper base(OpenAI, MIT)를 sherpa-onnx(Apache-2.0) 스크립트로 바꾼 것. 온음이 가사 시각을 찾을 때만 받습니다." --prerelease
+          gh release upload ai-models -R ${{ github.repository }} w/out/* --clobber
