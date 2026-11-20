@@ -1,7 +1,7 @@
 // 「쉼」: 오늘의 한 문장, 말씀 천천히 보기, 찬송가 반주(준비 중), 보기 설정, 온음이 무료인 이유
 import { CURRENT } from '../lib/version'
 import { load } from '../lib/store'
-import { BUILD, type Remote } from '../lib/update'
+import { BUILD, type Check } from '../lib/update'
 import { useCallback, useState } from 'react'
 import { dayIndex, type Verse } from '../lib/verses'
 import { MOODS, YEAR } from '../lib/verses365'
@@ -20,7 +20,7 @@ const MAIL = 'sysoppark@gmail.com'
 
 export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verseMove, setVerseMove, player, onNews, onCheck }: {
   easy: boolean; setEasy: (v: boolean) => void; onFolders?: () => void; battery: Battery; onBattery: () => void
-  verseMove: boolean; setVerseMove: (v: boolean) => void; player: Player; onNews: () => void; onCheck: (force?: boolean) => Promise<{ kind: 'apk' | 'web' | 'same'; r: Remote } | null>
+  verseMove: boolean; setVerseMove: (v: boolean) => void; player: Player; onNews: () => void; onCheck: (force?: boolean) => Promise<Check | null>
 }) {
   const norm = player.normOn, setNorm = player.setNorm
   const kjv = useKjv()

@@ -12,7 +12,7 @@ export const BUILD = {
   native: (import.meta.env.VITE_NATIVE as string | undefined) ?? '',
   run: Number(import.meta.env.VITE_RUN ?? 0),
 }
-export interface Remote { sha: string; native: string; run: number; at: string; dl?: number; apk?: string; web?: string }
+export interface Remote { sha: string; native: string; run: number; at: string; dl?: number; sum?: string; apk?: string; web?: string }
 const EVERY = 6 * 3600 * 1000
 
 /** 지금 판에 문제가 없다고 알린다(안 하면 업데이트 꾸러미가 되돌려진다) */
@@ -33,20 +33,26 @@ export async function fetchRemote(): Promise<Remote | null> {
 }
 
 /** 하루 몇 번만 본다. 돌려주는 값: 'apk'면 새로 설치할 판, 'web'이면 받아 둔 판, 없으면 null */
-export async function checkUpdate(force = false): Promise<{ kind: 'apk' | 'web' | 'same'; r: Remote } | null> {
+export type Check = { kind: 'apk' | 'web' | 'same'; r: Remote; err?: string }
+export async function checkUpdate(force = false): Promise<Check | null> {
   if (!isNative || BUILD.sha === 'dev') return null
   const last = load<number>('updAt', 0)
   if (!force && Date.now() - last < EVERY) return null
   save('updAt', Date.now())
   const r = await fetchRemote().catch(() => null)
   if (!r || r.sha === BUILD.sha) return r ? { kind: 'same', r } : null
-  if (r.native === BUILD.native && r.web) {
-    if (load<string>('pendingSha', '') !== r.sha) {
-      const b = await CapacitorUpdater.download({ url: r.web, version: r.sha })
+  if (r.native === BUILD.native && r.web && r.sum) {
+    if (load<string>('pendingSha', '') === r.sha) return { kind: 'web', r }
+    try {
+      // 꾸러미 지문(SHA-256)이 맞아야만 받아 들인다
+      const b = await CapacitorUpdater.download({ url: r.web, version: r.sha, checksum: r.sum })
       save('pendingId', b.id)
       save('pendingSha', r.sha)
+      return { kind: 'web', r }
+    } catch (e) {
+      // 화면 부분을 못 받으면 새 판(APK)으로 안내해 길이 막히지 않게 한다
+      return { kind: 'apk', r, err: e instanceof Error ? e.message : String(e) }
     }
-    return { kind: 'web', r }
   }
   return { kind: 'apk', r }
 }
