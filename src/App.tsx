@@ -16,6 +16,8 @@ import { RestScreen } from './ui/Rest'
 import { FirstScreen, FoldersPage } from './ui/First'
 import { EasyScreen } from './ui/Easy'
 import { BatteryPage, useBattery } from './ui/Battery'
+import { VerseStrip } from './ui/VerseStrip'
+import { ReadPage } from './ui/Rest'
 import { GoodnightScreen, SleepSheet } from './ui/Sheets'
 
 type Tab = 'now' | 'music' | 'lists' | 'rest'
@@ -53,6 +55,10 @@ export default function App() {
   const openSleep = useCallback(() => setSleeping(true), [])
   const closeSleep = useCallback(() => setSleeping(false), [])
   const closeFolders = useCallback(() => setFolders(false), [])
+  const [verseMove, setVerseMoveState] = useState<boolean>(() => load('verseMove', true))
+  const setVerseMove = (v: boolean) => { setVerseMoveState(v); save('verseMove', v) }
+  const [reading, setReading] = useState(false)
+  const closeReading = useCallback(() => setReading(false), [])
   const [battery] = useBattery()
   const [batteryOpen, setBatteryOpen] = useState(false)
   const closeBattery = useCallback(() => { setBatteryOpen(false); save('batteryAsked', true) }, [])
@@ -92,7 +98,7 @@ export default function App() {
   return (
     <div className="app">
       <div className="statusbar" aria-hidden="true" />
-      <main className={'main' + (easy ? ' no-tabs' : '') + (player.current && tab !== 'now' && !easy ? ' with-mini' : '')}>
+      <main className={'main' + (easy ? ' no-tabs' : '') + (!easy && tab === 'now' ? ' with-strip' : '') + (player.current && tab !== 'now' && !easy ? ' with-mini' : '')}>
         {easy ? (
           <EasyScreen tracks={tracks} player={player} vol={vol} loud={loud} onNormal={() => setEasy(false)} onSleep={openSleep} />
         ) : (
@@ -100,10 +106,12 @@ export default function App() {
             {tab === 'now' && <NowScreen tracks={tracks} player={player} vol={vol} loud={loud} output={output} lists={lists} onSleep={openSleep} />}
             {tab === 'music' && <MusicScreen tracks={tracks} scan={scan} player={player} lists={lists} onPlayed={() => setTab('now')} onKind={moveKind} />}
             {tab === 'lists' && <ListsScreen tracks={tracks} music={music} player={player} lists={lists} />}
-            {tab === 'rest' && <RestScreen easy={easy} setEasy={setEasy} onFolders={() => setFolders(true)} battery={battery} onBattery={() => setBatteryOpen(true)} norm={player.normOn} setNorm={player.setNorm} />}
+            {tab === 'rest' && <RestScreen easy={easy} setEasy={setEasy} onFolders={() => setFolders(true)} battery={battery} onBattery={() => setBatteryOpen(true)} norm={player.normOn} setNorm={player.setNorm} verseMove={verseMove} setVerseMove={setVerseMove} />}
           </>
         )}
       </main>
+      {!easy && tab === 'now' && <VerseStrip trackId={player.current?.id} moving={verseMove} onOpen={() => setReading(true)} />}
+      {reading && <ReadPage onClose={closeReading} />}
       {!easy && player.current && tab !== 'now' && <Mini player={player} onOpen={() => setTab('now')} />}
       {!easy && (
         <nav className="tabs" aria-label="주요 메뉴">

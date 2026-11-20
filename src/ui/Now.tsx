@@ -5,7 +5,6 @@ import type { AB, Player } from '../lib/usePlayer'
 import { byLecture, lectureOf } from '../lib/kind'
 import type { Output } from '../lib/native'
 import { BARS, cachedShape, getShape, type Shape } from '../lib/shape'
-import { today } from '../lib/verses'
 import type { Playlists } from '../lib/playlists'
 import { Icon, SAFE_VOLUME, clock, fromLine, info, minutesText, nf, outputIcon, outputLabel, secText, whoLine, type Vol } from './common'
 import { QueuePage, RepeatSheet, SpeedSheet } from './Sheets'
@@ -136,7 +135,7 @@ function buildFlow(p: Player, now: number): Flow {
     s && sleepAt <= timedEnd && (sleepAt < (listEnd ?? Infinity) || r.limit !== 'once') ? sleepRow(sleepAt)
       : isFinite(timedEnd) ? { kind: 'stop', at: playable.length < ahead.length ? ahead[playable.length].at : listEnd, title: '반복을 마치고 멈춰요', sub: '듣던 곡까지 듣고 멈춰요' }
         : null
-  const room = stop ? 1 : 2
+  const room = (stop ? 1 : 2) + extraRow()
   const shown = playable.slice(0, room)
   const rows: Row[] = shown.map((a) => {
     const x = info(a.t)
@@ -154,6 +153,9 @@ function buildFlow(p: Player, now: number): Flow {
   return { rows, more }
 }
 
+/** 키 큰 화면(아래 말씀 줄을 빼고도 자리가 남으면)은 다음 곡을 한 줄 더 */
+const extraRow = () => (window.innerHeight >= 860 ? 1 : 0)
+
 /** 강의: 다음 강의들과 시작 시각(빠르기 반영) */
 function buildTalkFlow(p: Player, now: number): Flow {
   const cur = p.current!
@@ -169,7 +171,7 @@ function buildTalkFlow(p: Player, now: number): Flow {
   for (let i = p.index + 1; i < q.length; i++) {
     const t = q[i]
     if (at != null && at >= sleepAt) { rest += q.length - i; break }
-    if (rows.length < (s ? 1 : 2)) {
+    if (rows.length < (s ? 1 : 2) + extraRow()) {
       const l = lectureOf(t)
       rows.push({ kind: 'next', at, title: l.no ? `${l.no} · ${l.name}` : l.name, sub: [t.folder, t.duration ? minutesText(Math.round(t.duration / 60)) : ''].filter(Boolean).join(' · '), jump: i })
     } else rest++
@@ -236,7 +238,6 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
   const now = Date.now()
   const cur = player.current
   const shown = cur ?? player.resumeTrack
-  const verse = today()
   const rp = repeatShort(player)
   const p = shown ? info(shown) : null
   const talk = !!shown?.talk
@@ -351,11 +352,6 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
             <button className="more num" aria-haspopup="dialog" onClick={() => setQueueOpen(true)}>{flow.more}<Icon n="chev" s={16} /></button>
           </>
         )}
-        <div className="word">
-          <p className="wl">오늘의 한 문장</p>
-          <p className="wt">{verse.text}</p>
-          <p className="wr">{verse.ref} · 개역한글</p>
-        </div>
       </section>
       )}
 

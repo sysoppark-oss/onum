@@ -8,9 +8,9 @@ import type { Battery } from './Battery'
 const REPO = 'https://github.com/sysoppark-oss/onum'
 const MAIL = 'sysoppark@gmail.com'
 
-export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, norm, setNorm }: {
+export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, norm, setNorm, verseMove, setVerseMove }: {
   easy: boolean; setEasy: (v: boolean) => void; onFolders?: () => void; battery: Battery; onBattery: () => void
-  norm: boolean; setNorm: (v: boolean) => void
+  norm: boolean; setNorm: (v: boolean) => void; verseMove: boolean; setVerseMove: (v: boolean) => void
 }) {
   const [about, setAbout] = useState(false)
   const [reading, setReading] = useState(false)
@@ -37,6 +37,12 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, norm,
           <div className="lrow">
             <span className="x"><span className="x1" id="easy-l">쉬운 화면</span><span className="x2">글자와 버튼을 크게, 꼭 필요한 것만</span></span>
             <button className="sw" role="switch" aria-checked={easy} aria-labelledby="easy-l" onClick={() => setEasy(!easy)} />
+          </div>
+        </li>
+        <li>
+          <div className="lrow">
+            <span className="x"><span className="x1" id="vm-l">아래 말씀 천천히 바꾸기</span><span className="x2">끄면 「지금」 아래 말씀이 멈춘 채로 보여요</span></span>
+            <button className="sw" role="switch" aria-checked={verseMove} aria-labelledby="vm-l" onClick={() => setVerseMove(!verseMove)} />
           </div>
         </li>
         <li>
@@ -71,7 +77,7 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, norm,
 }
 
 /** 말씀을 한 문장씩 크게 */
-function ReadPage({ onClose }: { onClose: () => void }) {
+export function ReadPage({ onClose }: { onClose: () => void }) {
   const start = Math.max(0, DAILY.findIndex((d) => d.ref === today().ref))
   const [i, setI] = useState(start)
   const v = DAILY[i]
