@@ -8,6 +8,8 @@ import { MOODS, YEAR } from '../lib/verses365'
 import { setKjv, shown, useKjv } from '../lib/kjv'
 import { setFlag, useFlag } from '../lib/flag'
 import { Icon, nf } from './common'
+import { EqPage, eqLabel } from './Eq'
+import { useEq } from '../lib/eq'
 import { Page, XfadeChips } from './Sheets'
 import type { Player } from '../lib/usePlayer'
 import { Share } from '@capacitor/share'
@@ -34,6 +36,9 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
   const [privacy, setPrivacy] = useState(false)
   const closePrivacy = useCallback(() => setPrivacy(false), [])
   const closeAbout = useCallback(() => setAbout(false), [])
+  const [eqOpen, setEqOpen] = useState(false)
+  const closeEq = useCallback(() => setEqOpen(false), [])
+  const eqs = useEq()
   const closeReading = useCallback(() => setReading(false), [])
   const v = shown(YEAR[dayIndex()], kjv)
   const [mood, setMood] = useState(false)
@@ -95,6 +100,12 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
           </div>
         </li>
         <li>
+          <button className="lrow" onClick={() => setEqOpen(true)}>
+            <span className="x"><span className="x1">소리 맞춤</span><span className="x2">음악 {eqLabel(eqs.music.id)} · 강의 {eqLabel(eqs.talk.id)}</span></span>
+            <span className="go-r" aria-hidden="true"><Icon n="chev" s={18} /></span>
+          </button>
+        </li>
+        <li>
           <div className="lrow">
             <span className="x"><span className="x1" id="sil-l">곡 앞뒤 빈 소리 건너뛰기</span><span className="x2">녹음 앞뒤의 조용한 부분을 건너뛰어요</span></span>
             <button className="sw" role="switch" aria-checked={player.skipSilence} aria-labelledby="sil-l" onClick={() => player.setSkipSilence(!player.skipSilence)} />
@@ -150,6 +161,7 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
           </li>
         )}
       </ul>
+      {eqOpen && <EqPage onClose={closeEq} />}
       {about && <AboutPage onClose={closeAbout} />}
       {reading && <ReadPage onClose={closeReading} />}
       {privacy && <PrivacyPage onClose={closePrivacy} />}

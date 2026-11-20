@@ -1,35 +1,113 @@
-// 한쪽에서만 소리가 나는 곡을 양쪽으로 들려준다.
-// 그런 곡을 처음 만난 재생기만 Web Audio로 돌린다(보통 곡은 원래 길 그대로).
+// 재생기 소리 길: 필요한 곡만 Web Audio로 돌린다(보통 곡은 원래 길 그대로).
+//  · 한쪽만 나오는 곡을 양쪽으로(모노 보정)
+//  · 키 바꾸기(연습): SoundTouch 오디오워클릿으로 빠르기와 따로 음 높이만 옮긴다
+//  · 소리 맞춤(EQ): 다섯 대역 + 넘치지 않게 미리 줄이기
+// 한 번 Web Audio로 돌린 재생기는 되돌릴 수 없어서(브라우저 규칙), 효과가 없으면 곧은 길로만 잇는다.
+import { SoundTouchNode } from '@soundtouchjs/audio-worklet'
+import processorUrl from '@soundtouchjs/audio-worklet/processor?url'
+
 type Side = 0 | 1 | 2
-interface Graph { src: MediaElementAudioSourceNode; split: ChannelSplitterNode; merge: ChannelMergerNode; side: Side }
+export const EQ_BANDS = [60, 250, 1000, 3500, 10000] as const
+export interface Fx { side: Side; semis: number; rate: number; eq: number[] | null }
+interface Graph {
+  src: MediaElementAudioSourceNode
+  split: ChannelSplitterNode
+  merge: ChannelMergerNode
+  st: SoundTouchNode | null
+  filters: BiquadFilterNode[]
+  pre: GainNode
+  fx: Fx
+  key: string
+}
 
 let ctx: AudioContext | null = null
+let stReady: Promise<boolean> | null = null
 const graphs = new WeakMap<HTMLAudioElement, Graph>()
+const flatEq = (eq: number[] | null) => !eq || eq.every((g) => Math.abs(g) < 0.1)
+const NONE: Fx = { side: 0, semis: 0, rate: 1, eq: null }
 
-export function setMonoFix(a: HTMLAudioElement, side: Side) {
+function audioCtx(): AudioContext {
+  if (!ctx) ctx = new AudioContext({ latencyHint: 'playback' })
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {})
+  return ctx
+}
+
+function loadSoundTouch(c: AudioContext): Promise<boolean> {
+  if (!stReady) stReady = SoundTouchNode.register(c, processorUrl).then(() => true).catch(() => { stReady = null; return false })
+  return stReady
+}
+
+function wire(g: Graph, c: AudioContext) {
+  const { fx } = g
+  const key = `${fx.side}|${fx.semis ? 1 : 0}|${flatEq(fx.eq) ? 0 : 1}|${g.st ? 1 : 0}`
+  // 값만 바뀌면 잇기는 그대로 두고 값만 고친다
+  if (g.st) {
+    g.st.pitchSemitones.value = fx.semis
+    g.st.playbackRate.value = fx.rate
+  }
+  const eq = fx.eq ?? []
+  g.filters.forEach((f, i) => { f.gain.value = eq[i] ?? 0 })
+  // 키우는 대역이 있으면 그만큼 미리 줄여 소리가 깨지지 않게
+  g.pre.gain.value = Math.pow(10, -Math.max(0, ...eq) / 20)
+  if (key === g.key) return
+  g.key = key
+  for (const n of [g.src, g.split, g.merge, g.st, g.pre, ...g.filters]) n?.disconnect()
+  let head: AudioNode = g.src
+  if (fx.side) {
+    g.src.connect(g.split)
+    g.split.connect(g.merge, fx.side - 1, 0)
+    g.split.connect(g.merge, fx.side - 1, 1)
+    head = g.merge
+  }
+  if (fx.semis && g.st) { head.connect(g.st); head = g.st }
+  if (!flatEq(fx.eq)) {
+    head.connect(g.pre); head = g.pre
+    for (const f of g.filters) { head.connect(f); head = f }
+  }
+  head.connect(c.destination)
+}
+
+/** 이 재생기의 소리 길을 fx에 맞춘다. 효과가 하나도 없고 아직 돌린 적 없으면 아무것도 하지 않는다 */
+export function setFx(a: HTMLAudioElement, fx: Partial<Fx>) {
   let g = graphs.get(a)
-  if (!side && !g) return
+  const want: Fx = { ...(g?.fx ?? NONE), ...fx }
+  const need = want.side || want.semis || !flatEq(want.eq)
+  // 키를 쓸 때는 브라우저의 음 높이 지키기를 끄고(SoundTouch가 맞춘다), 아니면 켠다
+  ;(a as HTMLAudioElement & { preservesPitch?: boolean }).preservesPitch = !(want.semis && g?.st)
+  if (!need && !g) return
   try {
-    if (!ctx) ctx = new AudioContext()
+    const c = audioCtx()
     if (!g) {
-      const src = ctx.createMediaElementSource(a)
-      g = { src, split: ctx.createChannelSplitter(2), merge: ctx.createChannelMerger(2), side: 0 }
-      g.merge.connect(ctx.destination)
-      src.connect(ctx.destination)
+      const filters = EQ_BANDS.map((hz, i) => {
+        const f = c.createBiquadFilter()
+        f.type = i === 0 ? 'lowshelf' : i === EQ_BANDS.length - 1 ? 'highshelf' : 'peaking'
+        f.frequency.value = hz
+        f.Q.value = 0.9
+        return f
+      })
+      g = { src: c.createMediaElementSource(a), split: c.createChannelSplitter(2), merge: c.createChannelMerger(2), st: null, filters, pre: c.createGain(), fx: NONE, key: '' }
       graphs.set(a, g)
     }
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {})
-    if (g.side === side) return
-    g.src.disconnect()
-    g.split.disconnect()
-    if (side) {
-      g.src.connect(g.split)
-      g.split.connect(g.merge, side - 1, 0)
-      g.split.connect(g.merge, side - 1, 1)
-    } else g.src.connect(ctx.destination)
-    g.side = side
+    g.fx = want
+    if (want.semis && !g.st) {
+      const gg = g
+      loadSoundTouch(c).then((ok) => {
+        if (!ok || gg.st) return
+        try {
+          gg.st = new SoundTouchNode({ context: c })
+          ;(a as HTMLAudioElement & { preservesPitch?: boolean }).preservesPitch = !gg.fx.semis
+          wire(gg, c)
+        } catch { /* 키 바꾸기를 못 해도 재생은 그대로 */ }
+      })
+    }
+    wire(g, c)
   } catch { /* 고치지 못해도 재생은 그대로 */ }
 }
 
-/** 시험·점검용: 이 재생기가 지금 양쪽으로 고쳐 들려주는 중인지 */
-export const monoFixed = (a: HTMLAudioElement) => graphs.get(a)?.side ?? 0
+/** 예전 이름: 모노 보정만 */
+export function setMonoFix(a: HTMLAudioElement, side: Side) { setFx(a, { side }) }
+
+/** 시험·점검용 */
+export const monoFixed = (a: HTMLAudioElement) => graphs.get(a)?.fx.side ?? 0
+export const fxOf = (a: HTMLAudioElement) => graphs.get(a)?.fx ?? null
+export const pitchReady = (a: HTMLAudioElement) => !!graphs.get(a)?.st

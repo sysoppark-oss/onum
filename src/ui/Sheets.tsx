@@ -2,7 +2,7 @@
 import { setFlag } from '../lib/flag'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Track } from '../lib/library'
-import { LEVELS, RATES, TIMES, XFADES, type Goodnight, type Player, type Repeat } from '../lib/usePlayer'
+import { LEVELS, PRACTICE_RATES, RATES, TIMES, XFADES, type Goodnight, type Player, type Repeat } from '../lib/usePlayer'
 import { fmt } from '../lib/library'
 import { ShapeBar } from './Now'
 import { TAGS, tagName, type Playlists, type Tag } from '../lib/playlists'
@@ -513,6 +513,50 @@ export function LevelSheet({ t, player, onClose }: { t: Track; player: Player; o
       <p className="hint">{isCur ? '누르는 대로 바로 바뀌어요. ' : ''}이 곡을 틀 때마다 이 크기로 들어요. 휴대폰 소리 크기는 그대로예요.</p>
       <div className="nb">
         {v !== 0 && <button className="ghost" onClick={() => { player.setLevel(t.id, 0); setFull(false) }}>원래대로</button>}
+        <button className="go" onClick={onClose}>닫기</button>
+      </div>
+    </Sheet>
+  )
+}
+
+/* ───────── 연습: 빠르기와 키(음악) ───────── */
+const keyName = (k: number) => (k === 0 ? '원래 키' : `${k > 0 ? '+' : '−'}${Math.abs(k)}`)
+export function PracticeSheet({ t, player, onClose }: { t: Track; player: Player; onClose: () => void }) {
+  const id = t.src ?? t.id
+  const pr = player.current && (player.current.src ?? player.current.id) === id ? player.practice : null
+  const [r, setR] = useState(pr?.r ?? 1)
+  const [k, setK] = useState(pr?.k ?? 0)
+  const x = info(t)
+  // 누르는 대로 바로 들려 준다
+  const apply = (nr: number, nk: number) => { setR(nr); setK(nk); player.setPractice(id, { r: nr, k: nk }) }
+  const ri = PRACTICE_RATES.indexOf(r)
+  const say = r === 1 && k === 0 ? <>원래 <b>빠르기와 키</b>로 들어요.</>
+    : <>{r !== 1 && <><em className="num">{r}배</em> {r < 1 ? '느리게' : '빠르게'}</>}{r !== 1 && k !== 0 && ', '}{k !== 0 && <>키는 <em className="num">{Math.abs(k)}</em> {k > 0 ? '높게' : '낮게'}</>} 들어요.</>
+  return (
+    <Sheet label="빠르기와 키" onClose={onClose}>
+      <div>
+        <h2 className="q">빠르기와 키 · {x.song}</h2>
+        <p className="say" role="status">{say}</p>
+      </div>
+      <div className="prow">
+        <span className="pl-l">빠르기</span>
+        <div className="lvl">
+          <button onClick={() => apply(PRACTICE_RATES[Math.max(0, ri - 1)], k)} disabled={ri <= 0} aria-label="느리게"><Icon n="minus" s={24} /></button>
+          <div className="lvl-mid" aria-hidden="true"><b className="num">{r.toFixed(1)}×</b></div>
+          <button onClick={() => apply(PRACTICE_RATES[Math.min(PRACTICE_RATES.length - 1, ri + 1)], k)} disabled={ri >= PRACTICE_RATES.length - 1} aria-label="빠르게"><Icon n="plus" s={24} /></button>
+        </div>
+      </div>
+      <div className="prow">
+        <span className="pl-l">키<small>반음씩</small></span>
+        <div className="lvl">
+          <button onClick={() => apply(r, Math.max(-6, k - 1))} disabled={k <= -6} aria-label="키 반음 낮추기"><Icon n="minus" s={24} /></button>
+          <div className="lvl-mid" aria-hidden="true"><b className="num">{keyName(k)}</b></div>
+          <button onClick={() => apply(r, Math.min(6, k + 1))} disabled={k >= 6} aria-label="키 반음 올리기"><Icon n="plus" s={24} /></button>
+        </div>
+      </div>
+      <p className="hint">빠르기를 바꿔도 키는 그대로, 키를 바꿔도 빠르기는 그대로예요. 이 곡을 틀 때마다 이대로 들어요.</p>
+      <div className="nb">
+        {(r !== 1 || k !== 0) && <button className="ghost" onClick={() => apply(1, 0)}>원래대로</button>}
         <button className="go" onClick={onClose}>닫기</button>
       </div>
     </Sheet>

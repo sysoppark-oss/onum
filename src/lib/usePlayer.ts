@@ -4,7 +4,8 @@ import { shuffledOrder } from './shuffle'
 import { load, save } from './store'
 import { onMediaAction, setNowPlaying } from './native'
 import { cachedShape, getShape, normGain } from './shape'
-import { setMonoFix } from './monofix'
+import { setFx } from './monofix'
+import { gainsOf, getEq, onEq } from './eq'
 import { addListen } from './stats'
 import { useFlag } from './flag'
 import { getQuiet, spanAt, type Span } from './quiet'
@@ -27,6 +28,8 @@ export interface Trim { s?: number; e?: number }
 /** 곡 사이 넘김: 0은 끊김 없이, 나머지는 겹치는 초 */
 export const XFADES = [0, 2, 4, 6]
 /** 곡별 소리 크기(dB): 작게 2단계 · 그대로 · 크게 2단계 */
+export interface Practice { r?: number; k?: number }
+export const PRACTICE_RATES = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.2]
 export const LEVELS = [-6, -3, 0, 3, 6]
 /** 이 곡 몇 번 듣기 */
 export const TIMES = [2, 3, 5, 10]
@@ -108,6 +111,10 @@ export function usePlayer(tracks: Track[]) {
   const normRef = useRef(1)
   // 곡별 소리 크기(dB). 맞추기로 줄어든 만큼까지만 키울 수 있다(재생기는 원래보다 크게 못 낸다)
   const [levels, setLevels] = useState<Record<string, number>>(() => load('level', {}))
+  // 연습: 곡마다 빠르기(r)와 키(k, 반음)
+  const [practice, setPracticeState] = useState<Record<string, Practice>>(() => load('practice', {}))
+  const practiceRef = useRef(practice)
+  practiceRef.current = practice
   // 이 곡 몇 번 듣기: 다른 곡으로 가면 풀린다
   const [times, setTimesState] = useState<Times | null>(null)
   const timesRef = useRef(times)
@@ -188,17 +195,25 @@ export function usePlayer(tracks: Track[]) {
     setLast((old) => { const n = { ...old, [t.id]: Date.now() }; save('last', n); return n })
   }
 
+  /** 이 곡에 필요한 소리 길(모노 보정·키·소리 맞춤) */
+  const fxFor = (t: Track) => ({
+    side: cachedShape(t)?.side ?? 0,
+    semis: t.talk ? 0 : practiceRef.current[t.src ?? t.id]?.k ?? 0,
+    rate: t.talk ? 1 : practiceRef.current[t.src ?? t.id]?.r ?? 1,
+    eq: gainsOf(getEq(t.talk ? 'talk' : 'music')),
+  })
+
   const start = useCallback((t: Track, at?: number) => {
     const a = audio.current
     endFired.current = false
     window.clearTimeout(endTimer.current)
     a.src = t.url
-    setMonoFix(a, cachedShape(t)?.side ?? 0)
+    setFx(a, fxFor(t))
     a.currentTime = at ?? (t.talk && !talkDoneRef.current[t.id] ? talkPosRef.current[t.id] ?? 0 : bounds(t).from)
     a.play().then(() => setPlaying(true)).catch(() => setPlaying(false))
     count(t)
     // 처음 듣는 곡은 아직 앞 무음을 모른다: 재고 나서 아직 무음 안이면 건너뛴다
-    if (!cachedShape(t)) getShape(t).then((sh) => { if (sh?.side && audio.current === a && a.src === t.url) setMonoFix(a, sh.side) })
+    if (!cachedShape(t)) getShape(t).then((sh) => { if (sh?.side && audio.current === a && a.src === t.url) setFx(a, { side: sh.side }) })
     if (at == null && !t.talk && !t.clip && skipSilRef.current && !cachedShape(t)) {
       getShape(t).then((sh) => {
         const h = sh?.head ?? 0
@@ -330,11 +345,9 @@ export function usePlayer(tracks: Track[]) {
     if (!nx) { nx = new Audio(); spare.current = nx }
     const b = bounds(p.t)
     if (spareFor.current !== p.t.id) { nx.src = p.t.url; nx.currentTime = b.from }
-    setMonoFix(nx, cachedShape(p.t)?.side ?? 0)
+    setFx(nx, fxFor(p.t))
     spareFor.current = ''
     const xf = xfadeRef.current
-    const nxa = nx as HTMLAudioElement & { preservesPitch?: boolean }
-    nxa.preservesPitch = true
     nx.defaultPlaybackRate = 1
     nx.playbackRate = 1
     nx.volume = xf > 0 ? 0 : vol()
@@ -552,13 +565,29 @@ export function usePlayer(tracks: Track[]) {
   useEffect(() => { setAb(null); setBookmarkState(null) }, [curId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 빠르기: 강의에만. 목소리 높이는 그대로.
-  const curRate = current?.talk ? (rateEach ? rateById[current.id] ?? rate : rate) : 1
+  const curKey = current ? current.src ?? current.id : ''
+  const pr = current && !current.talk ? practice[curKey] : undefined
+  const curRate = current?.talk ? (rateEach ? rateById[current.id] ?? rate : rate) : pr?.r ?? 1
+  const curSemis = pr?.k ?? 0
   useEffect(() => {
-    const a = audio.current as HTMLAudioElement & { preservesPitch?: boolean }
-    a.preservesPitch = true
+    const a = audio.current
     a.defaultPlaybackRate = curRate
     a.playbackRate = curRate
-  }, [curRate, curId])
+    if (current) setFx(a, { rate: curRate, semis: curSemis })
+  }, [curRate, curSemis, curId]) // eslint-disable-line react-hooks/exhaustive-deps
+  // 소리 맞춤을 바꾸면 바로 듣는 곡에 적용
+  useEffect(() => onEq(() => {
+    const t = byId.current.get(queueRef.current[indexRef.current])
+    if (t) setFx(audio.current, { eq: gainsOf(getEq(t.talk ? 'talk' : 'music')) })
+  }), [])
+  const setPractice = useCallback((id: string, v: Practice) => {
+    setPracticeState((old) => {
+      const n = { ...old }
+      if ((v.r ?? 1) === 1 && !v.k) delete n[id]; else n[id] = v
+      save('practice', n)
+      return n
+    })
+  }, [])
 
   // 강의: 조용한 구간 줄이기. 말과 말 사이 긴 쉼만 4배로 빠르게 지나간다(자르지 않아 말은 그대로)
   const quietOn = useFlag('quietSkip', true)
@@ -814,7 +843,7 @@ export function usePlayer(tracks: Track[]) {
     queueTracks, index, next, nextNote, gain, plays, last, sleep, sleepLeft, goodnight,
     setSleep, dismissGoodnight: () => setGoodnight(null),
     playFrom, go, toggle, pause, seek, toggleShuffle, setRepeat, jump, removeAt, move, enqueue, setGain,
-    talkPos, talkDone, markDone, rate: curRate, rateEach, setRate, skip, SKIP, quietOn, quietSaved, quietReady,
+    talkPos, talkDone, markDone, rate: curRate, rateEach, setRate, practice: pr ?? null, setPractice, semis: curSemis, skip, SKIP, quietOn, quietSaved, quietReady,
     ab, abStart, abEnd, abSet, abClear, abSpan, bookmark, setBookmark, backToMark, play, normOn, setNorm,
     bounds, trims, setTrim, skipSilence, setSkipSilence, xfade, setXfade, listPos,
     levels, setLevel, headroom, times, setTimes,

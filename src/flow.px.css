@@ -715,3 +715,32 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 /* 강의: 말 사이 쉼 줄이기 */
 .fade small { display: block; margin-top: 2px; font-size: 13px; font-weight: 500; color: var(--ink2); line-height: 1.4; }
 .times .qsave { flex: 1; min-width: 0; text-align: center; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* 연습: 빠르기와 키 */
+.prow { display: flex; flex-direction: column; gap: 8px; }
+.pl-l { font-size: 14px; font-weight: 700; color: var(--ink2); }
+.pl-l small { margin-left: 6px; font-size: 13px; font-weight: 500; }
+.prac { align-self: flex-start; margin-top: 10px; min-height: 44px; line-height: 44px; padding: 0 16px; border-radius: 22px; background: var(--sf); font-size: 14px; font-weight: 700; color: var(--ink2); display: inline-block; position: relative; }
+.prac.on { color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink3); }
+
+/* ───────── 소리 맞춤 ───────── */
+.eqfor { margin-top: 4px; }
+.eqhint { margin-top: 10px; }
+.eqp { margin-top: 8px; }
+.eqp li { border-bottom: 1px solid var(--line); }
+.eqp li:last-child { border-bottom: 0; }
+.eqp .dp-row { width: 100%; min-height: 68px; }
+.eqp .dp-row .x1 { font-size: 16px; }
+.eqmini { display: flex; align-items: flex-end; gap: 3px; height: 28px; flex-shrink: 0; }
+.eqmini i { width: 5px; border-radius: 3px; background: var(--ink3); }
+.eqp .dp-row.on .eqmini i { background: var(--now); }
+.eqs { display: flex; flex-direction: column; gap: 4px; margin: 6px 0 4px; padding: 10px 16px; border-radius: 18px; background: var(--sf); }
+.eqb { display: grid; grid-template-columns: 68px minmax(0, 1fr) 30px; align-items: center; gap: 12px; min-height: 48px; }
+.eqn { font-size: 14px; font-weight: 700; color: var(--ink2); }
+.eqv { font-size: 15px; font-weight: 800; text-align: right; }
+.eqb input { -webkit-appearance: none; appearance: none; width: 100%; height: 44px; margin: 0; background: transparent; touch-action: pan-y; }
+.eqb input::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--ink) var(--p), var(--line) var(--p)); }
+.eqb input::-webkit-slider-thumb { -webkit-appearance: none; width: 26px; height: 26px; margin-top: -10px; border-radius: 50%; background: var(--bg); box-shadow: 0 0 0 2.5px var(--ink); }
+.eqb input::-moz-range-track { height: 6px; border-radius: 3px; background: var(--line); }
+.eqb input::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--ink); }
+.eqb input::-moz-range-thumb { width: 22px; height: 22px; border-radius: 50%; background: var(--bg); border: 2.5px solid var(--ink); }

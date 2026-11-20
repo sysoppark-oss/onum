@@ -8,7 +8,7 @@ import { load, save } from '../lib/store'
 import { BARS, cachedShape, getShape, type Shape } from '../lib/shape'
 import type { Playlists } from '../lib/playlists'
 import { Icon, SAFE_VOLUME, clock, fromLine, info, minutesText, nf, outputIcon, outputLabel, secText, whoLine, type Vol } from './common'
-import { LevelSheet, QueuePage, RepeatSheet, SpeedSheet, TrimSheet } from './Sheets'
+import { LevelSheet, PracticeSheet, QueuePage, RepeatSheet, SpeedSheet, TrimSheet } from './Sheets'
 import { NoteFloat } from './Notes'
 import { ChooseEditSheet } from './Edits'
 import type { Edits } from '../lib/edits'
@@ -260,7 +260,7 @@ function AbBar({ player, edits }: { player: Player; edits: Edits }) {
 }
 
 /** 멈췄을 때: 그 자리에서 다시 듣기(책갈피) · 그 자리부터 구간 반복 */
-function PausedBar({ player, onTrim, onLevel }: { player: Player; onTrim: () => void; onLevel: () => void }) {
+function PausedBar({ player, onTrim, onLevel, onPractice }: { player: Player; onTrim: () => void; onLevel: () => void; onPractice?: () => void }) {
   const t = player.time
   return (
     <section className="abbar paused" aria-labelledby="pz-h">
@@ -277,6 +277,7 @@ function PausedBar({ player, onTrim, onLevel }: { player: Player; onTrim: () => 
       <div className="tlinks">
         <button className="textlink" onClick={onTrim}>이 곡 시작·끝 정하기</button>
         <button className="textlink" onClick={onLevel}>이 곡 소리 크기</button>
+        {onPractice && <button className="textlink" onClick={onPractice}>빠르기·키</button>}
       </div>
     </section>
   )
@@ -299,6 +300,8 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
   const [trimOpen, setTrimOpen] = useState(false)
   const closeTrim = useCallback(() => setTrimOpen(false), [])
   const [levelOpen, setLevelOpen] = useState(false)
+  const [pracOpen, setPracOpen] = useState(false)
+  const closePrac = useCallback(() => setPracOpen(false), [])
   const closeLevel = useCallback(() => setLevelOpen(false), [])
   const [nearbyAsked, setNearbyAsked] = useState<boolean>(() => load('nearbyAsked', false))
   const closeSpeed = useCallback(() => setSpeedOpen(false), [])
@@ -342,6 +345,11 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
         {talk ? (
           <p className="who">{who}{shown!.duration > 0 && <span>{who ? ' · ' : ''}{minutesText(Math.round(shown!.duration / 60))}</span>}</p>
         ) : (who || p?.original) && <p className="who">{who}{p?.original && <span>{who ? ' · ' : ''}원곡 {p.original}</span>}</p>}
+        {cur && !talk && (player.practice || player.ab) && (
+          <button className={'prac' + (player.practice ? ' on' : '')} onClick={() => setPracOpen(true)} aria-haspopup="dialog">
+            {player.practice ? <>연습 중 · <span className="num">{[player.practice.r && player.practice.r !== 1 ? `${player.practice.r}×` : '', player.practice.k ? `키 ${player.practice.k > 0 ? '+' : '−'}${Math.abs(player.practice.k)}` : ''].filter(Boolean).join(' · ')}</span></> : '빠르기·키 바꾸기'}
+          </button>
+        )}
       </div>
 
       {shown && (
@@ -401,7 +409,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
       <VolumeRow vol={vol} loud={loud} guide={!!output && output.kind !== 'speaker' && !output.car}
         onCar={output?.kind === 'bluetooth' && output.car === undefined && !nearbyAsked ? () => { save('nearbyAsked', true); setNearbyAsked(true); askNearby() } : undefined} />
 
-      {cur && player.ab ? <AbBar player={player} edits={edits} /> : cur && !player.playing && player.time > 0.5 && !(player.duration > 0 && player.time >= player.duration - 0.5) ? <PausedBar player={player} onTrim={() => setTrimOpen(true)} onLevel={() => setLevelOpen(true)} /> : (
+      {cur && player.ab ? <AbBar player={player} edits={edits} /> : cur && !player.playing && player.time > 0.5 && !(player.duration > 0 && player.time >= player.duration - 0.5) ? <PausedBar player={player} onTrim={() => setTrimOpen(true)} onLevel={() => setLevelOpen(true)} onPractice={talk ? undefined : () => setPracOpen(true)} /> : (
       <section className="flow" aria-labelledby="flow-h">
         <div className="flow-h">
           {player.bookmark != null ? (
@@ -449,6 +457,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
       {speedOpen && <SpeedSheet player={player} onClose={closeSpeed} />}
       {trimOpen && cur && <TrimSheet t={cur} player={player} onClose={closeTrim} />}
       {levelOpen && cur && <LevelSheet t={cur} player={player} onClose={closeLevel} />}
+      {pracOpen && cur && <PracticeSheet t={cur} player={player} onClose={closePrac} />}
       {queueOpen && <QueuePage player={player} tracks={tracks} lists={lists} onClose={closeQueue} />}
     </div>
   )
