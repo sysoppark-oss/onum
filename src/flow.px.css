@@ -654,3 +654,60 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .pl.about .lrow { gap: 12px; color: var(--ink); }
 .pl.about .lrow > svg { color: var(--ink3); flex-shrink: 0; }
 .pillbtn.small { min-height: 44px; padding: 0 18px; flex-shrink: 0; }
+
+/* ───────── 들은 시간 ───────── */
+.lcard { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 76px; margin-top: 12px; padding: 12px 14px 12px 18px; border-radius: 18px; background: var(--sf); transition: transform 160ms var(--ease); }
+.lcard:active { transform: scale(.98); }
+.lcard .x { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.lc1 { font-size: 13px; font-weight: 600; color: var(--ink2); }
+.lc2 { margin-top: 2px; font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+.lspark { display: flex; align-items: flex-end; gap: 4px; height: 34px; flex-shrink: 0; }
+.lspark i { width: 6px; border-radius: 3px; background: var(--ink3); }
+.lspark i.td { background: var(--now); }
+
+.lsum { padding: 8px 0 4px; }
+.lsum-t { font-size: 40px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.15; }
+.lsum-s { margin-top: 6px; font-size: 16px; color: var(--ink2); }
+.lsel { margin-top: 26px; font-size: 15px; color: var(--ink2); }
+.lsel b { color: var(--ink); font-weight: 800; }
+.lbars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.lbar { display: flex; flex-direction: column; align-items: center; gap: 8px; min-height: 44px; padding: 0; }
+.lb-track { position: relative; width: 100%; max-width: 36px; height: 150px; border-radius: 10px; background: var(--sf); overflow: hidden; display: flex; align-items: flex-end; }
+.lb-track i { display: block; width: 100%; border-radius: 10px; background: var(--ink3); transition: height 420ms var(--ease), background-color 160ms ease; }
+.lbar.on .lb-track i { background: var(--now); }
+.lb-d { font-size: 13px; font-weight: 600; color: var(--ink2); line-height: 1.2; min-height: 20px; }
+.lb-d.td { color: var(--ink); font-weight: 800; }
+.lbar.on .lb-d { color: var(--now-text); }
+.lstats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 22px; }
+.lstats p { display: flex; flex-direction: column; padding: 14px 16px; border-radius: 16px; background: var(--sf); }
+.lstats span { font-size: 13px; font-weight: 600; color: var(--ink2); }
+.lstats b { margin-top: 2px; font-size: 19px; font-weight: 800; letter-spacing: -0.02em; }
+.ltop .rk { width: 22px; flex-shrink: 0; font-size: 17px; font-weight: 800; color: var(--ink3); text-align: center; }
+.ltop li:first-child .rk { color: var(--now-text); }
+.lverse { margin: 28px 0 0; padding: 18px 18px 16px; border-radius: 18px; background: var(--sf); }
+.lverse blockquote p { font-size: 18px; font-weight: 600; line-height: 1.6; letter-spacing: -0.015em; }
+.lverse figcaption { margin-top: 8px; font-size: 13px; color: var(--ink2); }
+.lverse + .hint { margin-top: 14px; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .lb-track i { transition: none; } }
+
+/* ───────── 같은 곡이 여러 개 ───────── */
+.dp { margin-top: 20px; padding: 16px 16px 14px; border-radius: 18px; background: var(--sf); }
+.dp-h { display: flex; flex-direction: column; }
+.dp-s { font-size: 18px; font-weight: 800; letter-spacing: -0.02em; }
+.dp-w { margin-top: 2px; font-size: 14px; font-weight: 500; color: var(--ink2); }
+.dp ul { margin-top: 10px; }
+.dp li { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); }
+.dp-row { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 64px; }
+.dp-row .x { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dp-row .x1 { font-size: 15px; font-weight: 700; color: var(--ink2); }
+.dp-row.on .x1 { color: var(--ink); }
+.dp-row .x2 { margin-top: 2px; font-size: 13px; color: var(--ink2); }
+.dp-dot { width: 22px; height: 22px; flex-shrink: 0; border-radius: 50%; border: 2px solid var(--ink3); display: grid; place-items: center; transition: border-color 160ms ease; }
+.dp-row.on .dp-dot { border-color: var(--now); }
+.dp-row.on .dp-dot::after { content: ''; width: 11px; height: 11px; border-radius: 50%; background: var(--now); }
+.dp-hear { flex-shrink: 0; min-height: 44px; padding: 0 4px; font-size: 14px; }
+.dp-acts { display: flex; gap: 8px; margin-top: 10px; }
+.dp-acts button { flex: 1; min-width: 0; }
+.dp-done { margin-top: 14px; font-size: 15px; font-weight: 700; color: var(--now-text); }
+.dp-back { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 15px; color: var(--ink2); }
+.dp-back .textlink { min-height: 44px; }

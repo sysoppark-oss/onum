@@ -1,6 +1,7 @@
 // 온음 — 「흐름」 화면
 import { appReady, applyPending, checkUpdate, hasPending, type Remote } from './lib/update'
 import { UpdateSheet } from './ui/Update'
+import type { Hide } from './ui/Dupes'
 import { useFlag } from './lib/flag'
 import { partTracks, useEdits } from './lib/edits'
 import { NOTES } from './lib/version'
@@ -33,7 +34,20 @@ export default function App() {
   useDayNight()
   const [raw, setRaw] = useState<ScanResult | null>(null)
   const [hidden, setHidden] = useState<string[]>(() => load('hiddenFolders', []))
-  const scan = useMemo<ScanResult | null>(() => raw && { ...raw, tracks: raw.tracks.filter((t) => !hidden.includes(t.folder)) }, [raw, hidden])
+  // 같은 곡 정리로 빼 둔 곡(파일은 그대로), 같은 곡이 아니라고 한 묶음
+  const [hiddenIds, setHiddenIds] = useState<string[]>(() => load('hiddenIds', []))
+  const [notSame, setNotSame] = useState<string[]>(() => load('notSame', []))
+  const hide: Hide = useMemo(() => ({
+    ids: hiddenIds,
+    hide: (ids) => setHiddenIds((o) => { const n = [...new Set([...o, ...ids])]; save('hiddenIds', n); return n }),
+    showAll: () => { setHiddenIds([]); save('hiddenIds', []) },
+    notSame: (k) => setNotSame((o) => { const n = [...o, k]; save('notSame', n); return n }),
+  }), [hiddenIds])
+  const scan = useMemo<ScanResult | null>(() => {
+    if (!raw) return null
+    const ids = new Set(hiddenIds)
+    return { ...raw, tracks: raw.tracks.filter((t) => !hidden.includes(t.folder) && !ids.has(t.id)) }
+  }, [raw, hidden, hiddenIds])
   // 강의와 음악 가르기(사용자가 옮긴 것은 기억)
   const [kinds, setKinds] = useState<KindOverrides>(loadOverrides)
   const tracks = useMemo(() => {
@@ -146,7 +160,7 @@ export default function App() {
           <>
             {tab === 'now' && <NowScreen tracks={tracks} player={player} vol={vol} loud={loud} output={output} lists={lists} edits={edits} onSleep={openSleep} />}
             {tab === 'music' && <MusicScreen tracks={tracks} scan={scan} player={player} lists={lists} onPlayed={() => setTab('now')} onKind={moveKind} />}
-            {tab === 'lists' && <ListsScreen tracks={tracks} music={music} player={player} lists={lists} edits={edits} onPlayed={() => setTab('now')} />}
+            {tab === 'lists' && <ListsScreen tracks={tracks} music={music} player={player} lists={lists} edits={edits} onPlayed={() => setTab('now')} hide={hide} notSame={notSame} />}
             {tab === 'rest' && <RestScreen easy={easy} setEasy={setEasy} onFolders={() => setFolders(true)} battery={battery} onBattery={() => setBatteryOpen(true)} verseMove={verseMove} setVerseMove={setVerseMove} player={player} onNews={() => setNews(true)} onCheck={runCheck} />}
           </>
         )}

@@ -5,6 +5,7 @@ import { load, save } from './store'
 import { onMediaAction, setNowPlaying } from './native'
 import { cachedShape, getShape, normGain } from './shape'
 import { setMonoFix } from './monofix'
+import { addListen } from './stats'
 
 interface Resume { id: string; pos: number }
 
@@ -505,6 +506,25 @@ export function usePlayer(tracks: Track[]) {
       a.removeEventListener('durationchange', sync)
     }
   }, [elGen])
+
+  // 감상 기록: 1초마다 실제로 흐른 재생 시간을 곡별로 더한다(앞으로 넘긴 시간은 빼고)
+  useEffect(() => {
+    let prev = { id: '', ct: 0, at: 0 }
+    const h = setInterval(() => {
+      const a = audio.current
+      const t = byId.current.get(queueRef.current[indexRef.current])
+      const id = t ? (t.src ?? t.id) : ''
+      const now = performance.now()
+      const on = !!a?.src && !a.paused && !a.ended
+      if (on && id && id === prev.id) {
+        const d = a.currentTime - prev.ct
+        const wall = ((now - prev.at) / 1000) * (a.playbackRate || 1) + 0.5
+        if (d > 0) addListen(id, Math.min(d, wall))
+      }
+      prev = on ? { id, ct: a.currentTime, at: now } : { id: '', ct: 0, at: 0 }
+    }, 1000)
+    return () => clearInterval(h)
+  }, [])
 
   // 이어 듣기: 5초마다 위치 저장
   useEffect(() => {

@@ -6,6 +6,9 @@ import type { Playlist, Playlists } from '../lib/playlists'
 import { Icon, VirtualList, info, minutesText, nf, whoLine } from './common'
 import { AddSongs, EditRows, MemoSheet, NameSheet, Page, TagSheet } from './Sheets'
 import { EditsSection } from './Edits'
+import { ListenCard, ListenPage } from './Listen'
+import { DupesPage, type Hide } from './Dupes'
+import { findDupes } from '../lib/dupes'
 import type { Edits } from '../lib/edits'
 
 const DAY = 86400000
@@ -24,12 +27,18 @@ function meta(items: Track[]): string {
 
 interface Auto { id: string; name: string; sub: string; items: Track[] }
 
-export function ListsScreen({ tracks, music, player, lists, edits, onPlayed }: { tracks: Track[]; music: Track[]; player: Player; lists: Playlists; edits: Edits; onPlayed: () => void }) {
+export function ListsScreen({ tracks, music, player, lists, edits, onPlayed, hide, notSame }: { tracks: Track[]; music: Track[]; player: Player; lists: Playlists; edits: Edits; onPlayed: () => void; hide: Hide; notSame: string[] }) {
   // 곡을 틀면 「지금」으로 넘어간다(음악 탭과 같게)
   const play: Player['playFrom'] = (...a) => { player.playFrom(...a); onPlayed() }
   const [open, setOpen] = useState<string | null>(null)
   const [auto, setAuto] = useState<string | null>(null)
   const [naming, setNaming] = useState(false)
+  const [listen, setListen] = useState(false)
+  const closeListen = useCallback(() => setListen(false), [])
+  const [dupes, setDupes] = useState(false)
+  const closeDupes = useCallback(() => setDupes(false), [])
+  const groups = useMemo(() => findDupes(music, info, player.plays, notSame), [music, player.plays, notSame])
+  // 정리 창을 연 동안에는 그룹이 사라져도 창을 닫지 않는다
   const closeNaming = useCallback(() => setNaming(false), [])
   const closeOpen = useCallback(() => setOpen(null), [])
   const closeAuto = useCallback(() => setAuto(null), [])
@@ -73,6 +82,7 @@ export function ListsScreen({ tracks, music, player, lists, edits, onPlayed }: {
         <h1>내 목록</h1>
         <button className="add" onClick={() => setNaming(true)}><Icon n="plus" s={18} w={2.4} />새 목록</button>
       </div>
+      <ListenCard onOpen={() => setListen(true)} />
       <h2 className="sub">만든 목록</h2>
       {lists.items.length === 0 ? (
         <p className="empty">아직 만든 목록이 없어요. "새 목록"을 눌러 듣고 싶은 곡을 모아 보세요.</p>
@@ -107,9 +117,19 @@ export function ListsScreen({ tracks, music, player, lists, edits, onPlayed }: {
             </button>
           </li>
         ))}
+        {(groups.length > 0 || hide.ids.length > 0) && (
+          <li>
+            <button className="lrow" onClick={() => setDupes(true)}>
+              <span className="x"><span className="x1">같은 곡이 여러 개</span><span className="x2 num">{groups.length ? `정리할 수 있는 곡 ${nf.format(groups.reduce((s, g) => s + g.items.length - 1, 0))}개` : `빼 둔 곡 ${nf.format(hide.ids.length)}개`}</span></span>
+              <span className="go-r" aria-hidden="true"><Icon n="chev" s={18} /></span>
+            </button>
+          </li>
+        )}
       </ul>
       {naming && <NameSheet onClose={closeNaming} onDone={(name) => setOpen(lists.create(name))} />}
       {pl && <ListDetail pl={pl} items={itemsOf(pl)} tracks={tracks} lists={lists} player={player} play={play} onClose={closeOpen} resume={resumeOf(pl, itemsOf(pl))} />}
+      {listen && <ListenPage tracks={tracks} player={player} onClose={closeListen} onPlayed={() => { closeListen(); onPlayed() }} />}
+      {dupes && <DupesPage groups={groups} player={player} h={hide} onClose={closeDupes} />}
       {au && <AutoDetail a={au} player={player} play={play} onClose={closeAuto} />}
     </div>
   )

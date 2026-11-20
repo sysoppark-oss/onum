@@ -655,3 +655,60 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .pl.about .lrow { gap: 0.75rem; color: var(--ink); }
 .pl.about .lrow > svg { color: var(--ink3); flex-shrink: 0; }
 .pillbtn.small { min-height: 2.75rem; padding: 0 1.125rem; flex-shrink: 0; }
+
+/* ───────── 들은 시간 ───────── */
+.lcard { display: flex; align-items: center; gap: 0.875rem; width: 100%; min-height: 4.75rem; margin-top: 0.75rem; padding: 0.75rem 0.875rem 0.75rem 1.125rem; border-radius: 1.125rem; background: var(--sf); transition: transform 160ms var(--ease); }
+.lcard:active { transform: scale(.98); }
+.lcard .x { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.lc1 { font-size: 0.8125rem; font-weight: 600; color: var(--ink2); }
+.lc2 { margin-top: 2px; font-size: 1.25rem; font-weight: 800; letter-spacing: -0.02em; }
+.lspark { display: flex; align-items: flex-end; gap: 0.25rem; height: 2.125rem; flex-shrink: 0; }
+.lspark i { width: 0.375rem; border-radius: 0.1875rem; background: var(--ink3); }
+.lspark i.td { background: var(--now); }
+
+.lsum { padding: 0.5rem 0 0.25rem; }
+.lsum-t { font-size: 2.5rem; font-weight: 800; letter-spacing: -0.035em; line-height: 1.15; }
+.lsum-s { margin-top: 0.375rem; font-size: 1rem; color: var(--ink2); }
+.lsel { margin-top: 1.625rem; font-size: 0.9375rem; color: var(--ink2); }
+.lsel b { color: var(--ink); font-weight: 800; }
+.lbars { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.375rem; margin-top: 0.625rem; }
+.lbar { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; min-height: 2.75rem; padding: 0; }
+.lb-track { position: relative; width: 100%; max-width: 2.25rem; height: 9.375rem; border-radius: 0.625rem; background: var(--sf); overflow: hidden; display: flex; align-items: flex-end; }
+.lb-track i { display: block; width: 100%; border-radius: 0.625rem; background: var(--ink3); transition: height 420ms var(--ease), background-color 160ms ease; }
+.lbar.on .lb-track i { background: var(--now); }
+.lb-d { font-size: 0.8125rem; font-weight: 600; color: var(--ink2); line-height: 1.2; min-height: 1.25rem; }
+.lb-d.td { color: var(--ink); font-weight: 800; }
+.lbar.on .lb-d { color: var(--now-text); }
+.lstats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.625rem; margin-top: 1.375rem; }
+.lstats p { display: flex; flex-direction: column; padding: 0.875rem 1rem; border-radius: 1rem; background: var(--sf); }
+.lstats span { font-size: 0.8125rem; font-weight: 600; color: var(--ink2); }
+.lstats b { margin-top: 2px; font-size: 1.1875rem; font-weight: 800; letter-spacing: -0.02em; }
+.ltop .rk { width: 1.375rem; flex-shrink: 0; font-size: 1.0625rem; font-weight: 800; color: var(--ink3); text-align: center; }
+.ltop li:first-child .rk { color: var(--now-text); }
+.lverse { margin: 1.75rem 0 0; padding: 1.125rem 1.125rem 1rem; border-radius: 1.125rem; background: var(--sf); }
+.lverse blockquote p { font-size: 1.125rem; font-weight: 600; line-height: 1.6; letter-spacing: -0.015em; }
+.lverse figcaption { margin-top: 0.5rem; font-size: 0.8125rem; color: var(--ink2); }
+.lverse + .hint { margin-top: 0.875rem; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .lb-track i { transition: none; } }
+
+/* ───────── 같은 곡이 여러 개 ───────── */
+.dp { margin-top: 1.25rem; padding: 1rem 1rem 0.875rem; border-radius: 1.125rem; background: var(--sf); }
+.dp-h { display: flex; flex-direction: column; }
+.dp-s { font-size: 1.125rem; font-weight: 800; letter-spacing: -0.02em; }
+.dp-w { margin-top: 2px; font-size: 0.875rem; font-weight: 500; color: var(--ink2); }
+.dp ul { margin-top: 0.625rem; }
+.dp li { display: flex; align-items: center; gap: 0.5rem; border-top: 1px solid var(--line); }
+.dp-row { flex: 1; min-width: 0; display: flex; align-items: center; gap: 0.75rem; min-height: 4rem; }
+.dp-row .x { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.dp-row .x1 { font-size: 0.9375rem; font-weight: 700; color: var(--ink2); }
+.dp-row.on .x1 { color: var(--ink); }
+.dp-row .x2 { margin-top: 2px; font-size: 0.8125rem; color: var(--ink2); }
+.dp-dot { width: 1.375rem; height: 1.375rem; flex-shrink: 0; border-radius: 50%; border: 2px solid var(--ink3); display: grid; place-items: center; transition: border-color 160ms ease; }
+.dp-row.on .dp-dot { border-color: var(--now); }
+.dp-row.on .dp-dot::after { content: ''; width: 0.6875rem; height: 0.6875rem; border-radius: 50%; background: var(--now); }
+.dp-hear { flex-shrink: 0; min-height: 2.75rem; padding: 0 0.25rem; font-size: 0.875rem; }
+.dp-acts { display: flex; gap: 0.5rem; margin-top: 0.625rem; }
+.dp-acts button { flex: 1; min-width: 0; }
+.dp-done { margin-top: 0.875rem; font-size: 0.9375rem; font-weight: 700; color: var(--now-text); }
+.dp-back { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--line); font-size: 0.9375rem; color: var(--ink2); }
+.dp-back .textlink { min-height: 2.75rem; }
