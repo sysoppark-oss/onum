@@ -1,4 +1,6 @@
 // 온음 — 「흐름」 화면
+import { NOTES } from './lib/version'
+import { WhatsNew } from './ui/WhatsNew'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { App as CapApp } from '@capacitor/app'
 import type { ScanResult, Track } from './lib/library'
@@ -67,6 +69,14 @@ export default function App() {
     if (battery && !battery.free && !load('batteryAsked', false)) setBatteryOpen(true)
   }, [battery])
   const player = usePlayer(tracks)
+  // 업데이트 뒤 한 번: 새로워진 점. 처음 쓰는 사람에게는 띄우지 않는다
+  const [news, setNews] = useState(false)
+  const closeNews = useCallback(() => { setNews(false); save('notesSeen', NOTES.id) }, [])
+  useEffect(() => {
+    if (!tracks.length || load('notesSeen', '') === NOTES.id) return
+    if (Object.keys(player.plays).length) setNews(true)
+    else save('notesSeen', NOTES.id)
+  }, [tracks.length > 0]) // eslint-disable-line react-hooks/exhaustive-deps
   const output = useOutput(player)
   const lists = usePlaylists()
   const vol = useVolume(player)
@@ -106,7 +116,7 @@ export default function App() {
             {tab === 'now' && <NowScreen tracks={tracks} player={player} vol={vol} loud={loud} output={output} lists={lists} onSleep={openSleep} />}
             {tab === 'music' && <MusicScreen tracks={tracks} scan={scan} player={player} lists={lists} onPlayed={() => setTab('now')} onKind={moveKind} />}
             {tab === 'lists' && <ListsScreen tracks={tracks} music={music} player={player} lists={lists} />}
-            {tab === 'rest' && <RestScreen easy={easy} setEasy={setEasy} onFolders={() => setFolders(true)} battery={battery} onBattery={() => setBatteryOpen(true)} verseMove={verseMove} setVerseMove={setVerseMove} player={player} />}
+            {tab === 'rest' && <RestScreen easy={easy} setEasy={setEasy} onFolders={() => setFolders(true)} battery={battery} onBattery={() => setBatteryOpen(true)} verseMove={verseMove} setVerseMove={setVerseMove} player={player} onNews={() => setNews(true)} />}
           </>
         )}
       </main>
@@ -127,6 +137,7 @@ export default function App() {
       )}
       {sleeping && <SleepSheet player={player} onClose={closeSleep} />}
       {folders && <FoldersPage tracks={raw.tracks} hidden={hidden} setHidden={setHidden} onClose={closeFolders} />}
+      {news && !batteryOpen && <WhatsNew onClose={closeNews} />}
       {batteryOpen && <BatteryPage b={battery} onClose={closeBattery} />}
       {gn && <GoodnightScreen g={gn} onClose={player.dismissGoodnight} onResume={() => { player.dismissGoodnight(); player.toggle() }} />}
     </div>

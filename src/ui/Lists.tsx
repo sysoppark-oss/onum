@@ -4,9 +4,13 @@ import { fmt, type Track } from '../lib/library'
 import type { Player } from '../lib/usePlayer'
 import type { Playlist, Playlists } from '../lib/playlists'
 import { Icon, VirtualList, info, minutesText, nf, whoLine } from './common'
-import { AddSongs, EditRows, NameSheet, Page } from './Sheets'
+import { AddSongs, EditRows, MemoSheet, NameSheet, Page, TagSheet } from './Sheets'
 
 const DAY = 86400000
+// 바로가기 목록: 파일이 있는 자리로 가른다(설치형 앱은 전체 경로, PC는 폴더 이름)
+const KAKAO = /kakao|카카오|카톡/i
+const DOWN = /(^|\/)downloads?(\/|$)|다운로드/i
+const where = (t: Track) => t.path || t.folder || ''
 
 /** "12곡 · 58분". 길이를 모르는 곡이 있으면 곡 수만 */
 function meta(items: Track[]): string {
@@ -38,7 +42,12 @@ export function ListsScreen({ tracks, music, player, lists }: { tracks: Track[];
       const l = player.last[t.id]
       return l ? now - l > 90 * DAY : now - t.added > 90 * DAY
     }).sort((a, b) => (player.last[a.id] ?? 0) - (player.last[b.id] ?? 0))
+    const newest = (a: Track, b: Track) => b.added - a.added
+    const kakao = tracks.filter((t) => KAKAO.test(where(t))).sort(newest)
+    const down = tracks.filter((t) => !KAKAO.test(where(t)) && DOWN.test(where(t))).sort(newest)
     return [
+      ...(kakao.length ? [{ id: 'kakao', name: '카톡으로 받은 음악', sub: '카카오톡에서 저장한 곡', items: kakao }] : []),
+      ...(down.length ? [{ id: 'down', name: '다운로드한 음악', sub: '다운로드 폴더의 곡', items: down }] : []),
       { id: 'often', name: '자주 들은 곡', sub: '많이 들은 순서', items: often },
       { id: 'fresh', name: '새로 들어온 곡', sub: '최근 2주 동안 추가된 곡', items: fresh },
       { id: 'old', name: '한동안 안 들은 곡', sub: '석 달 넘게 듣지 않은 곡', items: old },
@@ -107,20 +116,38 @@ function ListDetail({ pl, items, tracks, lists, player, onClose, resume }: {
   const src = 'list:' + pl.id
   const [adding, setAdding] = useState(false)
   const [sure, setSure] = useState(false)
+  const [memo, setMemo] = useState(false)
+  const [rename, setRename] = useState(false)
+  const [tagAt, setTagAt] = useState<number | null>(null)
   const closeAdding = useCallback(() => setAdding(false), [])
+  const closeMemo = useCallback(() => setMemo(false), [])
+  const closeRename = useCallback(() => setRename(false), [])
+  const closeTag = useCallback(() => setTagAt(null), [])
+  const tags = pl.tags || {}
+  const tagT = tagAt != null ? items[tagAt] : undefined
   return (
     <Page label={pl.name} onClose={onClose}>
-      <p className="lmeta num">{meta(items)}</p>
+      <div className="lmeta-row">
+        <p className="lmeta num">{meta(items)}</p>
+        {!pl.memo && <button className="textlink" onClick={() => setMemo(true)}>메모 남기기</button>}
+      </div>
+      {pl.memo ? (
+        <button className="lmemo" onClick={() => setMemo(true)} aria-label={`메모: ${pl.memo}. 고치기`}>
+          <span>{pl.memo}</span><small>고치기</small>
+        </button>
+      ) : null}
       <div className="acts">
         {resume && <button className="go grow" onClick={() => player.playFrom(items, resume.t.id, resume.pos, true, src)}><Icon n="play" s={18} /><span className="one">이어서 · {info(resume.t).song} <span className="num">{fmt(resume.pos)}</span></span></button>}
         {items.length > 0 && <button className={resume ? 'pillbtn' : 'go grow'} onClick={() => player.playFrom(items, items[0].id, undefined, true, src)}><Icon n="play" s={18} />처음부터 듣기</button>}
         <button className="pillbtn" onClick={() => setAdding(true)}><Icon n="plus" s={18} />곡 추가</button>
       </div>
+      {items.length > 1 && !Object.keys(tags).length && <p className="hint">곡을 길게 누르면 색으로 표시해 둘 수 있어요.</p>}
       {items.length === 0 && <p className="empty">아직 담은 곡이 없어요. "곡 추가"를 눌러 담아 보세요.</p>}
       <EditRows tracks={items} currentId={player.current?.id}
         onTap={(i) => player.playFrom(items, items[i].id, undefined, true, src)}
         onMove={(i, d) => lists.swap(pl.id, items[i].id, items[i + d].id)}
-        onRemove={(i) => lists.removeTrack(pl.id, items[i].id)} />
+        onRemove={(i) => lists.removeTrack(pl.id, items[i].id)}
+        tagOf={(t) => tags[t.id]} onLong={setTagAt} />
       {sure ? (
         <div className="confirm" role="alert">
           <p>"{pl.name}" 목록을 지울까요? 음악 파일은 지워지지 않아요.</p>
@@ -129,7 +156,15 @@ function ListDetail({ pl, items, tracks, lists, player, onClose, resume }: {
             <button className="go danger" onClick={() => { lists.remove(pl.id); onClose() }}>목록 지우기</button>
           </div>
         </div>
-      ) : <button className="textbtn" onClick={() => setSure(true)}>이 목록 지우기</button>}
+      ) : (
+        <div className="tlinks">
+          <button className="textbtn plain" onClick={() => setRename(true)}>이름 바꾸기</button>
+          <button className="textbtn" onClick={() => setSure(true)}>이 목록 지우기</button>
+        </div>
+      )}
+      {memo && <MemoSheet name={pl.name} memo={pl.memo ?? ''} onDone={(m) => lists.setMemo(pl.id, m)} onClose={closeMemo} />}
+      {rename && <NameSheet title="목록 이름 바꾸기" initial={pl.name} done="바꾸기" onDone={(n) => lists.rename(pl.id, n)} onClose={closeRename} />}
+      {tagT && <TagSheet t={tagT} tag={tags[tagT.id]} onPick={(k) => lists.setTag(pl.id, tagT.id, k)} onClose={closeTag} />}
       {adding && <AddSongs tracks={tracks} has={(id) => pl.ids.includes(id)} onAdd={(t) => lists.add(pl.id, [t.id])} onClose={closeAdding} />}
     </Page>
   )

@@ -5,6 +5,7 @@
   --ink: #111316; --ink2: #5b6169; --ink3: #8c929a;
   --now: #2457e6; --now-text: #2457e6; --warn: #d32f2f;
   --on-ink: #ffffff; --dim: rgba(0, 0, 0, .45);
+  --tg-green: #1f8a4c; --tg-orange: #b26a00; --tg-purple: #7b4ee0; --tg-pink: #c2417e; /* 목록 안 곡 색 */
   color-scheme: light;
 }
 /* 밤: 같은 구조, 빛만 낮춘다 */
@@ -13,6 +14,7 @@
   --ink: #edeef0; --ink2: #9ba1a9; --ink3: #6b7179;
   --now: #7aa2ff; --now-text: #7aa2ff; --warn: #ff6b6b;
   --on-ink: #0e0f11; --dim: rgba(0, 0, 0, .6);
+  --tg-green: #4cc27a; --tg-orange: #f0b030; --tg-purple: #b49cff; --tg-pink: #f07fb3;
   color-scheme: dark;
 }
 :root {
@@ -562,3 +564,45 @@ label.pick:focus-within { outline: 3px solid var(--now); outline-offset: 2px; }
 .dots i.on { background: var(--ink); box-shadow: none; }
 .dots i.no:not(.on) { background: transparent; box-shadow: inset 0 0 0 1.5px var(--line); }
 .tlinks { display: flex; flex-wrap: wrap; justify-content: center; column-gap: 18px; }
+
+/* 목록 메모·곡 색 */
+.tag { width: 6px; height: 28px; border-radius: 3px; flex-shrink: 0; }
+.tag.none { background: transparent; }
+.tag.green { background: var(--tg-green); }
+.tag.orange { background: var(--tg-orange); }
+.tag.purple { background: var(--tg-purple); }
+.tag.pink { background: var(--tg-pink); }
+.opt .tag { height: 22px; margin-right: -4px; }
+.lmemo { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 14px 16px; border-radius: 14px; background: var(--sf); text-align: left; font-size: 16px; line-height: 1.5; }
+.lmemo span { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
+.lmemo small { flex-shrink: 0; font-size: 14px; font-weight: 700; color: var(--ink2); text-decoration: underline; text-underline-offset: 3px; line-height: 24px; }
+.field.memo { min-height: 120px; padding: 12px 16px; line-height: 1.5; resize: vertical; font-family: inherit; font-size: 17px; font-weight: 500; color: var(--ink); }
+.lmeta-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: -8px; margin-bottom: -8px; }
+.lmeta-row .textlink { align-self: auto; }
+
+/* 새로워진 점 */
+.wn-top { display: flex; flex-direction: column; gap: 14px; }
+.wn-v { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+.stages { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); list-style: none; padding: 0; margin: 0; }
+.stages li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
+.stages li::before { content: ''; position: absolute; top: 7px; left: 0; right: 0; height: 2px; background: var(--line); }
+.stages li:first-child::before { left: 50%; }
+.stages li:last-child::before { right: 50%; }
+.stages i { position: relative; width: 16px; height: 16px; border-radius: 8px; background: var(--bg); box-shadow: inset 0 0 0 2px var(--ink3); }
+.stages li.on i { background: var(--ink); box-shadow: none; }
+.stages b { font-size: 15px; font-weight: 700; color: var(--ink2); white-space: nowrap; }
+.stages li.on b { color: var(--ink); font-weight: 800; }
+.stages span { font-size: 13px; color: var(--ink2); }
+.wn-q { margin: 0; padding: 18px; border-radius: 16px; background: var(--sf); display: flex; flex-direction: column; gap: 8px; }
+.wn-q p { font-size: 17px; line-height: 1.65; font-weight: 600; word-break: keep-all; }
+.wn-q cite { font-style: normal; font-size: 14px; color: var(--ink2); font-weight: 600; }
+.wn-list { display: flex; flex-direction: column; gap: 10px; margin: 0; }
+.wn-list li { position: relative; padding-left: 18px; font-size: 16px; line-height: 1.55; word-break: keep-all; }
+.wn-list li::before { content: ''; position: absolute; left: 3px; top: 10px; width: 6px; height: 6px; border-radius: 3px; background: var(--ink2); }
+.why.ver { margin-top: -6px; }
+.pl li.setrow .x { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+/* 영어 말씀(KJV) */
+.read-en { margin-top: 18px; font-size: 18px; line-height: 1.6; font-weight: 500; color: var(--ink2); font-family: Georgia, 'Times New Roman', serif; }
+.nw-en { margin-top: 14px; font-size: 16px; line-height: 1.6; color: var(--ink2); font-family: Georgia, 'Times New Roman', serif; }
+.wn-q .q-en { margin-top: 6px; font-size: 16px; font-weight: 500; color: var(--ink2); font-family: Georgia, 'Times New Roman', serif; }

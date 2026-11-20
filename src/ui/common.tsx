@@ -236,6 +236,7 @@ export function VirtualList<T>({ items, render, rowRem = 4, className = 'list' }
 const STROKE: Record<string, React.ReactNode> = {
   plus: <><line x1="5" y1="12" x2="19" y2="12" /><line x1="12" y1="5" x2="12" y2="19" /></>,
   minus: <line x1="5" y1="12" x2="19" y2="12" />,
+  edit: <><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M13.5 6.5l4 4" /></>,
   chev: <polyline points="9 6 15 12 9 18" />,
   back: <polyline points="15 18 9 12 15 6" />,
   down: <polyline points="6 9 12 15 18 9" />,

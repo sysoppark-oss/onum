@@ -4,13 +4,14 @@ import type { Track } from '../lib/library'
 import { LEVELS, RATES, TIMES, XFADES, type Goodnight, type Player, type Repeat } from '../lib/usePlayer'
 import { fmt } from '../lib/library'
 import { ShapeBar } from './Now'
-import type { Playlists } from '../lib/playlists'
+import { TAGS, tagName, type Playlists, type Tag } from '../lib/playlists'
 import { matches } from '../lib/hangul'
 import { josa, parseTitle } from '../lib/title'
 import { load, save } from '../lib/store'
 import { getShape } from '../lib/shape'
 import { NIGHT } from '../lib/verses'
-import { Icon, Layer, Sheet, VirtualList, useSwipeClose, clock, info, minutesText, nf, useDialog, whoLine } from './common'
+import { useKjv } from '../lib/kjv'
+import { Icon, Layer, Sheet, VirtualList, useLongPress, useSwipeClose, clock, info, minutesText, nf, useDialog, whoLine } from './common'
 
 const PRESETS = [15, 30, 60, 120]
 const MAX_MIN = 720
@@ -231,6 +232,7 @@ export function SleepSheet({ player, onClose }: { player: Player; onClose: () =>
 export function GoodnightScreen({ g, onClose, onResume }: { g: Goodnight; onClose: () => void; onResume: () => void }) {
   const box = useDialog(onClose)
   const song = g.title ? parseTitle(g.title).song : ''
+  const kjv = useKjv()
   return (
     <Layer>
     <div ref={box} tabIndex={-1} className="goodnight" data-theme="night" role="dialog" aria-modal="true" aria-labelledby="gn-h">
@@ -239,6 +241,7 @@ export function GoodnightScreen({ g, onClose, onResume }: { g: Goodnight; onClos
         <h2 className="nh" id="gn-h">평안한 밤 되세요</h2>
         <p className="nw">{NIGHT.text}</p>
         <p className="wr">{NIGHT.ref} · 개역한글</p>
+        {kjv && <><p className="nw-en" lang="en">{NIGHT.en}</p><p className="wr" lang="en">{NIGHT.enRef} · KJV</p></>}
       </div>
       <div className="nb">
         <button className="ghost" onClick={onResume}>이어서 듣기</button>
@@ -250,20 +253,23 @@ export function GoodnightScreen({ g, onClose, onResume }: { g: Goodnight; onClos
 }
 
 /* ───────── 줄 고치기: 순서·빼기 ───────── */
-export function EditRows({ tracks, currentId, lockCurrent, onTap, onMove, onRemove }: {
+export function EditRows({ tracks, currentId, lockCurrent, onTap, onMove, onRemove, tagOf, onLong }: {
   tracks: Track[]; currentId?: string; lockCurrent?: boolean
   onTap: (i: number) => void; onMove: (i: number, dir: 1 | -1) => void; onRemove: (i: number) => void
+  tagOf?: (t: Track) => Tag | undefined; onLong?: (i: number) => void
 }) {
   const items = useMemo(() => tracks.map((t, i) => ({ t, i })), [tracks])
+  const lp = useLongPress()
   return (
     <VirtualList items={items} className="erows" render={({ t, i }) => {
       const x = info(t)
       const on = t.id === currentId
       return (
         <li key={t.id + i} className={on ? 'on' : undefined}>
-          <button className="erow-main" aria-current={on ? 'true' : undefined} onClick={() => onTap(i)}>
+          <button className="erow-main" aria-current={on ? 'true' : undefined} onClick={() => onTap(i)} {...(onLong ? lp(() => onLong(i)) : {})}>
             <span className="en num" aria-hidden="true">{i + 1}</span>
-            <span className="x"><span className="x1">{x.song}</span><span className="x2">{whoLine(x) || ' '}</span></span>
+            {tagOf && <i className={'tag ' + (tagOf(t) ?? 'none')} aria-hidden="true" />}
+            <span className="x"><span className="x1">{x.song}</span><span className="x2">{tagOf?.(t) ? <span className="sr">{tagName(tagOf(t))} 표시, </span> : null}{whoLine(x) || ' '}</span></span>
           </button>
           <button className="eb" disabled={i === 0} onClick={() => onMove(i, -1)} aria-label={`${x.song} 위로`}><Icon n="up" s={22} /></button>
           <button className="eb" disabled={i === tracks.length - 1} onClick={() => onMove(i, 1)} aria-label={`${x.song} 아래로`}><Icon n="down" s={22} /></button>
@@ -355,8 +361,8 @@ export function AddSongs({ tracks, has, onAdd, onClose }: { tracks: Track[]; has
 }
 
 /** 목록 이름 적기 */
-export function NameSheet({ onDone, onClose, title = '새 목록 만들기' }: { onDone: (name: string) => void; onClose: () => void; title?: string }) {
-  const [name, setName] = useState('')
+export function NameSheet({ onDone, onClose, title = '새 목록 만들기', initial = '', done = '만들기' }: { onDone: (name: string) => void; onClose: () => void; title?: string; initial?: string; done?: string }) {
+  const [name, setName] = useState(initial)
   const [err, setErr] = useState(false)
   const input = useRef<HTMLInputElement>(null)
   useEffect(() => { input.current?.focus() }, [])
@@ -376,7 +382,7 @@ export function NameSheet({ onDone, onClose, title = '새 목록 만들기' }: {
           placeholder="예: 새벽 기도 찬양" aria-invalid={err} aria-describedby={err ? 'name-err' : undefined}
           onChange={(e) => { setName(e.target.value); setErr(false) }} />
         {err && <p id="name-err" className="ferr" role="alert">이름을 적어 주세요.</p>}
-        <button className="go" type="submit">만들기</button>
+        <button className="go" type="submit">{done}</button>
       </form>
     </Sheet>
   )
@@ -503,6 +509,50 @@ export function LevelSheet({ t, player, onClose }: { t: Track; player: Player; o
       <div className="nb">
         {v !== 0 && <button className="ghost" onClick={() => { player.setLevel(t.id, 0); setFull(false) }}>원래대로</button>}
         <button className="go" onClick={onClose}>닫기</button>
+      </div>
+    </Sheet>
+  )
+}
+
+/* ───────── 목록 메모 ───────── */
+export function MemoSheet({ name, memo, onDone, onClose }: { name: string; memo: string; onDone: (m: string) => void; onClose: () => void }) {
+  const [v, setV] = useState(memo)
+  const box = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => { const b = box.current; if (b) { b.focus(); b.setSelectionRange(b.value.length, b.value.length) } }, [])
+  return (
+    <Sheet label="목록 메모" onClose={onClose}>
+      <form className="form" onSubmit={(e) => { e.preventDefault(); onDone(v); onClose() }}>
+        <h2 className="q">메모 · {name}</h2>
+        <label className="flabel" htmlFor="list-memo">이 목록에 남길 말</label>
+        <textarea id="list-memo" ref={box} className="field memo" value={v} maxLength={300} rows={4}
+          placeholder="예: 수요 예배 특송. 세 번째 곡은 2절까지만" onChange={(e) => setV(e.target.value)} aria-describedby="memo-n" />
+        <p id="memo-n" className="hint num">{v.length}/300자 · 이 휴대폰에만 남아요</p>
+        <div className="nb">
+          {memo && <button type="button" className="ghost" onClick={() => { onDone(''); onClose() }}>메모 지우기</button>}
+          <button className="go" type="submit">저장</button>
+        </div>
+      </form>
+    </Sheet>
+  )
+}
+
+/* ───────── 곡 색 표시 ───────── */
+export function TagSheet({ t, tag, onPick, onClose }: { t: Track; tag?: Tag; onPick: (k: Tag | null) => void; onClose: () => void }) {
+  const x = info(t)
+  const pick = (k: Tag | null) => { onPick(k); onClose() }
+  return (
+    <Sheet label="곡 색 표시" onClose={onClose}>
+      <div>
+        <h2 className="q" id="tag-h">색 표시 · {x.song}</h2>
+        <p className="say">이 목록 안에서만 보여요. 순서나 할 일을 눈에 띄게 해 두세요.</p>
+      </div>
+      <div className="stopq" role="radiogroup" aria-labelledby="tag-h">
+        <button className={'opt' + (!tag ? ' on' : '')} role="radio" aria-checked={!tag} onClick={() => pick(null)}><span className="r" aria-hidden="true" />표시 안 함</button>
+        {TAGS.map((g) => (
+          <button key={g.k} className={'opt' + (tag === g.k ? ' on' : '')} role="radio" aria-checked={tag === g.k} onClick={() => pick(g.k)}>
+            <span className="r" aria-hidden="true" /><i className={'tag ' + g.k} aria-hidden="true" />{g.name}
+          </button>
+        ))}
       </div>
     </Sheet>
   )
