@@ -5,7 +5,8 @@ import { BUILD, type Check } from '../lib/update'
 import { useCallback, useState } from 'react'
 import { dayIndex, type Verse } from '../lib/verses'
 import { MOODS, YEAR } from '../lib/verses365'
-import { setKjv, shown, useKjv } from '../lib/kjv'
+import { setVer, VERS, shown, useKjv } from '../lib/kjv'
+import { LANGS, lang, setLang } from '../lib/i18n'
 import { setFlag, useFlag } from '../lib/flag'
 import { Icon, nf } from './common'
 import { EqPage, eqLabel } from './Eq'
@@ -92,10 +93,15 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
           </li>
         )}
         <li className="setrow">
-          <span className="x"><span className="x1" id="kjv-l">말씀 역본</span><span className="x2">{kjv ? '영어 흠정역(KJV)으로 보여요' : '한글 개역한글로 보여요'}</span></span>
-          <div className="seg2 ver" role="radiogroup" aria-labelledby="kjv-l">
-            <button role="radio" aria-checked={!kjv} className={!kjv ? 'on' : undefined} onClick={() => setKjv(false)}>개역한글</button>
-            <button role="radio" aria-checked={kjv} className={kjv ? 'on' : undefined} onClick={() => setKjv(true)} lang="en">KJV</button>
+          <span className="x"><span className="x1" id="lang-l">화면 언어</span><span className="x2">바꾸면 앱을 다시 열어요</span></span>
+          <div className="seg2 ver three" role="radiogroup" aria-labelledby="lang-l">
+            {LANGS.map((l) => <button key={l.id} role="radio" aria-checked={lang === l.id} className={lang === l.id ? 'on' : undefined} lang={l.id} onClick={() => lang !== l.id && setLang(l.id)}>{l.name}</button>)}
+          </div>
+        </li>
+        <li className="setrow">
+          <span className="x"><span className="x1" id="kjv-l">말씀 역본</span><span className="x2">저작권이 끝난 역본만 넣었어요</span></span>
+          <div className="seg2 ver three" role="radiogroup" aria-labelledby="kjv-l">
+            {VERS.map((v) => <button key={v.id} role="radio" aria-checked={kjv === v.id} className={kjv === v.id ? 'on' : undefined} lang={v.id === 'kjv' ? 'en' : v.id === 'jkg' ? 'ja' : 'ko'} onClick={() => setVer(v.id)}>{v.name}</button>)}
           </div>
         </li>
         <li>
@@ -227,8 +233,10 @@ export function MoodPage({ onClose }: { onClose: () => void }) {
   )
 }
 
+/** 말씀 인용: 고른 역본의 검증된 본문만 쓴다(번역하지 않음) */
 function Q({ t, r }: { t: string; r: string }) {
-  return <blockquote><p>{t}</p><cite>{r} · 개역한글</cite></blockquote>
+  const v = shown({ text: t, ref: r }, useKjv())
+  return <blockquote lang={v.lang}><p>{v.text}</p><cite>{v.ref} · {v.ver}</cite></blockquote>
 }
 
 /** 앱 안 글: 온음을 만든 이유 (2026-11-20 확정본) */

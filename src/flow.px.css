@@ -824,3 +824,4 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .ly-note { font-size: 14px; color: var(--ink2); }
 .ly-file { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; border-radius: 26px; box-shadow: inset 0 0 0 1.5px var(--line); font-size: 15px; font-weight: 700; color: var(--ink); cursor: pointer; }
 .ly-file:focus-within { outline: 2px solid var(--now); outline-offset: 2px; }
+.seg2.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
