@@ -8,7 +8,7 @@ import { load, save } from '../lib/store'
 import { BARS, cachedShape, getShape, type Shape } from '../lib/shape'
 import type { Playlists } from '../lib/playlists'
 import { Icon, SAFE_VOLUME, clock, fromLine, info, minutesText, nf, outputIcon, outputLabel, secText, whoLine, type Vol } from './common'
-import { QueuePage, RepeatSheet, SpeedSheet } from './Sheets'
+import { QueuePage, RepeatSheet, SpeedSheet, TrimSheet } from './Sheets'
 
 /* ── 소리 모양 ── */
 export function ShapeBar({ t, time, duration, onSeek, ab, mark }: { t: Track; time: number; duration: number; onSeek?: (s: number) => void; ab?: AB | null; mark?: number | null }) {
@@ -94,9 +94,12 @@ interface Flow { rows: Row[]; more: string }
 function buildFlow(p: Player, now: number): Flow {
   const cur = p.current!
   const q = p.queueTracks
-  const dur = p.duration || cur.duration || 0
+  const bd = p.bounds(cur, p.duration)
+  const dur = bd.to || p.duration || cur.duration || 0
+  const loop = Math.max(1, dur - bd.from) // 한 곡 반복 한 바퀴 길이(시작·끝 지점 반영)
+  const len = (t: Track) => { const b = p.bounds(t); return b.to > 0 ? Math.max(0, b.to - b.from - p.xfade) : 0 }
   const known = dur > 0
-  const endCur = now + Math.max(0, dur - p.time) * 1000
+  const endCur = now + Math.max(0, dur - p.time - (p.repeat.scope === 'one' ? 0 : p.xfade)) * 1000
   const r = p.repeat
   const s = p.sleep
   const ci = info(cur)
@@ -116,14 +119,14 @@ function buildFlow(p: Player, now: number): Flow {
     const stopAt = Math.min(sleepAt, timedEnd)
     const finite = isFinite(stopAt) && known
     // 정해진 때 전에 시작하는 횟수
-    const n = finite ? Math.max(0, Math.ceil((stopAt - endCur) / (dur * 1000))) : 0
+    const n = finite ? Math.max(0, Math.ceil((stopAt - endCur) / (loop * 1000))) : 0
     const rows: Row[] = [{
       kind: 'rep', at: known ? endCur : null,
       title: r.limit === 'timed' ? `${ci.song} · ${minutesText(r.minutes)} 반복` : `${ci.song} · 한 곡 계속 반복`,
       sub: !finite ? '멈출 때까지 계속 들어요' : n ? `${sleepAt <= timedEnd ? '잠들기' : '정한 시간'} 전까지 약 ${n}번 더 들어요` : '이번이 마지막이에요',
     }]
     if (sleepAt <= timedEnd && s) rows.push(sleepRow(sleepAt))
-    else if (isFinite(timedEnd)) rows.push({ kind: 'stop', at: known ? endCur + n * dur * 1000 : null, title: '반복을 마치고 멈춰요', sub: '듣던 곡까지 듣고 멈춰요' })
+    else if (isFinite(timedEnd)) rows.push({ kind: 'stop', at: known ? endCur + n * loop * 1000 : null, title: '반복을 마치고 멈춰요', sub: '듣던 곡까지 듣고 멈춰요' })
     return { rows, more: listLabel }
   }
 
@@ -132,7 +135,7 @@ function buildFlow(p: Player, now: number): Flow {
   let at: number | null = known ? endCur : null
   for (let i = p.index + 1; i < q.length; i++) {
     ahead.push({ t: q[i], at, i })
-    at = at != null && q[i].duration > 0 ? at + q[i].duration * 1000 : null
+    at = at != null && len(q[i]) > 0 ? at + len(q[i]) * 1000 : null
   }
   const listEnd = at
   let wrap = false
@@ -232,7 +235,7 @@ function AbBar({ player }: { player: Player }) {
 }
 
 /** 멈췄을 때: 그 자리에서 다시 듣기(책갈피) · 그 자리부터 구간 반복 */
-function PausedBar({ player }: { player: Player }) {
+function PausedBar({ player, onTrim }: { player: Player; onTrim: () => void }) {
   const t = player.time
   return (
     <section className="abbar paused" aria-labelledby="pz-h">
@@ -246,6 +249,7 @@ function PausedBar({ player }: { player: Player }) {
         <button className="next" onClick={() => { player.setBookmark(t); player.play() }}>여기부터 다시 듣기<small>언제든 이 자리로 돌아와요</small></button>
         <button className="set" onClick={() => { player.abStart(); player.play() }}>여기부터 구간 반복<small>끝을 정해 그 사이만</small></button>
       </div>
+      <button className="textlink" onClick={onTrim}>이 곡을 늘 일정 부분만 듣기(시작·끝 지점)</button>
     </section>
   )
 }
@@ -263,6 +267,8 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
   const [repeatOpen, setRepeatOpen] = useState(false)
   const [queueOpen, setQueueOpen] = useState(false)
   const [speedOpen, setSpeedOpen] = useState(false)
+  const [trimOpen, setTrimOpen] = useState(false)
+  const closeTrim = useCallback(() => setTrimOpen(false), [])
   const [nearbyAsked, setNearbyAsked] = useState<boolean>(() => load('nearbyAsked', false))
   const closeSpeed = useCallback(() => setSpeedOpen(false), [])
   const closeRepeat = useCallback(() => setRepeatOpen(false), [])
@@ -351,7 +357,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
       <VolumeRow vol={vol} loud={loud} guide={!!output && output.kind !== 'speaker' && !output.car}
         onCar={output?.kind === 'bluetooth' && output.car === undefined && !nearbyAsked ? () => { save('nearbyAsked', true); setNearbyAsked(true); askNearby() } : undefined} />
 
-      {cur && player.ab ? <AbBar player={player} /> : cur && !player.playing && player.time > 0.5 && !(player.duration > 0 && player.time >= player.duration - 0.5) ? <PausedBar player={player} /> : (
+      {cur && player.ab ? <AbBar player={player} /> : cur && !player.playing && player.time > 0.5 && !(player.duration > 0 && player.time >= player.duration - 0.5) ? <PausedBar player={player} onTrim={() => setTrimOpen(true)} /> : (
       <section className="flow" aria-labelledby="flow-h">
         <div className="flow-h">
           {player.bookmark != null ? (
@@ -397,6 +403,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, onSleep }:
 
       {repeatOpen && <RepeatSheet player={player} onClose={closeRepeat} />}
       {speedOpen && <SpeedSheet player={player} onClose={closeSpeed} />}
+      {trimOpen && cur && <TrimSheet t={cur} player={player} onClose={closeTrim} />}
       {queueOpen && <QueuePage player={player} tracks={tracks} lists={lists} onClose={closeQueue} />}
     </div>
   )

@@ -7,7 +7,7 @@ import type { Playlists } from '../lib/playlists'
 import { Icon, Sheet, VirtualList, info, minutesText, nf, useLongPress } from './common'
 import { byLecture, lectureOf, natural } from '../lib/kind'
 import { load, save } from '../lib/store'
-import { ChooseListSheet, RepeatSheet } from './Sheets'
+import { ChooseListSheet, RepeatSheet, TrimSheet } from './Sheets'
 
 type By = 'program' | 'singer' | 'original' | 'folder'
 interface Group { by: By; name: string | null }
@@ -37,6 +37,8 @@ export function MusicScreen({ tracks: all, scan, player, lists, onPlayed, onKind
   const talks = useMemo(() => all.filter((t) => t.talk), [all])
   const [menu, setMenu] = useState<Track | null>(null)
   const [saveIds, setSaveIds] = useState<string[] | null>(null)
+  const [trimT, setTrimT] = useState<Track | null>(null)
+  const closeTrim = useCallback(() => setTrimT(null), [])
   const closeMenu = useCallback(() => setMenu(null), [])
   const closeSaveIds = useCallback(() => setSaveIds(null), [])
   const lp = useLongPress()
@@ -218,15 +220,16 @@ export function MusicScreen({ tracks: all, scan, player, lists, onPlayed, onKind
           const sel = pickedTracks()
           if (!sel.length) return
           player.setRepeat(r)
-          player.playFrom(sel, sel[0].id, 0, true)
+          player.playFrom(sel, sel[0].id, undefined, true)
           setPicked([])
           onPlayed()
         }} />
       )}
-      {menu && <ItemMenu t={menu} player={player} onClose={closeMenu} onKind={onKind}
+      {trimT && <TrimSheet t={trimT} player={player} onClose={closeTrim} />}
+      {menu && <ItemMenu t={menu} player={player} onClose={closeMenu} onKind={onKind} onTrim={() => setTrimT(menu)}
         onSave={() => setSaveIds([menu.id])} onPlay={() => {
           const list = menu.talk ? talks.filter((x) => x.folder === menu.folder).sort(byLecture) : tracks
-          player.playFrom(list, menu.id, 0, menu.talk)
+          player.playFrom(list, menu.id, menu.talk ? 0 : undefined, menu.talk)
           onPlayed()
         }} />}
       {saveIds && <ChooseListSheet lists={lists} ids={saveIds} onClose={closeSaveIds} onDone={(name) => setNote(`"${name}" 목록에 담았어요`)} />}
@@ -236,8 +239,8 @@ export function MusicScreen({ tracks: all, scan, player, lists, onPlayed, onKind
 }
 
 /** 길게 눌렀을 때 */
-function ItemMenu({ t, player, onClose, onKind, onSave, onPlay }: {
-  t: Track; player: Player; onClose: () => void; onKind: MoveKind; onSave: () => void; onPlay: () => void
+function ItemMenu({ t, player, onClose, onKind, onSave, onPlay, onTrim }: {
+  t: Track; player: Player; onClose: () => void; onKind: MoveKind; onSave: () => void; onPlay: () => void; onTrim: () => void
 }) {
   const x = info(t)
   const l = t.talk ? lectureOf(t) : null
@@ -253,6 +256,7 @@ function ItemMenu({ t, player, onClose, onKind, onSave, onPlay }: {
       <div className="menu">
         <button onClick={go(onPlay)}><Icon n="play" s={20} />처음부터 듣기</button>
         <button onClick={() => { onClose(); onSave() }}><Icon n="list" s={20} />목록에 담기</button>
+        <button onClick={() => { onClose(); onTrim() }}><Icon n="ab" s={20} />시작·끝 지점 정하기{player.trims[t.id] && <small className="num">{fmt(player.trims[t.id].s ?? 0)}~{player.trims[t.id].e != null ? fmt(player.trims[t.id].e!) : '끝'}</small>}</button>
         {t.talk && <button onClick={go(() => player.markDone(t.id, !done))}><Icon n={done ? 'undo' : 'check'} s={20} />{done ? '안 들은 것으로 되돌리기' : '다 들은 것으로 표시'}</button>}
         <button onClick={go(() => onKind(t, 'one', !t.talk))}><Icon n="move" s={20} />{where} 옮기기<small>{t.talk ? '강의가 아니에요' : '강의예요'}</small></button>
         {t.folder && <button onClick={go(() => onKind(t, 'folder', !t.talk))}><Icon n="move" s={20} /><span className="one">「{t.folder}」 폴더 모두 {where}</span></button>}

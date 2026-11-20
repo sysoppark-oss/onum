@@ -1,7 +1,9 @@
 // 반복 · 잠들기 · 밤 인사 · 재생 목록 · 곡 추가 · 목록 이름 · 목록 고르기
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Track } from '../lib/library'
-import { RATES, type Goodnight, type Player, type Repeat } from '../lib/usePlayer'
+import { RATES, XFADES, type Goodnight, type Player, type Repeat } from '../lib/usePlayer'
+import { fmt } from '../lib/library'
+import { ShapeBar } from './Now'
 import type { Playlists } from '../lib/playlists'
 import { matches } from '../lib/hangul'
 import { josa, parseTitle } from '../lib/title'
@@ -375,5 +377,66 @@ export function ChooseListSheet({ lists, ids, onClose, onDone }: { lists: Playli
       </div>
       {naming && <NameSheet onClose={closeNaming} onDone={(name) => { lists.create(name, ids); finish(name) }} />}
     </Sheet>
+  )
+}
+
+/* ───────── 곡별 시작·끝 지점 ───────── */
+export function TrimSheet({ t, player, onClose }: { t: Track; player: Player; onClose: () => void }) {
+  const isCur = player.current?.id === t.id
+  const dur = isCur && player.duration > 0 ? player.duration : t.duration
+  const tr = player.trims[t.id] || {}
+  const [s, setS] = useState(tr.s ?? 0)
+  const [e, setE] = useState(Math.min(tr.e ?? dur, dur))
+  const x = info(t)
+  const cs = (v: number) => setS(Math.max(0, Math.min(v, e - 2)))
+  const ce = (v: number) => setE(Math.min(dur, Math.max(v, s + 2)))
+  const whole = s <= 0.5 && e >= dur - 0.5
+  const row = (label: string, v: number, set: (v: number) => void) => (
+    <div className="trow">
+      <span>{label}<b className="num">{fmt(v)}</b></span>
+      <button className="num" onClick={() => set(v - 1)} aria-label={`${label} 1초 앞으로`}>−1초</button>
+      <button className="num" onClick={() => set(v + 1)} aria-label={`${label} 1초 뒤로`}>+1초</button>
+      {isCur && <button onClick={() => set(player.time)}>지금 자리</button>}
+    </div>
+  )
+  if (!dur) {
+    return (
+      <Sheet label="시작·끝 지점" onClose={onClose}>
+        <h2 className="q">시작·끝 지점</h2>
+        <p className="say">이 곡의 길이를 아직 몰라요. 한 번 틀고 나서 정해 주세요.</p>
+        <button className="go" onClick={onClose}>닫기</button>
+      </Sheet>
+    )
+  }
+  return (
+    <Sheet label="시작·끝 지점" onClose={onClose}>
+      <div>
+        <h2 className="q">시작·끝 지점 · {x.song}</h2>
+        <p className="say" role="status">{whole ? <>처음부터 끝까지 <b>다</b> 들어요.</> : <><em className="num">{fmt(s)}</em>부터 <em className="num">{fmt(e)}</em>까지 들어요.</>}</p>
+      </div>
+      <ShapeBar t={t} time={isCur ? player.time : s} duration={dur} ab={whole ? null : { a: s, b: e, n: 1 }} />
+      <div className="trows">
+        {row('시작', s, cs)}
+        {row('끝', e, ce)}
+      </div>
+      <p className="hint">이 곡을 틀 때마다 이 범위만 들어요. 녹음 앞뒤의 빈 소리는 따로 건너뛰어요(쉼 › 보기).</p>
+      <div className="nb">
+        <button className="ghost" onClick={() => { player.setTrim(t.id, null); onClose() }}>처음부터 끝까지</button>
+        <button className="go" onClick={() => { player.setTrim(t.id, { s: s > 0.5 ? s : undefined, e: e < dur - 0.5 ? e : undefined }); onClose() }}>저장</button>
+      </div>
+    </Sheet>
+  )
+}
+
+/* ───────── 곡 사이 넘김 ───────── */
+export function XfadeChips({ player }: { player: Player }) {
+  return (
+    <div className="chips4" role="radiogroup" aria-label="곡 사이 넘김">
+      {XFADES.map((v) => (
+        <button key={v} className={player.xfade === v ? 'on' : undefined} role="radio" aria-checked={player.xfade === v} onClick={() => player.setXfade(v)}>
+          {v ? `${v}초` : '끊김 없이'}
+        </button>
+      ))}
+    </div>
   )
 }

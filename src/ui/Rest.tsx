@@ -2,17 +2,22 @@
 import { useCallback, useState } from 'react'
 import { DAILY, today } from '../lib/verses'
 import { Icon } from './common'
-import { Page } from './Sheets'
+import { Page, XfadeChips } from './Sheets'
+import type { Player } from '../lib/usePlayer'
+import { Share } from '@capacitor/share'
+import { isNative } from '../lib/native'
 import type { Battery } from './Battery'
 import { EFFECTIVE, PRIVACY } from '../lib/privacy'
 
 const REPO = 'https://github.com/sysoppark-oss/onum'
 const MAIL = 'sysoppark@gmail.com'
 
-export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, norm, setNorm, verseMove, setVerseMove }: {
+export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verseMove, setVerseMove, player }: {
   easy: boolean; setEasy: (v: boolean) => void; onFolders?: () => void; battery: Battery; onBattery: () => void
-  norm: boolean; setNorm: (v: boolean) => void; verseMove: boolean; setVerseMove: (v: boolean) => void
+  verseMove: boolean; setVerseMove: (v: boolean) => void; player: Player
 }) {
+  const norm = player.normOn, setNorm = player.setNorm
+  const [shared, setShared] = useState('')
   const [about, setAbout] = useState(false)
   const [reading, setReading] = useState(false)
   const [privacy, setPrivacy] = useState(false)
@@ -54,6 +59,16 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, norm,
             <button className="sw" role="switch" aria-checked={norm} aria-labelledby="norm-l" onClick={() => setNorm(!norm)} />
           </div>
         </li>
+        <li>
+          <div className="lrow">
+            <span className="x"><span className="x1" id="sil-l">곡 앞뒤 빈 소리 건너뛰기</span><span className="x2">녹음 앞뒤의 조용한 부분을 건너뛰어요</span></span>
+            <button className="sw" role="switch" aria-checked={player.skipSilence} aria-labelledby="sil-l" onClick={() => player.setSkipSilence(!player.skipSilence)} />
+          </div>
+        </li>
+        <li className="setrow">
+          <span className="x"><span className="x1" id="xf-l">곡 사이 넘김</span><span className="x2">{player.xfade ? `앞 곡이 끝나기 ${player.xfade}초 전부터 다음 곡과 겹쳐요` : '빈틈 없이 바로 다음 곡으로 넘어가요'}</span></span>
+          <XfadeChips player={player} />
+        </li>
         {battery && (
           <li>
             <button className="lrow" onClick={onBattery}>
@@ -72,6 +87,8 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, norm,
         )}
       </ul>
 
+      <button className="sharebtn" onClick={async () => setShared(await shareApp())}><Icon n="heart" s={20} />이 앱 알려 주기</button>
+      {shared && <p className="done-note" role="status">{shared}</p>}
       <div className="whys">
         <button className="why" onClick={() => setAbout(true)}>온음이 무료인 이유 <Icon n="chev" s={16} /></button>
         <button className="why" onClick={() => setPrivacy(true)}>개인정보 처리방침 <Icon n="chev" s={16} /></button>
@@ -159,4 +176,18 @@ function PrivacyPage({ onClose }: { onClose: () => void }) {
       </article>
     </Page>
   )
+}
+
+const SHARE_TEXT = '광고 없는 무료 음악 플레이어 「온음」을 써 보세요.\n휴대폰(안드로이드): https://github.com/sysoppark-oss/onum/releases/download/test-build/onum-test.apk\n컴퓨터: https://sysoppark-oss.github.io/onum/'
+
+/** 휴대폰은 공유 창, 컴퓨터는 공유 창이 있으면 쓰고 없으면 글을 복사한다 */
+async function shareApp(): Promise<string> {
+  try {
+    if (isNative) { await Share.share({ title: '온음', text: SHARE_TEXT, dialogTitle: '온음 알려 주기' }); return '' }
+    if (navigator.share) { await navigator.share({ title: '온음', text: SHARE_TEXT }); return '' }
+    await navigator.clipboard.writeText(SHARE_TEXT)
+    return '알려 줄 글을 복사했어요. 메시지 창에 붙여 넣으세요.'
+  } catch {
+    return ''
+  }
 }

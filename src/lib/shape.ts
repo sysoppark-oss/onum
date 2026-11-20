@@ -10,6 +10,8 @@ export interface Shape {
   bars: number[] // 0~1
   hook: number | null // 가장 크게 이어지는 구간의 가운데(0~1). 후렴 '추정'
   lufs?: number | null // 곡 전체 소리 크기(ITU-R BS.1770 방식, 8kHz로 낮춰 잰 값)
+  head?: number // 앞쪽 무음(초)
+  tail?: number // 뒤쪽 무음(초)
 }
 
 const memo = new Map<string, Shape>()
@@ -19,7 +21,7 @@ export function cachedShape(t: Track): Shape | undefined {
   const hit = memo.get(t.id)
   if (hit) return hit
   const saved = load<Shape | null>('shape:' + t.id, null)
-  if (saved && saved.bars?.length === BARS && saved.lufs !== undefined) { memo.set(t.id, saved); return saved }
+  if (saved && saved.bars?.length === BARS && saved.lufs !== undefined && saved.head !== undefined) { memo.set(t.id, saved); return saved }
   return undefined
 }
 
@@ -48,7 +50,7 @@ async function analyze(t: Track): Promise<Shape | null> {
     const r = await nativeAnalyze(t.path, BARS)
     if (!r || r.rms.length !== BARS) return null
     const bars = toBars(r.rms)
-    const shape: Shape = { bars, hook: findHook(bars), lufs: r.lufs ?? null }
+    const shape: Shape = { bars, hook: findHook(bars), lufs: r.lufs ?? null, head: r.head ?? 0, tail: r.tail ?? 0 }
     memo.set(t.id, shape)
     save('shape:' + t.id, shape)
     return shape
@@ -78,7 +80,8 @@ async function analyze(t: Track): Promise<Shape | null> {
     raw.push(Math.sqrt(sum / Math.max(cnt, 1)))
   }
   const bars = toBars(raw)
-  const shape: Shape = { bars, hook: findHook(bars), lufs: loudness(chs, audio.sampleRate) }
+  const { head, tail } = silence(chs, audio.sampleRate)
+  const shape: Shape = { bars, hook: findHook(bars), lufs: loudness(chs, audio.sampleRate), head, tail }
   memo.set(t.id, shape)
   save('shape:' + t.id, shape)
   return shape
@@ -150,4 +153,21 @@ export const TARGET_LUFS = -16
 export function normGain(lufs: number | null | undefined): number {
   if (lufs == null) return 1
   return Math.max(Math.pow(10, -12 / 20), Math.min(1, Math.pow(10, (TARGET_LUFS - lufs) / 20)))
+}
+
+const QUIET = Math.pow(10, -55 / 20) // -55 dBFS보다 작으면 "조용함"
+
+/** 앞뒤 무음(초): 50ms 창마다 크기를 재서 처음·마지막으로 소리가 나는 창. 앞은 15초, 뒤는 20초까지만 */
+export function silence(chs: Float32Array[], fs: number): { head: number; tail: number } {
+  const win = Math.max(1, Math.round(fs / 20)), n = Math.floor(chs[0].length / win)
+  const loud = (w: number) => {
+    let s = 0
+    for (const c of chs) for (let i = w * win; i < (w + 1) * win; i++) s += c[i] * c[i]
+    return Math.sqrt(s / (win * chs.length)) > QUIET
+  }
+  let h = 0
+  while (h < n && h < 300 && !loud(h)) h++
+  let t = 0
+  while (t < n && t < 400 && !loud(n - 1 - t)) t++
+  return { head: h >= n ? 0 : h * 0.05, tail: t >= n ? 0 : t * 0.05 }
 }

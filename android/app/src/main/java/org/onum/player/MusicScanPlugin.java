@@ -266,81 +266,17 @@ public class MusicScanPlugin extends Plugin {
     }
 
     private JSObject runAnalyze(String path, int bars) throws Exception {
-        android.media.MediaExtractor ex = new android.media.MediaExtractor();
-        android.media.MediaCodec codec = null;
-        try {
-            ex.setDataSource(path);
-            int track = -1;
-            android.media.MediaFormat fmt = null;
-            for (int i = 0; i < ex.getTrackCount(); i++) {
-                android.media.MediaFormat f = ex.getTrackFormat(i);
-                String m = f.getString(android.media.MediaFormat.KEY_MIME);
-                if (m != null && m.startsWith("audio/")) { track = i; fmt = f; break; }
-            }
-            if (track < 0 || fmt == null) throw new Exception("no_audio");
-            ex.selectTrack(track);
-            long durUs = fmt.containsKey(android.media.MediaFormat.KEY_DURATION) ? fmt.getLong(android.media.MediaFormat.KEY_DURATION) : 0;
-            if (durUs <= 0) throw new Exception("no_duration");
-            int fs = fmt.getInteger(android.media.MediaFormat.KEY_SAMPLE_RATE);
-            int ch = fmt.getInteger(android.media.MediaFormat.KEY_CHANNEL_COUNT);
-            boolean isFloat = false;
-            codec = android.media.MediaCodec.createDecoderByType(fmt.getString(android.media.MediaFormat.KEY_MIME));
-            codec.configure(fmt, null, null, 0);
-            codec.start();
-            android.media.MediaCodec.BufferInfo info = new android.media.MediaCodec.BufferInfo();
+        try (Analyzer an = new Analyzer(path)) {
+            long durUs = an.durUs;
             long win = Math.max(200_000L, Math.min(1_000_000L, durUs / bars));
             double[] rms = new double[bars];
             Loudness loud = null;
             int loudFs = 0;
             for (int b = 0; b < bars; b++) {
                 long at = (long) ((b + 0.5) * durUs / bars) - win / 2;
-                if (at < 0) at = 0;
-                ex.seekTo(at, android.media.MediaExtractor.SEEK_TO_PREVIOUS_SYNC);
-                codec.flush();
-                float[] buf = new float[0];
-                int got = 0;
-                boolean inEos = false, outEos = false;
-                int guard = 0;
-                while (!outEos && guard++ < 600) {
-                    int cap = (int) (fs * ch * win / 1_000_000L);
-                    if (got >= cap && cap > 0) break;
-                    if (!inEos) {
-                        int ii = codec.dequeueInputBuffer(10_000);
-                        if (ii >= 0) {
-                            java.nio.ByteBuffer ib = codec.getInputBuffer(ii);
-                            int n = ib == null ? -1 : ex.readSampleData(ib, 0);
-                            if (n < 0) {
-                                codec.queueInputBuffer(ii, 0, 0, 0, android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM);
-                                inEos = true;
-                            } else {
-                                codec.queueInputBuffer(ii, 0, n, ex.getSampleTime(), 0);
-                                ex.advance();
-                            }
-                        }
-                    }
-                    int oi = codec.dequeueOutputBuffer(info, 10_000);
-                    if (oi == android.media.MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
-                        android.media.MediaFormat of = codec.getOutputFormat();
-                        if (of.containsKey(android.media.MediaFormat.KEY_SAMPLE_RATE)) fs = of.getInteger(android.media.MediaFormat.KEY_SAMPLE_RATE);
-                        if (of.containsKey(android.media.MediaFormat.KEY_CHANNEL_COUNT)) ch = of.getInteger(android.media.MediaFormat.KEY_CHANNEL_COUNT);
-                        if (of.containsKey(android.media.MediaFormat.KEY_PCM_ENCODING))
-                            isFloat = of.getInteger(android.media.MediaFormat.KEY_PCM_ENCODING) == android.media.AudioFormat.ENCODING_PCM_FLOAT;
-                    } else if (oi >= 0) {
-                        java.nio.ByteBuffer ob = codec.getOutputBuffer(oi);
-                        if (ob != null && info.size > 0 && info.presentationTimeUs >= at - 50_000) {
-                            ob.position(info.offset);
-                            ob.limit(info.offset + info.size);
-                            java.nio.ByteBuffer o2 = ob.slice().order(java.nio.ByteOrder.nativeOrder());
-                            int n = isFloat ? info.size / 4 : info.size / 2;
-                            if (got + n > buf.length) buf = java.util.Arrays.copyOf(buf, Math.max(got + n, buf.length * 2));
-                            if (isFloat) { java.nio.FloatBuffer fb = o2.asFloatBuffer(); for (int k = 0; k < n; k++) buf[got++] = fb.get(k); }
-                            else { java.nio.ShortBuffer sb = o2.asShortBuffer(); for (int k = 0; k < n; k++) buf[got++] = sb.get(k) / 32768f; }
-                        }
-                        codec.releaseOutputBuffer(oi, false);
-                        if ((info.flags & android.media.MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0) outEos = true;
-                    }
-                }
-                int frames = ch > 0 ? got / ch : 0;
+                float[] buf = an.decode(Math.max(0, at), win);
+                int ch = Math.max(1, an.ch), fs = an.fs;
+                int frames = buf.length / ch;
                 if (frames == 0) continue;
                 double[][] chs = new double[ch][frames];
                 double sum = 0;
@@ -354,16 +290,27 @@ public class MusicScanPlugin extends Plugin {
                 if (loud == null) { loud = new Loudness(fs); loudFs = fs; }
                 if (fs == loudFs) loud.add(chs, fs / 20);
             }
+            // 앞뒤 무음: 처음 15초, 마지막 20초
+            double head = 0, tail = 0;
+            float[] h = an.decode(0, 15_000_000L);
+            int hw = an.loudWindow(h, true);
+            if (hw > 0) head = hw * 0.05;
+            long tailFrom = Math.max(0, durUs - 20_000_000L);
+            float[] t = an.decode(tailFrom, durUs - tailFrom + 1_000_000L);
+            int tw = an.loudWindow(t, false);
+            if (tw >= 0) {
+                int wins = t.length / (Math.max(1, an.fs / 20) * Math.max(1, an.ch));
+                tail = Math.max(0, (wins - 1 - tw) * 0.05);
+            }
             JSArray arr = new JSArray();
             for (double v : rms) arr.put(v);
             JSObject o = new JSObject();
             o.put("rms", arr);
             double l = loud == null ? Double.NaN : loud.integrated();
             if (!Double.isNaN(l)) o.put("lufs", l);
+            o.put("head", head);
+            o.put("tail", tail);
             return o;
-        } finally {
-            if (codec != null) { try { codec.stop(); } catch (Exception ignored) {} try { codec.release(); } catch (Exception ignored) {} }
-            ex.release();
         }
     }
 
