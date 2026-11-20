@@ -10,7 +10,7 @@ import { josa, parseTitle } from '../lib/title'
 import { load, save } from '../lib/store'
 import { getShape } from '../lib/shape'
 import { NIGHT } from '../lib/verses'
-import { useKjv } from '../lib/kjv'
+import { shown, useKjv } from '../lib/kjv'
 import { Icon, Layer, Sheet, VirtualList, useLongPress, useSwipeClose, clock, info, minutesText, nf, useDialog, whoLine } from './common'
 
 const PRESETS = [15, 30, 60, 120]
@@ -232,16 +232,15 @@ export function SleepSheet({ player, onClose }: { player: Player; onClose: () =>
 export function GoodnightScreen({ g, onClose, onResume }: { g: Goodnight; onClose: () => void; onResume: () => void }) {
   const box = useDialog(onClose)
   const song = g.title ? parseTitle(g.title).song : ''
-  const kjv = useKjv()
+  const nv = shown(NIGHT, useKjv())
   return (
     <Layer>
     <div ref={box} tabIndex={-1} className="goodnight" data-theme="night" role="dialog" aria-modal="true" aria-labelledby="gn-h">
       <p className="nt num">{clock(g.at)}{song && ` · ${josa(song, '을', '를')} 마지막으로 멈췄어요`}</p>
       <div className="nv">
         <h2 className="nh" id="gn-h">평안한 밤 되세요</h2>
-        <p className="nw">{NIGHT.text}</p>
-        <p className="wr">{NIGHT.ref} · 개역한글</p>
-        {kjv && <><p className="nw-en" lang="en">{NIGHT.en}</p><p className="wr" lang="en">{NIGHT.enRef} · KJV</p></>}
+        <p className="nw" lang={nv.lang}>{nv.text}</p>
+        <p className="wr">{nv.ref} · {nv.ver}</p>
       </div>
       <div className="nb">
         <button className="ghost" onClick={onResume}>이어서 듣기</button>

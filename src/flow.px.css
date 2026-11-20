@@ -603,6 +603,4 @@ label.pick:focus-within { outline: 3px solid var(--now); outline-offset: 2px; }
 .pl li.setrow .x { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 
 /* 영어 말씀(KJV) */
-.read-en { margin-top: 18px; font-size: 18px; line-height: 1.6; font-weight: 500; color: var(--ink2); font-family: Georgia, 'Times New Roman', serif; }
-.nw-en { margin-top: 14px; font-size: 16px; line-height: 1.6; color: var(--ink2); font-family: Georgia, 'Times New Roman', serif; }
-.wn-q .q-en { margin-top: 6px; font-size: 16px; font-weight: 500; color: var(--ink2); font-family: Georgia, 'Times New Roman', serif; }
+[lang=en].nw, .read [lang=en], .wn-q.en-v p, .vstrip [lang=en], .name[lang=en] { font-family: Georgia, 'Times New Roman', serif; }

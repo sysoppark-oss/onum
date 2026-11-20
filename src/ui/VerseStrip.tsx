@@ -3,11 +3,12 @@
 // 흘려 보내기를 끄거나(쉼 › 보기) 휴대폰의 움직임 줄이기가 켜져 있으면 멈춘 채 전체를 보여 준다.
 import { useEffect, useRef, useState } from 'react'
 import { today } from '../lib/verses'
+import { shown, useKjv } from '../lib/kjv'
 
 const SPEED = 36 // 1초에 움직이는 거리(px). 어르신이 따라 읽을 수 있는 빠르기
 
 export function VerseStrip({ moving, onOpen }: { moving: boolean; onOpen: () => void }) {
-  const v = today()
+  const v = shown(today(), useKjv())
   const one = useRef<HTMLSpanElement>(null)
   const [dur, setDur] = useState(30)
   const [held, setHeld] = useState(false)
@@ -35,11 +36,11 @@ export function VerseStrip({ moving, onOpen }: { moving: boolean; onOpen: () => 
       onClick={(e) => { if (e.detail === 0 || Date.now() - downAt.current < 450) onOpen() }}
       onPointerDown={() => { downAt.current = Date.now(); setHeld(true) }} onPointerUp={() => setHeld(false)} onPointerCancel={() => setHeld(false)} onPointerLeave={() => setHeld(false)}
       onFocus={() => { downAt.current = 0; setHeld(true) }} onBlur={() => setHeld(false)}
-      aria-label={`오늘의 말씀: ${v.text}, ${v.ref} 개역한글. 누르면 크게 봐요`}>
+      aria-label={`오늘의 말씀: ${v.text}, ${v.ref} ${v.ver}. 누르면 크게 봐요`}>
       {run ? (
         <span className="vs-track" aria-hidden="true" style={{ animationDuration: `${dur}s`, animationPlayState: held ? 'paused' : 'running' }}>
-          <span ref={one} className="vs-one">{piece}</span>
-          <span className="vs-one">{piece}</span>
+          <span ref={one} className="vs-one" lang={v.lang}>{piece}</span>
+          <span className="vs-one" lang={v.lang}>{piece}</span>
         </span>
       ) : (
         <span className="vs-t still" aria-hidden="true">{v.text}<span className="vs-r"> · {v.ref}</span></span>

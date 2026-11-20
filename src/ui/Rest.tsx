@@ -2,7 +2,7 @@
 import { CURRENT } from '../lib/version'
 import { useCallback, useState } from 'react'
 import { DAILY, today } from '../lib/verses'
-import { setKjv, useKjv } from '../lib/kjv'
+import { setKjv, shown, useKjv } from '../lib/kjv'
 import { Icon } from './common'
 import { Page, XfadeChips } from './Sheets'
 import type { Player } from '../lib/usePlayer'
@@ -56,10 +56,11 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
             <button className="sw" role="switch" aria-checked={verseMove} aria-labelledby="vm-l" onClick={() => setVerseMove(!verseMove)} />
           </div>
         </li>
-        <li>
-          <div className="lrow">
-            <span className="x"><span className="x1" id="kjv-l">영어 말씀 함께 보기</span><span className="x2">말씀 천천히 보기·밤 인사에 KJV를 함께</span></span>
-            <button className="sw" role="switch" aria-checked={kjv} aria-labelledby="kjv-l" onClick={() => setKjv(!kjv)} />
+        <li className="setrow">
+          <span className="x"><span className="x1" id="kjv-l">말씀 역본</span><span className="x2">{kjv ? '영어 흠정역(KJV)으로 보여요' : '한글 개역한글로 보여요'}</span></span>
+          <div className="seg2 ver" role="radiogroup" aria-labelledby="kjv-l">
+            <button role="radio" aria-checked={!kjv} className={!kjv ? 'on' : undefined} onClick={() => setKjv(false)}>개역한글</button>
+            <button role="radio" aria-checked={kjv} className={kjv ? 'on' : undefined} onClick={() => setKjv(true)} lang="en">KJV</button>
           </div>
         </li>
         <li>
@@ -114,14 +115,13 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
 export function ReadPage({ onClose }: { onClose: () => void }) {
   const start = Math.max(0, DAILY.findIndex((d) => d.ref === today().ref))
   const [i, setI] = useState(start)
-  const v = DAILY[i]
-  const kjv = useKjv()
+  const v0 = DAILY[i]
+  const v = shown(v0, useKjv())
   return (
     <Page label="말씀 천천히 보기" onClose={onClose}>
       <div className="read">
-        <p className="read-w" aria-live="polite">{v.text}</p>
-        <p className="wr">{v.ref} · 개역한글</p>
-        {kjv && v.en && <><p className="read-en" lang="en">{v.en}</p><p className="wr" lang="en">{v.enRef} · KJV</p></>}
+        <p className="read-w" aria-live="polite" lang={v.lang}>{v.text}</p>
+        <p className="wr">{v.ref} · {v.ver}</p>
       </div>
       <div className="nb">
         <button className="ghost" onClick={() => setI((i + DAILY.length - 1) % DAILY.length)}>앞 말씀</button>

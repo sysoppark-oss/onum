@@ -4,6 +4,7 @@ import { scanFiles, type ScanResult, type Track } from '../lib/library'
 import { isNative, scanDevice } from '../lib/native'
 import { load, save } from '../lib/store'
 import { NAME } from '../lib/verses'
+import { shown, useKjv } from '../lib/kjv'
 import { classify, loadOverrides } from '../lib/kind'
 import { Icon, nf } from './common'
 import { Page } from './Sheets'
@@ -12,7 +13,8 @@ import { Page } from './Sheets'
 export const isPC = !isNative && window.matchMedia('(pointer: fine) and (min-width: 700px)').matches
 
 function NameLine() {
-  return <p className="name">온음 · {NAME.text} <span>({NAME.ref})</span></p>
+  const v = shown(NAME, useKjv())
+  return <p className="name" lang={v.lang}>온음 · {v.text} <span>({v.ref})</span></p>
 }
 
 /** 폴더마다 곡 수, 고르기 */
