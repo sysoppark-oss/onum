@@ -260,6 +260,30 @@ export function usePlayer(tracks: Track[]) {
     }
   }, [onEnded])
 
+  // 화면을 실제 재생과 맞춘다. 블루투스·차량 연결, 내비 안내 같은 소리 끼어들기 뒤에
+  // 재생기 알림(timeupdate·play)이 빠지는 휴대폰이 있어, 알림에만 기대지 않고 0.5초마다 직접 읽는다.
+  useEffect(() => {
+    const a = audio.current
+    const sync = () => {
+      if (!a.src) return
+      const on = !a.paused && !a.ended
+      setPlaying((p) => (p === on ? p : on))
+      setTime((t) => (Math.abs(t - a.currentTime) < 0.2 ? t : a.currentTime))
+      if (a.duration && isFinite(a.duration)) setDuration((d) => (d === a.duration ? d : a.duration))
+    }
+    const h = setInterval(sync, 500)
+    const vis = () => { if (document.visibilityState === 'visible') sync() }
+    document.addEventListener('visibilitychange', vis)
+    a.addEventListener('playing', sync)
+    a.addEventListener('durationchange', sync)
+    return () => {
+      clearInterval(h)
+      document.removeEventListener('visibilitychange', vis)
+      a.removeEventListener('playing', sync)
+      a.removeEventListener('durationchange', sync)
+    }
+  }, [])
+
   // 이어 듣기: 5초마다 위치 저장
   useEffect(() => {
     if (!current) return
@@ -300,8 +324,9 @@ export function usePlayer(tracks: Track[]) {
       album: current.album,
       artwork: current.art ? [{ src: current.art }] : [],
     })
-    navigator.mediaSession.setActionHandler('play', toggle)
-    navigator.mediaSession.setActionHandler('pause', toggle)
+    // 차·이어폰 버튼: '재생'은 늘 재생, '멈춤'은 늘 멈춤(뒤집기로 하면 이미 재생 중일 때 '재생'이 멈춰 버린다)
+    navigator.mediaSession.setActionHandler('play', () => { audio.current.play().then(() => setPlaying(true)).catch(() => {}) })
+    navigator.mediaSession.setActionHandler('pause', () => { audio.current.pause(); setPlaying(false) })
     navigator.mediaSession.setActionHandler('nexttrack', () => go(1))
     navigator.mediaSession.setActionHandler('previoustrack', () => go(-1))
   }, [current, toggle, go])
