@@ -1,5 +1,6 @@
 // 편집곡을 진짜 음악 파일로. 설치형 앱은 휴대폰이 AAC(.m4a)로 만들어 「음악/온음」에 넣고,
 // PC(웹)에서는 브라우저가 풀어 이어 붙인 뒤 WAV로 내려받는다.
+import { tx } from "./i18n";
 import type { Track } from './library'
 import { isNative, nativeExport } from './native'
 
@@ -33,7 +34,7 @@ export async function exportEdit(parts: ExportPart[], name: string, onProgress: 
   }
   const wav = toWav(L.subarray(0, at), R.subarray(0, at))
   onProgress(1)
-  const safe = name.replace(/[\\/:*?"<>|]/g, ' ').trim() || '온음 편집곡'
+  const safe = name.replace(/[\\/:*?"<>|]/g, ' ').trim() || tx("온음 편집곡")
   const url = URL.createObjectURL(new Blob([wav], { type: 'audio/wav' }))
   return { where: `${safe}.wav`, url, file: `${safe}.wav` }
 }

@@ -1,3 +1,4 @@
+import { tx } from './i18n'
 // 방송 녹음 파일의 긴 제목을 곡·부른 사람·원곡·프로그램으로 나눈다.
 // 예: "[우리들의 발라드] 김수아🎵사랑이란_윤상 ｜ 261026 4회"
 //   → 곡 "사랑이란", 부른 사람 "김수아", 원곡 "윤상", 프로그램 "우리들의 발라드", 회차 "4회"
@@ -32,7 +33,7 @@ export function parseTitle(title: string, artist = ''): Parsed {
   const pipe = s.match(PIPE)
   if (pipe) {
     const ep = pipe[1].match(EPISODE)
-    if (ep) episode = `${ep[1]}회`
+    if (ep) episode = tx('{0}회', ep[1])
     s = s.slice(0, pipe.index).trim()
   }
 

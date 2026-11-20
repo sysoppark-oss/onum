@@ -1,4 +1,6 @@
 // 감상 기록: 날마다 얼마나 들었는지, 어떤 곡을 들었는지. 이 휴대폰 안에만 저장한다.
+import { tx } from "./i18n";
+
 // days['2026-11-20'] = { t: 초, s: { 곡 id: 초 } }
 import { load, save } from './store'
 
@@ -68,10 +70,10 @@ export function topSongs(keys: string[], n = 5): { id: string; sec: number }[] {
 /** "3시간 20분", "45분", "1분 미만" */
 export function hm(sec: number): string {
   const m = Math.floor(sec / 60)
-  if (m < 1) return '1분 미만'
+  if (m < 1) return tx("1분 미만")
   const h = Math.floor(m / 60)
   const r = m % 60
-  return h ? (r ? `${h}시간 ${r}분` : `${h}시간`) : `${r}분`
+  return h ? (r ? tx("{0}시간 {1}분", h, r) : tx("{0}시간", h)) : tx("{0}분", r)
 }
 
 if (typeof window !== 'undefined') {

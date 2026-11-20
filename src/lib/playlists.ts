@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { load, save } from './store'
+import { tx } from "./i18n";
 
 /** 내가 만든 목록(플레이리스트). 곡은 번호(id)로만 기억하고 이 기기에만 저장한다. */
 /** 목록 안에서 곡에 붙이는 색 */
 export type Tag = 'green' | 'orange' | 'purple' | 'pink'
 export const TAGS: { k: Tag; name: string }[] = [
-  { k: 'green', name: '초록' }, { k: 'orange', name: '주황' }, { k: 'purple', name: '보라' }, { k: 'pink', name: '분홍' },
+  { k: 'green', name: tx("초록") }, { k: 'orange', name: tx("주황") }, { k: 'purple', name: tx("보라") }, { k: 'pink', name: tx("분홍") },
 ]
 export const tagName = (k?: Tag) => TAGS.find((x) => x.k === k)?.name ?? ''
 export interface Playlist { id: string; name: string; ids: string[]; memo?: string; tags?: Record<string, Tag> }

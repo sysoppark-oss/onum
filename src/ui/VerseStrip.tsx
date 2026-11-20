@@ -1,6 +1,7 @@
 // 「지금」 아래 탭 바로 위: 오늘의 말씀이 끊기지 않고 오른쪽에서 왼쪽으로 천천히 흘러간다.
 // 같은 글을 두 번 이어 붙여 한 바퀴가 이음매 없이 돌아간다. 누르고 있으면 멈추고, 누르면 크게 본다.
 // 흘려 보내기를 끄거나(쉼 › 보기) 휴대폰의 움직임 줄이기가 켜져 있으면 멈춘 채 전체를 보여 준다.
+import { tx } from "../lib/i18n";
 import { useEffect, useRef, useState } from 'react'
 import { today } from '../lib/verses'
 import { shown, useKjv } from '../lib/kjv'
@@ -36,7 +37,7 @@ export function VerseStrip({ moving, onOpen }: { moving: boolean; onOpen: () => 
       onClick={(e) => { if (e.detail === 0 || Date.now() - downAt.current < 450) onOpen() }}
       onPointerDown={() => { downAt.current = Date.now(); setHeld(true) }} onPointerUp={() => setHeld(false)} onPointerCancel={() => setHeld(false)} onPointerLeave={() => setHeld(false)}
       onFocus={() => { downAt.current = 0; setHeld(true) }} onBlur={() => setHeld(false)}
-      aria-label={`오늘의 말씀: ${v.text}, ${v.ref} ${v.ver}. 누르면 크게 봐요`}>
+      aria-label={tx("오늘의 말씀: {0}, {1} {2}. 누르면 크게 봐요", v.text, v.ref, v.ver)}>
       {run ? (
         <span className="vs-track" aria-hidden="true" style={{ animationDuration: `${dur}s`, animationPlayState: held ? 'paused' : 'running' }}>
           <span ref={one} className="vs-one" lang={v.lang}>{piece}</span>

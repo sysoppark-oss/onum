@@ -6,6 +6,7 @@ import { MOODS, YEAR } from '../lib/verses365'
 import { dayIndex } from '../lib/verses'
 import { shown, useKjv } from '../lib/kjv'
 import { load, save } from '../lib/store'
+import { tx } from "../lib/i18n";
 import { Icon, Layer, info, useDialog, useSwipeClose } from './common'
 
 const GAPS = [20, 40, 60] // 초
@@ -61,16 +62,16 @@ export function MeditatePage({ player, music, onClose }: { player: Player; music
     if (!player.shuffle) player.toggleShuffle()
     player.playFrom(music, music[Math.floor(Math.random() * music.length)].id)
   }
-  const moodLabel = mood ? MOODS.find((m) => m.id === mood)?.name ?? '' : '오늘부터 차례로'
+  const moodLabel = mood ? tx(MOODS.find((m) => m.id === mood)?.name ?? '') : tx("오늘부터 차례로")
   const nextGap = () => { const n = GAPS[(GAPS.indexOf(gap) + 1) % GAPS.length]; setGap(n); save('medGap', n) }
 
   return (
     <Layer>
-      <div ref={box} tabIndex={-1} className="layer med" role="dialog" aria-modal="true" aria-label="묵상">
+      <div ref={box} tabIndex={-1} className="layer med" role="dialog" aria-modal="true" aria-label={tx("묵상")}>
         <div className="med-top">
-          <button className="back" onClick={onClose} aria-label="묵상 마치기"><Icon n="back" s={26} /></button>
+          <button className="back" onClick={onClose} aria-label={tx("묵상 마치기")}><Icon n="back" s={26} /></button>
           <button className="med-chip" onClick={() => setPicking(true)} aria-haspopup="dialog">{moodLabel}</button>
-          <button className="med-chip num" onClick={nextGap} aria-label={`${gap}초마다 바뀌어요. 눌러서 바꾸기`}>{gap}초마다</button>
+          <button className="med-chip num" onClick={nextGap} aria-label={tx("{0}초마다 바뀌어요. 눌러서 바꾸기", gap)}>{gap}{tx("초마다")}</button>
         </div>
 
         <figure className="med-v" key={`${mood}-${i}`} lang={v.lang}
@@ -79,38 +80,38 @@ export function MeditatePage({ player, music, onClose }: { player: Player; music
           <figcaption className="med-r">{v.ref} · {v.ver}</figcaption>
         </figure>
         <div className="med-bar" aria-hidden="true"><i style={{ transform: `scaleX(${(gap - left) / gap})` }} /></div>
-        <p className="med-hint">{hold ? '손을 떼면 다시 흘러요' : '누르고 있으면 이 말씀에 머물러요'}</p>
+        <p className="med-hint">{hold ? tx("손을 떼면 다시 흘러요") : tx("누르고 있으면 이 말씀에 머물러요")}</p>
 
         <div className="med-nav">
-          <button className="ghost" onClick={() => go(-1)}>앞 말씀</button>
-          <button className="ghost" onClick={() => go(1)}>다음 말씀</button>
+          <button className="ghost" onClick={() => go(-1)}>{tx("앞 말씀")}</button>
+          <button className="ghost" onClick={() => go(1)}>{tx("다음 말씀")}</button>
         </div>
 
         <div className="med-music">
           {cur && p ? (
             <>
-              <span className="x"><span className="x1">{p.song}</span><span className="x2">{player.playing ? '함께 흐르는 음악' : '멈춘 음악'}</span></span>
-              <button className="mini-play" onClick={player.toggle} aria-label={player.playing ? '음악 일시 정지' : '음악 재생'}><Icon n={player.playing ? 'pause' : 'play'} s={22} /></button>
+              <span className="x"><span className="x1">{p.song}</span><span className="x2">{player.playing ? tx("함께 흐르는 음악") : tx("멈춘 음악")}</span></span>
+              <button className="mini-play" onClick={player.toggle} aria-label={player.playing ? tx("음악 일시 정지") : tx("음악 재생")}><Icon n={player.playing ? 'pause' : 'play'} s={22} /></button>
             </>
           ) : (
             <>
-              <span className="x"><span className="x1">음악 없이 묵상하는 중</span><span className="x2">음악을 틀면 함께 흘러요</span></span>
-              <button className="pillbtn small" onClick={startMusic} disabled={!music.length}>섞어 듣기</button>
+              <span className="x"><span className="x1">{tx("음악 없이 묵상하는 중")}</span><span className="x2">{tx("음악을 틀면 함께 흘러요")}</span></span>
+              <button className="pillbtn small" onClick={startMusic} disabled={!music.length}>{tx("섞어 듣기")}</button>
             </>
           )}
         </div>
 
         {picking && <div className="med-dim" onClick={() => setPicking(false)} aria-hidden="true" />}
         {picking && (
-          <div className="med-pick" role="dialog" aria-modal="true" aria-label="어떤 말씀으로 묵상할까요">
-            <h3>어떤 말씀으로 묵상할까요</h3>
+          <div className="med-pick" role="dialog" aria-modal="true" aria-label={tx("어떤 말씀으로 묵상할까요")}>
+            <h3>{tx("어떤 말씀으로 묵상할까요")}</h3>
             <div className="mchips">
-              <button className={!mood ? 'on' : undefined} aria-pressed={!mood} onClick={() => { setMood(''); save('medMood', ''); setPicking(false) }}>오늘부터 차례로</button>
+              <button className={!mood ? 'on' : undefined} aria-pressed={!mood} onClick={() => { setMood(''); save('medMood', ''); setPicking(false) }}>{tx("오늘부터 차례로")}</button>
               {MOODS.map((m) => (
-                <button key={m.id} className={mood === m.id ? 'on' : undefined} aria-pressed={mood === m.id} onClick={() => { setMood(m.id); save('medMood', m.id); setPicking(false) }}>{m.name}</button>
+                <button key={m.id} className={mood === m.id ? 'on' : undefined} aria-pressed={mood === m.id} onClick={() => { setMood(m.id); save('medMood', m.id); setPicking(false) }}>{tx(m.name)}</button>
               ))}
             </div>
-            <button className="go" onClick={() => setPicking(false)}>닫기</button>
+            <button className="go" onClick={() => setPicking(false)}>{tx("닫기")}</button>
           </div>
         )}
       </div>

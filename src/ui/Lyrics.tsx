@@ -1,5 +1,6 @@
 // 가사: 붙여 넣기 → 박자 맞추기(줄이 시작될 때 누르기) → 노래방처럼 따라가기.
 // 인터넷에서 가사를 가져오지 않는다. 이 휴대폰 안에만 저장한다.
+import { rt } from './rich'
 import { useEffect, useRef, useState } from 'react'
 import type { Track } from '../lib/library'
 import type { Player } from '../lib/usePlayer'
@@ -7,6 +8,7 @@ import { findLyrics, fromPasted, lineAt, linesOf, setLyrics, synced, toLrc, useL
 import { isNative } from '../lib/native'
 import { Share } from '@capacitor/share'
 import { fmt } from '../lib/library'
+import { tx } from "../lib/i18n";
 import { Icon, info } from './common'
 import { Page } from './Sheets'
 
@@ -29,8 +31,8 @@ export function LyricsPage({ t, player, onClose }: { t: Track; player: Player; o
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const isCur = !!player.current && (player.current.src ?? player.current.id) === (t.src ?? t.id)
   return (
-    <Page label={`가사 · ${x.song}`} onClose={onClose}>
-      {mode === 'find' && <p className="ly-finding" role="status">음악 파일에 든 가사를 찾고 있어요…</p>}
+    <Page label={tx("가사 · {0}", x.song)} onClose={onClose}>
+      {mode === 'find' && <p className="ly-finding" role="status">{tx("음악 파일에 든 가사를 찾고 있어요…")}</p>}
       {mode === 'edit' && <EditLyrics t={t} ly={ly} onDone={(next) => setMode(next)} />}
       {mode === 'sync' && ly && <SyncLyrics t={t} ly={ly} player={player} onDone={() => setMode('view')} />}
       {mode === 'view' && ly && <ViewLyrics t={t} ly={ly} player={player} isCur={isCur} found={found} onEdit={() => setMode('edit')} onSync={() => setMode('sync')} />}
@@ -58,18 +60,18 @@ function EditLyrics({ t, ly, onDone }: { t: Track; ly: Lyrics | null; onDone: (m
   }
   return (
     <div className="ly-edit">
-      <p className="say">가사를 <b>붙여 넣어</b> 주세요. 시각이 붙은 LRC 가사를 넣으면 박자도 함께 맞춰져요.</p>
-      <textarea ref={box} className="ly-ta" value={v} onChange={(e) => setV(e.target.value)} aria-label="가사" placeholder={'예)\n사랑이란 말은 너무 흔해\n하지만 오늘은 말할게'} spellCheck={false} />
-      <p className="hint num">{n ? `${n}줄 · ` : ''}가사는 이 휴대폰 안에만 저장되고 어디로도 보내지 않아요.</p>
+      <p className="say">{rt("가사를 **붙여 넣어** 주세요. 시각이 붙은 LRC 가사를 넣으면 박자도 함께 맞춰져요.")}</p>
+      <textarea ref={box} className="ly-ta" value={v} onChange={(e) => setV(e.target.value)} aria-label={tx("가사")} placeholder={tx("예)\n사랑이란 말은 너무 흔해\n하지만 오늘은 말할게")} spellCheck={false} />
+      <p className="hint num">{n ? tx("{0}줄 · ", n) : ''}{tx("가사는 이 휴대폰 안에만 저장되고 어디로도 보내지 않아요.")}</p>
       <div className="nb">
-        <button className="ghost" onClick={() => keep('view')} disabled={!v.trim()}>저장</button>
-        <button className="go" onClick={() => keep('sync')} disabled={!v.trim()}>박자 맞추기</button>
+        <button className="ghost" onClick={() => keep('view')} disabled={!v.trim()}>{tx("저장")}</button>
+        <button className="go" onClick={() => keep('sync')} disabled={!v.trim()}>{tx("박자 맞추기")}</button>
       </div>
       <label className="ly-file">
         <input type="file" className="sr" accept=".lrc,.txt,text/plain" onChange={(e) => fromFile(e.target.files?.[0])} />
-        <Icon n="folder" s={18} /><span>가사 파일(.lrc) 가져오기</span>
+        <Icon n="folder" s={18} /><span>{tx("가사 파일(.lrc) 가져오기")}</span>
       </label>
-      {ly && <button className="textlink ly-del" onClick={() => { setLyrics(t, null); setV('') }}>이 곡 가사 지우기</button>}
+      {ly && <button className="textlink ly-del" onClick={() => { setLyrics(t, null); setV('') }}>{tx("이 곡 가사 지우기")}</button>}
     </div>
   )
 }
@@ -109,18 +111,18 @@ function SyncLyrics({ t, ly, player, onDone }: { t: Track; ly: Lyrics; player: P
   const after = real[k + 1] != null ? lines[real[k + 1]] : ''
   return (
     <div className="ly-sync">
-      <p className="hint num">{k + 1} / {real.length}줄 · <span>{fmt(player.time)}</span></p>
+      <p className="hint num">{k + 1} / {real.length}{tx("줄 · ")}<span>{fmt(player.time)}</span></p>
       <div className="ly-cards" aria-live="polite">
         <p className="ly-prev">{prev || ' '}</p>
         <p className="ly-cur">{cur}</p>
         <p className="ly-after">{after || ' '}</p>
       </div>
-      <button className="ly-tap" onClick={tap}>이 줄이 시작될 때 누르기</button>
+      <button className="ly-tap" onClick={tap}>{tx("이 줄이 시작될 때 누르기")}</button>
       <div className="nb">
-        <button className="ghost" onClick={back} disabled={k === 0}>한 줄 되돌리기</button>
-        <button className="ghost" onClick={() => { save(false); onDone() }}>여기까지 저장</button>
+        <button className="ghost" onClick={back} disabled={k === 0}>{tx("한 줄 되돌리기")}</button>
+        <button className="ghost" onClick={() => { save(false); onDone() }}>{tx("여기까지 저장")}</button>
       </div>
-      <p className="hint">노래를 들으며 줄이 시작되는 순간 큰 버튼을 누르세요. 틀리면 되돌리면 돼요.</p>
+      <p className="hint">{tx("노래를 들으며 줄이 시작되는 순간 큰 버튼을 누르세요. 틀리면 되돌리면 돼요.")}</p>
     </div>
   )
 }
@@ -138,7 +140,7 @@ function ViewLyrics({ t, ly, player, isCur, found, onEdit, onSync }: { t: Track;
   const exportLrc = () => {
     const x = info(t)
     const text = toLrc(ly, x.song, x.singer || t.artist)
-    if (isNative) { Share.share({ title: `${x.song} 가사`, text }).catch(() => {}); return }
+    if (isNative) { Share.share({ title: tx("{0} 가사", x.song), text }).catch(() => {}); return }
     const a = document.createElement('a')
     a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
     a.download = `${x.song}.lrc`
@@ -148,11 +150,11 @@ function ViewLyrics({ t, ly, player, isCur, found, onEdit, onSync }: { t: Track;
   const nudge = (d: number) => setLyrics(t, { ...ly, off: Math.round((ly.off + d) * 10) / 10 })
   return (
     <div className="ly-view" onTouchMove={() => { touched.current = Date.now() }} onWheel={() => { touched.current = Date.now() }}>
-      {found && <p className="ly-note">음악 파일에 함께 들어 있던 가사를 가져왔어요.</p>}
+      {found && <p className="ly-note">{tx("음악 파일에 함께 들어 있던 가사를 가져왔어요.")}</p>}
       {!synced(ly) && (
         <div className="ly-tip">
-          <p>박자를 맞추면 노래방처럼 지금 부르는 줄을 따라가요.</p>
-          <button className="pillbtn small" onClick={onSync}>박자 맞추기</button>
+          <p>{tx("박자를 맞추면 노래방처럼 지금 부르는 줄을 따라가요.")}</p>
+          <button className="pillbtn small" onClick={onSync}>{tx("박자 맞추기")}</button>
         </div>
       )}
       <ol className="ly-lines" ref={list}>
@@ -162,7 +164,7 @@ function ViewLyrics({ t, ly, player, isCur, found, onEdit, onSync }: { t: Track;
           return (
             <li key={i} className={cls} aria-current={i === on ? 'true' : undefined}>
               {at != null && isCur
-                ? <button onClick={() => player.seek(Math.max(0, at - ly.off))} aria-label={`${l}, 여기부터 듣기`}>{l}</button>
+                ? <button onClick={() => player.seek(Math.max(0, at - ly.off))} aria-label={tx("{0}, 여기부터 듣기", l)}>{l}</button>
                 : <span>{l || ' '}</span>}
             </li>
           )
@@ -170,18 +172,18 @@ function ViewLyrics({ t, ly, player, isCur, found, onEdit, onSync }: { t: Track;
       </ol>
       <div className="ly-foot">
         {synced(ly) && (
-          <div className="ly-off" role="group" aria-label="가사와 노래 맞추기">
-            <button onClick={() => nudge(-0.3)}>가사가 빨라요</button>
-            <span className="num" aria-live="polite">{ly.off === 0 ? '맞음' : `${ly.off > 0 ? '+' : '−'}${Math.abs(ly.off).toFixed(1)}초`}</span>
-            <button onClick={() => nudge(0.3)}>가사가 늦어요</button>
+          <div className="ly-off" role="group" aria-label={tx("가사와 노래 맞추기")}>
+            <button onClick={() => nudge(-0.3)}>{tx("가사가 빨라요")}</button>
+            <span className="num" aria-live="polite">{ly.off === 0 ? tx("맞음") : tx("{0}{1}초", ly.off > 0 ? '+' : '−', Math.abs(ly.off).toFixed(1))}</span>
+            <button onClick={() => nudge(0.3)}>{tx("가사가 늦어요")}</button>
           </div>
         )}
         <div className="ly-acts">
-          {isCur && <button className="mini-play" onClick={player.toggle} aria-label={player.playing ? '일시 정지' : '재생'}><Icon n={player.playing ? 'pause' : 'play'} s={22} /></button>}
+          {isCur && <button className="mini-play" onClick={player.toggle} aria-label={player.playing ? tx("일시 정지") : tx("재생")}><Icon n={player.playing ? 'pause' : 'play'} s={22} /></button>}
           <div className="pz-tools">
-            <button onClick={onEdit}><Icon n="edit" s={22} /><span>고치기</span></button>
-            <button onClick={onSync}><Icon n="clock" s={22} /><span>{synced(ly) ? '박자 다시' : '박자 맞추기'}</span></button>
-            <button onClick={exportLrc}><Icon n="share" s={22} /><span>{isNative ? '보내기' : '파일로 저장'}</span></button>
+            <button onClick={onEdit}><Icon n="edit" s={22} /><span>{tx("고치기")}</span></button>
+            <button onClick={onSync}><Icon n="clock" s={22} /><span>{synced(ly) ? tx("박자 다시") : tx("박자 맞추기")}</span></button>
+            <button onClick={exportLrc}><Icon n="share" s={22} /><span>{isNative ? tx("보내기") : tx("파일로 저장")}</span></button>
           </div>
         </div>
       </div>

@@ -25,10 +25,11 @@ import { EasyScreen } from './ui/Easy'
 import { BatteryPage, useBattery } from './ui/Battery'
 import { VerseStrip } from './ui/VerseStrip'
 import { ReadPage } from './ui/Rest'
+import { tx } from "./lib/i18n";
 import { GoodnightScreen, SleepSheet } from './ui/Sheets'
 
 type Tab = 'now' | 'music' | 'lists' | 'rest'
-const TABS: [Tab, string, string][] = [['now', '지금', 'clock'], ['music', '음악', 'search'], ['lists', '내 목록', 'list'], ['rest', '쉼', 'heart']]
+const TABS: [Tab, string, string][] = [['now', tx("지금"), 'clock'], ['music', tx("음악"), 'search'], ['lists', tx("내 목록"), 'list'], ['rest', tx("쉼"), 'heart']]
 
 export default function App() {
   useDayNight()
@@ -169,7 +170,7 @@ export default function App() {
       {reading && <ReadPage onClose={closeReading} />}
       {!easy && player.current && tab !== 'now' && <Mini player={player} onOpen={() => setTab('now')} />}
       {!easy && (
-        <nav className="tabs" aria-label="주요 메뉴">
+        <nav className="tabs" aria-label={tx("주요 메뉴")}>
           {TABS.map(([id, label, ic]) => (
             <button key={id} className={tab === id ? 'on' : undefined} aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)}>
               <Icon n={ic} s={24} w={tab === id ? 2.4 : 2} />{label}
@@ -178,7 +179,7 @@ export default function App() {
         </nav>
       )}
       {vol.flash && (tab !== 'now' || easy) && (
-        <p className={'toast' + (loud ? ' over' : '')} role="status">음량 <span className="num">{vol.percent}%</span>{loud && ' · 권장 음량을 넘었어요'}</p>
+        <p className={'toast' + (loud ? ' over' : '')} role="status">{tx("음량 ")}<span className="num">{vol.percent}%</span>{loud && tx(" · 권장 음량을 넘었어요")}</p>
       )}
       {sleeping && <SleepSheet player={player} onClose={closeSleep} />}
       {folders && <FoldersPage tracks={raw.tracks} hidden={hidden} setHidden={setHidden} onClose={closeFolders} />}
@@ -197,11 +198,11 @@ function Mini({ player, onOpen }: { player: Player; onOpen: () => void }) {
   const soon = player.duration - player.time < 15 && player.next && player.next !== t
   return (
     <div className="mini">
-      <button className="mini-open" onClick={onOpen} aria-label={`지금 화면 열기: ${x.song}`}>
+      <button className="mini-open" onClick={onOpen} aria-label={tx("지금 화면 열기: {0}", x.song)}>
         <span className="x1">{x.song}</span>
-        <span className="x2">{soon ? `다음 곡 · ${info(player.next!).song}` : x.singer || x.program || ' '}</span>
+        <span className="x2">{soon ? tx("다음 곡 · {0}", info(player.next!).song) : x.singer || x.program || ' '}</span>
       </button>
-      <button className="mini-play" onClick={player.toggle} aria-label={player.playing ? '일시 정지' : '재생'}>
+      <button className="mini-play" onClick={player.toggle} aria-label={player.playing ? tx("일시 정지") : tx("재생")}>
         <Icon n={player.playing ? 'pause' : 'play'} s={22} />
       </button>
       <span className="mini-bar" aria-hidden="true" style={{ transform: `scaleX(${Math.min(1, player.time / (player.duration || 1))})` }} />

@@ -5,13 +5,14 @@ import { createPortal } from 'react-dom'
 import type { Track } from '../lib/library'
 import type { Player } from '../lib/usePlayer'
 import { parseTitle, type Parsed } from '../lib/title'
+import { lang, locale, tx } from "../lib/i18n";
 import { getOutput, getVolume, nativeArt, onOutput, onVolume, setVolume, type Output, type Volume } from '../lib/native'
 
-export const nf = new Intl.NumberFormat('ko-KR')
+export const nf = new Intl.NumberFormat(locale)
 
 export function minutesText(m: number): string {
   const h = Math.floor(m / 60), r = Math.round(m % 60)
-  return h ? (r ? `${h}시간 ${r}분` : `${h}시간`) : `${r}분`
+  return h ? (r ? tx("{0}시간 {1}분", h, r) : tx("{0}시간", h)) : tx("{0}분", r)
 }
 
 /** 12시간제 시각: 오전 5:10 */
@@ -19,18 +20,21 @@ export function clock(ms: number, withAmPm = true): string {
   const d = new Date(ms)
   const h = d.getHours(), m = d.getMinutes()
   const hh = h % 12 === 0 ? 12 : h % 12
-  return `${withAmPm ? (h < 12 ? '오전 ' : '오후 ') : ''}${hh}:${String(m).padStart(2, '0')}`
+  const hm = `${hh}:${String(m).padStart(2, '0')}`
+  if (!withAmPm) return hm
+  if (lang === 'en') return `${hm} ${h < 12 ? 'AM' : 'PM'}`
+  return `${h < 12 ? tx("오전") : tx("오후")}${lang === 'ja' ? '' : ' '}${hm}`
 }
 
 /* ── 곡 정보: 제목 풀이는 곡마다 한 번만 ── */
 const parsedMemo = new Map<string, Parsed>()
 export function info(t: Track): Parsed {
   // 편집곡 구간: 편집곡 이름 + 몇째 구간·어느 곡에서
-  if (t.edit) return { song: t.title, singer: `편집곡 ${t.edit.k + 1}/${t.edit.n} · ${t.edit.from}`, original: '', program: '', episode: '' }
+  if (t.edit) return { song: t.title, singer: tx("편집곡 {0}/{1} · {2}", t.edit.k + 1, t.edit.n, t.edit.from), original: '', program: '', episode: '' }
   let p = parsedMemo.get(t.id)
   if (!p) {
     p = parseTitle(t.title, t.artist)
-    if (!p.song) p = { ...p, song: '제목 없는 곡' }
+    if (!p.song) p = { ...p, song: tx("제목 없는 곡") }
     parsedMemo.set(t.id, p)
   }
   return p
@@ -38,7 +42,7 @@ export function info(t: Track): Parsed {
 
 /** "김수아 · 원곡 윤상" */
 export function whoLine(p: Parsed): string {
-  return [p.singer, p.original && `원곡 ${p.original}`].filter(Boolean).join(' · ')
+  return [p.singer, p.original && tx("원곡 {0}", p.original)].filter(Boolean).join(' · ')
 }
 
 /** "우리들의 발라드 · 4회" */
@@ -50,7 +54,7 @@ export function fromLine(p: Parsed, t: Track): string {
 /** "4분 20초" */
 export function secText(sec: number): string {
   const s = Math.max(0, Math.round(sec)), m = Math.floor(s / 60), r = s % 60
-  return m ? (r ? `${m}분 ${r}초` : `${m}분`) : `${r}초`
+  return m ? (r ? tx("{0}분 {1}초", m, r) : tx("{0}분", m)) : tx("{0}초", r)
 }
 
 /** 길게 누르기(0.55초). 목록 하나에 하나 만들고 줄마다 bind로 붙인다. 오른쪽 클릭·Shift+F10도 같다. */
@@ -362,10 +366,10 @@ export function useOutput(player: Player): Output | null {
 }
 
 export function outputLabel(o: Output): string {
-  if (o.kind === 'bluetooth' && o.car) return o.name ? `차 · ${o.name}` : '차 오디오'
-  if (o.kind === 'bluetooth') return o.name ? `블루투스 · ${o.name}` : '블루투스'
-  if (o.kind === 'wired') return '이어폰'
-  return '휴대폰 스피커'
+  if (o.kind === 'bluetooth' && o.car) return o.name ? tx("차 · {0}", o.name) : tx("차 오디오")
+  if (o.kind === 'bluetooth') return o.name ? tx("블루투스 · {0}", o.name) : tx("블루투스")
+  if (o.kind === 'wired') return tx("이어폰")
+  return tx("휴대폰 스피커")
 }
 
 export function outputIcon(o: Output): string {

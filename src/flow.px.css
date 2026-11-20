@@ -825,3 +825,10 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .ly-file { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; border-radius: 26px; box-shadow: inset 0 0 0 1.5px var(--line); font-size: 15px; font-weight: 700; color: var(--ink); cursor: pointer; }
 .ly-file:focus-within { outline: 2px solid var(--now); outline-offset: 2px; }
 .seg2.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+/* 처음 화면: 언어 고르기 */
+.first-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.first-top .mark { margin: 0; }
+.langpick { display: flex; gap: 2px; padding: 0; border-radius: 22px; background: var(--sf); }
+.langpick button { min-height: 44px; padding: 0 10px; border-radius: 22px; font-size: 13px; font-weight: 700; color: var(--ink2); position: relative; }
+.langpick button.on { background: var(--bg); color: var(--ink); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }

@@ -7,9 +7,11 @@ import { YEAR } from '../lib/verses365'
 import { dayIndex } from '../lib/verses'
 import { shown, useKjv } from '../lib/kjv'
 import { Icon, info, whoLine } from './common'
+import { lang, locale, tx } from "../lib/i18n";
 import { Page } from './Sheets'
 
-const WD = ['일', '월', '화', '수', '목', '금', '토']
+const wdf = new Intl.DateTimeFormat(locale, { weekday: 'short' })
+const WD = Array.from({ length: 7 }, (_, i) => wdf.format(new Date(2026, 10, 15 + i)).replace(/요일$/, '')) // 2026-11-15는 일요일
 let ver = 0
 onStats(() => { ver++ })
 /** 기록이 저장될 때마다 다시 그린다 */
@@ -26,10 +28,10 @@ function week() {
 }
 
 function compare(total: number, before: number): string {
-  if (before < 60) return total >= 60 ? '최근 7일 동안 들은 시간이에요' : ''
+  if (before < 60) return total >= 60 ? tx("최근 7일 동안 들은 시간이에요") : ''
   const diff = total - before
-  if (Math.abs(diff) < 60) return '그 전 7일과 비슷해요'
-  return `그 전 7일보다 ${hm(Math.abs(diff))} ${diff > 0 ? '더' : '덜'} 들었어요`
+  if (Math.abs(diff) < 60) return tx("그 전 7일과 비슷해요")
+  return tx("그 전 7일보다 {0} {1} 들었어요", hm(Math.abs(diff)), diff > 0 ? tx("더") : tx("덜"))
 }
 
 /** 내 목록 맨 위 한 줄: 최근 7일 들은 시간과 작은 막대 */
@@ -38,10 +40,10 @@ export function ListenCard({ onOpen }: { onOpen: () => void }) {
   const w = week()
   const max = Math.max(...w.cur.map((d) => d.t), 1)
   return (
-    <button className="lcard" onClick={onOpen} aria-label={`최근 7일 들은 시간 ${hm(w.total)}. 자세히 보기`}>
+    <button className="lcard" onClick={onOpen} aria-label={tx("최근 7일 들은 시간 {0}. 자세히 보기", hm(w.total))}>
       <span className="x">
-        <span className="lc1">최근 7일 들은 시간</span>
-        <span className="lc2 num">{w.total < 60 ? '아직 기록이 적어요' : hm(w.total)}</span>
+        <span className="lc1">{tx("최근 7일 들은 시간")}</span>
+        <span className="lc2 num">{w.total < 60 ? tx("아직 기록이 적어요") : hm(w.total)}</span>
       </span>
       <span className="lspark" aria-hidden="true">
         {w.cur.map((d, i) => <i key={d.key} className={i === 6 ? 'td' : ''} style={{ height: `${Math.max(d.t > 0 ? 12 : 6, (d.t / max) * 100)}%` }} />)}
@@ -73,24 +75,24 @@ export function ListenPage({ tracks, player, onClose, onPlayed }: { tracks: Trac
   // 한 주에 한 절: 이번 주가 시작된 날의 말씀
   const verse = shown(YEAR[Math.floor(dayIndex() / 7) * 7 % YEAR.length], kjv)
   const d = w.cur[sel]
-  const dayName = (i: number) => (i === 6 ? '오늘' : i === 5 ? '어제' : WD[w.cur[i].date.getDay()])
+  const dayName = (i: number) => (i === 6 ? tx("오늘") : i === 5 ? tx("어제") : WD[w.cur[i].date.getDay()])
   const cmp = compare(w.total, w.before)
 
   return (
-    <Page label="들은 시간" onClose={onClose}>
+    <Page label={tx("들은 시간")} onClose={onClose}>
       <div className="lsum">
-        <p className="lc1">최근 7일</p>
-        <p className="lsum-t num">{w.total < 60 ? '0분' : hm(w.total)}</p>
-        <p className="lsum-s">{cmp || '음악을 들으면 여기에 쌓여요'}</p>
+        <p className="lc1">{tx("최근 7일")}</p>
+        <p className="lsum-t num">{w.total < 60 ? tx("0분") : hm(w.total)}</p>
+        <p className="lsum-s">{cmp || tx("음악을 들으면 여기에 쌓여요")}</p>
       </div>
 
       <p className="lsel num" aria-live="polite">
-        {d.date.getMonth() + 1}월 {d.date.getDate()}일 ({WD[d.date.getDay()]}) · <b>{d.t < 60 ? (d.t > 0 ? '1분 미만' : '안 들었어요') : hm(d.t)}</b>
+        {tx("{0}월 {1}일 {2}", d.date.getMonth() + 1, d.date.getDate(), lang === 'ko' ? `(${WD[d.date.getDay()]})` : WD[d.date.getDay()])} · <b>{d.t < 60 ? (d.t > 0 ? tx("1분 미만") : tx("안 들었어요")) : hm(d.t)}</b>
       </p>
-      <div className="lbars" role="group" aria-label="최근 7일 날마다 들은 시간">
+      <div className="lbars" role="group" aria-label={tx("최근 7일 날마다 들은 시간")}>
         {w.cur.map((x, i) => (
           <button key={x.key} className={'lbar' + (i === sel ? ' on' : '')} onClick={() => setSel(i)} aria-pressed={i === sel}
-            aria-label={`${x.date.getMonth() + 1}월 ${x.date.getDate()}일 ${hm(x.t)}`}>
+            aria-label={tx("{0}월 {1}일 {2}", x.date.getMonth() + 1, x.date.getDate(), hm(x.t))}>
             <span className="lb-track"><i style={{ height: `${x.t > 0 ? Math.max(4, (x.t / max) * 100) : 0}%` }} /></span>
             <span className={'lb-d' + (i === 6 ? ' td' : '')}>{dayName(i)}</span>
           </button>
@@ -98,13 +100,13 @@ export function ListenPage({ tracks, player, onClose, onPlayed }: { tracks: Trac
       </div>
 
       <div className="lstats">
-        <p><span>이번 달</span><b className="num">{month < 60 ? '0분' : hm(month)}</b></p>
-        <p><span>모두 합쳐</span><b className="num">{all < 60 ? '0분' : hm(all)}</b></p>
+        <p><span>{tx("이번 달")}</span><b className="num">{month < 60 ? tx("0분") : hm(month)}</b></p>
+        <p><span>{tx("모두 합쳐")}</span><b className="num">{all < 60 ? tx("0분") : hm(all)}</b></p>
       </div>
 
-      <h2 className="sub">최근 7일 많이 들은 곡</h2>
+      <h2 className="sub">{tx("최근 7일 많이 들은 곡")}</h2>
       {top.length === 0 ? (
-        <p className="empty">아직 기록이 없어요. 곡을 들으면 많이 들은 순서로 모여요.</p>
+        <p className="empty">{tx("아직 기록이 없어요. 곡을 들으면 많이 들은 순서로 모여요.")}</p>
       ) : (
         <ol className="pl ltop">
           {top.map((s, i) => {
@@ -113,7 +115,7 @@ export function ListenPage({ tracks, player, onClose, onPlayed }: { tracks: Trac
               <li key={s.id}>
                 <span className="rk num" aria-hidden="true">{i + 1}</span>
                 <button className="lrow" onClick={() => { player.playFrom(top.map((x) => x.t), s.t.id, 0, true); onPlayed() }}
-                  aria-label={`${i + 1}위 ${p.song}, ${hm(s.sec)} 들음. 듣기`}>
+                  aria-label={tx("{0}위 {1}, {2} 들음. 듣기", i + 1, p.song, hm(s.sec))}>
                   <span className="x"><span className="x1">{p.song}</span><span className="x2">{whoLine(p) ? `${whoLine(p)} · ` : ''}<span className="num">{hm(s.sec)}</span></span></span>
                 </button>
               </li>
@@ -126,7 +128,7 @@ export function ListenPage({ tracks, player, onClose, onPlayed }: { tracks: Trac
         <blockquote><p>{verse.text}</p></blockquote>
         <figcaption>{verse.ref} · {verse.ver}</figcaption>
       </figure>
-      <p className="hint">기록은 이 휴대폰 안에만 있어요.</p>
+      <p className="hint">{tx("기록은 이 휴대폰 안에만 있어요.")}</p>
     </Page>
   )
 }

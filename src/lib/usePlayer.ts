@@ -9,6 +9,7 @@ import { gainsOf, getEq, onEq } from './eq'
 import { addListen } from './stats'
 import { useFlag } from './flag'
 import { getQuiet, spanAt, type Span } from './quiet'
+import { tx } from "./i18n";
 
 interface Resume { id: string; pos: number }
 
@@ -823,12 +824,12 @@ export function usePlayer(tracks: Track[]) {
   let nextNote = ''
   const timeUp = repeat.limit === 'timed' && repeatLeft <= 0
   if (current) {
-    if (timeUp || (repeat.scope === 'one' && repeat.limit === 'once')) nextNote = '이 곡이 끝나면 멈춰요'
-    else if (repeat.scope === 'one') { next = current; nextNote = '같은 곡을 다시 틀어요' }
-    else if (times && times.id === current.id && times.done + 1 < times.n) { next = current; nextNote = `같은 곡을 한 번 더(${times.done + 2}/${times.n}번째)` }
+    if (timeUp || (repeat.scope === 'one' && repeat.limit === 'once')) nextNote = tx("이 곡이 끝나면 멈춰요")
+    else if (repeat.scope === 'one') { next = current; nextNote = tx("같은 곡을 다시 틀어요") }
+    else if (times && times.id === current.id && times.done + 1 < times.n) { next = current; nextNote = tx("같은 곡을 한 번 더({0}/{1}번째)", times.done + 2, times.n) }
     else if (index + 1 < queue.length) next = byId.current.get(queue[index + 1])
-    else if (repeat.limit === 'once') nextNote = '마지막 곡이에요'
-    else if (shuffle && queue.length > 1) nextNote = '다시 섞어서 이어 틀어요'
+    else if (repeat.limit === 'once') nextNote = tx("마지막 곡이에요")
+    else if (shuffle && queue.length > 1) nextNote = tx("다시 섞어서 이어 틀어요")
     else next = byId.current.get(queue[0])
   }
 

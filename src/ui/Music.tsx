@@ -7,11 +7,12 @@ import type { Playlists } from '../lib/playlists'
 import { Icon, Sheet, VirtualList, info, minutesText, nf, useLongPress } from './common'
 import { byLecture, lectureOf, natural } from '../lib/kind'
 import { load, save } from '../lib/store'
+import { tx } from "../lib/i18n";
 import { ChooseListSheet, LevelSheet, RepeatSheet, TrimSheet } from './Sheets'
 
 type By = 'program' | 'singer' | 'original' | 'folder'
 interface Group { by: By; name: string | null }
-const BY_LABEL: Record<By, string> = { program: '프로그램', singer: '부른 사람', original: '원곡', folder: '폴더' }
+const BY_LABEL: Record<By, string> = { program: tx("프로그램"), singer: tx("부른 사람"), original: tx("원곡"), folder: tx("폴더") }
 
 function keyOf(t: Track, by: By): string {
   const x = info(t)
@@ -100,15 +101,15 @@ export function MusicScreen({ tracks: all, scan, player, lists, onPlayed, onKind
 
   const talkView = (
     <>
-      {q && <p className="found num" role="status">'{q}' · {nf.format(talkGroups.reduce((n, g) => n + g[1].length, 0))}개 찾았어요</p>}
-      {talkGroups.length === 0 && <p className="empty">맞는 강의가 없어요.</p>}
+      {q && <p className="found num" role="status">'{q}' · {tx("{0}개 찾았어요", nf.format(talkGroups.reduce((n, g) => n + g[1].length, 0)))}</p>}
+      {talkGroups.length === 0 && <p className="empty">{tx("맞는 강의가 없어요.")}</p>}
       {talkGroups.map(([f, items]) => {
         const done = items.filter((t) => player.talkDone[t.id]).length
         const numbered = items.some((t) => lectureOf(t).no)
-        const unit = numbered ? '강' : '개'
+        const unit = numbered ? tx("강") : tx("개")
         return (
           <section key={f} aria-label={f}>
-            <div className="fold"><h2>{f || '이름 없는 폴더'}</h2><span className="num">{done ? `${nf.format(items.length)}${unit} 중 ${nf.format(done)}${unit} 다 들음` : `${nf.format(items.length)}${unit}`}</span></div>
+            <div className="fold"><h2>{f || tx("이름 없는 폴더")}</h2><span className="num">{done ? tx("{0}{1} 중 {2}{3} 다 들음", nf.format(items.length), unit, nf.format(done), unit) : `${nf.format(items.length)}${unit}`}</span></div>
             <ul className="lec">
               {items.map((t, i) => {
                 const l = lectureOf(t)
@@ -116,7 +117,7 @@ export function MusicScreen({ tracks: all, scan, player, lists, onPlayed, onKind
                 const now = player.current?.id === t.id
                 const pos = now ? player.time : player.talkPos[t.id] ?? 0
                 const pct = isDone ? 100 : t.duration ? Math.min(100, (pos / t.duration) * 100) : 0
-                const state = isDone ? '다 들음' : pos > 5 ? `${Math.max(1, Math.floor(pos / 60))}분까지 들음` : '처음'
+                const state = isDone ? tx("다 들음") : pos > 5 ? tx("{0}분까지 들음", Math.max(1, Math.floor(pos / 60))) : tx("처음")
                 return (
                   <li key={t.id} className={(isDone ? 'done' : '') + (now ? ' now' : '')}>
                     <button className="lrow" aria-current={now ? 'true' : undefined} {...lp(() => setMenu(t))}
@@ -127,7 +128,7 @@ export function MusicScreen({ tracks: all, scan, player, lists, onPlayed, onKind
                         <span className="st num">{pct > 0 && <span className="pb" aria-hidden="true"><b style={{ width: `${pct}%` }} /></span>}{state}{t.duration ? ` · ${minutesText(Math.max(1, Math.round(t.duration / 60)))}` : ''}</span>
                       </span>
                     </button>
-                    <button className="mo" onClick={() => setMenu(t)} aria-label={`${l.name} 더 보기`}><Icon n="dots" s={22} /></button>
+                    <button className="mo" onClick={() => setMenu(t)} aria-label={tx("{0} 더 보기", l.name)}><Icon n="dots" s={22} /></button>
                   </li>
                 )
               })}
@@ -140,22 +141,22 @@ export function MusicScreen({ tracks: all, scan, player, lists, onPlayed, onKind
 
   return (
     <div className={'page lib' + (picked.length && !talk ? ' picking' : '')}>
-      <h1>음악</h1>
+      <h1>{tx("음악")}</h1>
       {talks.length > 0 && (
-        <div className="seg-top" role="group" aria-label="음악과 강의">
-          <button className={mode === 'music' ? 'on' : undefined} aria-pressed={mode === 'music'} onClick={() => setMode('music')}>음악<span className="num">{nf.format(tracks.length)}</span></button>
-          <button className={mode === 'talk' ? 'on' : undefined} aria-pressed={mode === 'talk'} onClick={() => setMode('talk')}>강의<span className="num">{nf.format(talks.length)}</span></button>
+        <div className="seg-top" role="group" aria-label={tx("음악과 강의")}>
+          <button className={mode === 'music' ? 'on' : undefined} aria-pressed={mode === 'music'} onClick={() => setMode('music')}>{tx("음악")}<span className="num">{nf.format(tracks.length)}</span></button>
+          <button className={mode === 'talk' ? 'on' : undefined} aria-pressed={mode === 'talk'} onClick={() => setMode('talk')}>{tx("강의")}<span className="num">{nf.format(talks.length)}</span></button>
         </div>
       )}
       <label className="search">
         <Icon n="search" s={20} />
-        <span className="sr">곡, 부른 사람, 원곡, 프로그램 찾기</span>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={talk ? '강의 찾기 (초성도 돼요)' : '곡·부른 사람 찾기 (초성도 돼요)'} autoComplete="off" enterKeyHint="search" />
-        {q && <button className="clear" onClick={() => setQ('')} aria-label="찾는 글자 지우기"><Icon n="x" s={18} /></button>}
+        <span className="sr">{tx("곡, 부른 사람, 원곡, 프로그램 찾기")}</span>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={talk ? tx("강의 찾기 (초성도 돼요)") : tx("곡·부른 사람 찾기 (초성도 돼요)")} autoComplete="off" enterKeyHint="search" />
+        {q && <button className="clear" onClick={() => setQ('')} aria-label={tx("찾는 글자 지우기")}><Icon n="x" s={18} /></button>}
       </label>
       {talk ? talkView : (<>
-      <div className="groups" role="group" aria-label="모아 보기">
-        {chip(group == null, <>전체<span className="num">{nf.format(tracks.length)}</span></>, () => setGroup(null), 'all')}
+      <div className="groups" role="group" aria-label={tx("모아 보기")}>
+        {chip(group == null, <>{tx("전체")}<span className="num">{nf.format(tracks.length)}</span></>, () => setGroup(null), 'all')}
         {programs.map(([p, n]) => chip(group?.by === 'program' && group.name === p, <>{p}<span className="num">{nf.format(n)}</span></>, () => setGroup({ by: 'program', name: p }), 'p' + p))}
         {(['singer', 'original'] as By[]).map((b) => chip(group?.by === b, BY_LABEL[b], () => setGroup({ by: b, name: null }), b))}
         {folders > 1 && chip(group?.by === 'folder', BY_LABEL.folder, () => setGroup({ by: 'folder', name: null }), 'folder')}
@@ -164,20 +165,20 @@ export function MusicScreen({ tracks: all, scan, player, lists, onPlayed, onKind
         <button className="crumb" onClick={() => setGroup({ by: group.by, name: null })}><Icon n="back" s={18} />{BY_LABEL[group.by]} · {group.name}</button>
       )}
       <p className="found num" role="status">
-        {showNames ? `${BY_LABEL[group!.by]} ${nf.format(names.length)}명`
-          : q ? `'${q}' · ${nf.format(filtered.length)}곡 찾았어요`
-            : `${nf.format(filtered.length)}곡${!group && hidden > 0 ? ` · 짧은 소리·녹음 ${nf.format(hidden)}개는 뺐어요` : ''}`}
+        {showNames ? tx("{0} {1}명", BY_LABEL[group!.by], nf.format(names.length))
+          : q ? tx("'{0}' · {1}곡 찾았어요", q, nf.format(filtered.length))
+            : tx("{0}곡{1}", nf.format(filtered.length), !group && hidden > 0 ? tx(" · 짧은 소리·녹음 {0}개는 뺐어요", nf.format(hidden)) : '')}
       </p>
       {note && <p className="done-note" role="status">{note}</p>}
       {!showNames && filtered.length === 0 && (
-        <p className="empty">{q ? `'${q}'에 맞는 곡이 없어요. 초성이나 부른 사람 이름으로도 찾아 보세요.` : '곡이 없어요.'}</p>
+        <p className="empty">{q ? tx("'{0}'에 맞는 곡이 없어요. 초성이나 부른 사람 이름으로도 찾아 보세요.", q) : tx("곡이 없어요.")}</p>
       )}
       {showNames ? (
         <VirtualList items={names} className="pl" rowRem={4.25} render={([name, n]) => (
           <li key={name}>
             <button className="lrow" onClick={() => setGroup({ by: group!.by, name })}>
               <span className="x"><span className="x1">{name}</span></span>
-              <span className="d num">{nf.format(n)}곡</span><Icon n="chev" s={18} />
+              <span className="d num">{nf.format(n)}{tx("곡")}</span><Icon n="chev" s={18} />
             </button>
           </li>
         )} />
@@ -188,11 +189,11 @@ export function MusicScreen({ tracks: all, scan, player, lists, onPlayed, onKind
           const now = player.current?.id === t.id
           const parts: React.ReactNode[] = []
           if (x.singer) parts.push(<Hl key="s" text={x.singer} q={q} />)
-          if (x.original) parts.push(<span key="o">원곡 <Hl text={x.original} q={q} /></span>)
+          if (x.original) parts.push(<span key="o">{tx("원곡 ")}<Hl text={x.original} q={q} /></span>)
           if (x.episode) parts.push(<span key="e">{x.episode}</span>)
           return (
             <li key={t.id} className={(at >= 0 ? 'on' : '') + (now ? ' now' : '')}>
-              <button className="pick" aria-pressed={at >= 0} onClick={() => pick(t.id)} aria-label={`${x.song} 고르기`}>
+              <button className="pick" aria-pressed={at >= 0} onClick={() => pick(t.id)} aria-label={tx("{0} 고르기", x.song)}>
                 <span className="dot num" aria-hidden="true">{at >= 0 ? at + 1 : ''}</span>
               </button>
               <button className="lmain" aria-current={now ? 'true' : undefined} {...lp(() => setMenu(t))} onClick={() => player.playFrom(filtered, t.id)}>
@@ -202,18 +203,18 @@ export function MusicScreen({ tracks: all, scan, player, lists, onPlayed, onKind
                 </span>
                 <span className="d num">{t.duration ? fmt(t.duration) : ''}</span>
               </button>
-              <button className="mo" onClick={() => setMenu(t)} aria-label={`${x.song} 더 보기`}><Icon n="dots" s={22} /></button>
+              <button className="mo" onClick={() => setMenu(t)} aria-label={tx("{0} 더 보기", x.song)}><Icon n="dots" s={22} /></button>
             </li>
           )
         }} />
       )}
       </>)}
       {picked.length > 0 && !talk && (
-        <div className="bar" role="region" aria-label="고른 곡">
-          <button className="bx" onClick={() => setPicked([])} aria-label="고른 것 모두 풀기"><Icon n="x" s={20} /></button>
-          <p role="status"><b className="num">{nf.format(picked.length)}곡 골랐어요</b><span>고른 순서대로 들어요</span></p>
-          <button className="bs" onClick={() => setSaving(true)}>담기</button>
-          <button className="bp" onClick={() => setAsking(true)}>듣기</button>
+        <div className="bar" role="region" aria-label={tx("고른 곡")}>
+          <button className="bx" onClick={() => setPicked([])} aria-label={tx("고른 것 모두 풀기")}><Icon n="x" s={20} /></button>
+          <p role="status"><b className="num">{tx("{0}곡 골랐어요", nf.format(picked.length))}</b><span>{tx("고른 순서대로 들어요")}</span></p>
+          <button className="bs" onClick={() => setSaving(true)}>{tx("담기")}</button>
+          <button className="bp" onClick={() => setAsking(true)}>{tx("듣기")}</button>
         </div>
       )}
       {asking && (
@@ -234,8 +235,8 @@ export function MusicScreen({ tracks: all, scan, player, lists, onPlayed, onKind
           player.playFrom(list, menu.id, menu.talk ? 0 : undefined, menu.talk)
           onPlayed()
         }} />}
-      {saveIds && <ChooseListSheet lists={lists} ids={saveIds} onClose={closeSaveIds} onDone={(name) => setNote(`"${name}" 목록에 담았어요`)} />}
-      {saving && <ChooseListSheet lists={lists} ids={picked} onClose={closeSave} onDone={(name) => { setPicked([]); setNote(`"${name}" 목록에 담았어요`) }} />}
+      {saveIds && <ChooseListSheet lists={lists} ids={saveIds} onClose={closeSaveIds} onDone={(name) => setNote(tx("\"{0}\" 목록에 담았어요", name))} />}
+      {saving && <ChooseListSheet lists={lists} ids={picked} onClose={closeSave} onDone={(name) => { setPicked([]); setNote(tx("\"{0}\" 목록에 담았어요", name)) }} />}
     </div>
   )
 }
@@ -248,7 +249,7 @@ function ItemMenu({ t, player, onClose, onKind, onSave, onPlay, onTrim, onLevel 
   const l = t.talk ? lectureOf(t) : null
   const done = !!player.talkDone[t.id]
   const go = (fn: () => void) => () => { fn(); onClose() }
-  const where = t.talk ? '음악으로' : '강의로'
+  const where = t.talk ? tx("음악으로") : tx("강의로")
   return (
     <Sheet label={l ? l.name : x.song} onClose={onClose}>
       <div className="who-s">
@@ -256,13 +257,13 @@ function ItemMenu({ t, player, onClose, onKind, onSave, onPlay, onTrim, onLevel 
         <p className="num">{[t.talk ? t.folder : x.singer, t.duration ? minutesText(Math.max(1, Math.round(t.duration / 60))) : ''].filter(Boolean).join(' · ')}</p>
       </div>
       <div className="menu">
-        <button onClick={go(onPlay)}><Icon n="play" s={20} />처음부터 듣기</button>
-        <button onClick={() => { onClose(); onSave() }}><Icon n="list" s={20} />목록에 담기</button>
-        <button onClick={() => { onClose(); onTrim() }}><Icon n="ab" s={20} />시작·끝 지점 정하기{player.trims[t.id] && <small className="num">{fmt(player.trims[t.id].s ?? 0)}~{player.trims[t.id].e != null ? fmt(player.trims[t.id].e!) : '끝'}</small>}</button>
-        {!t.talk && <button onClick={() => { onClose(); onLevel() }}><Icon n="speaker" s={20} />이 곡 소리 크기{player.levels[t.id] ? <small>{player.levels[t.id] > 0 ? '크게' : '작게'}</small> : null}</button>}
-        {t.talk && <button onClick={go(() => player.markDone(t.id, !done))}><Icon n={done ? 'undo' : 'check'} s={20} />{done ? '안 들은 것으로 되돌리기' : '다 들은 것으로 표시'}</button>}
-        <button onClick={go(() => onKind(t, 'one', !t.talk))}><Icon n="move" s={20} />{where} 옮기기<small>{t.talk ? '강의가 아니에요' : '강의예요'}</small></button>
-        {t.folder && <button onClick={go(() => onKind(t, 'folder', !t.talk))}><Icon n="move" s={20} /><span className="one">「{t.folder}」 폴더 모두 {where}</span></button>}
+        <button onClick={go(onPlay)}><Icon n="play" s={20} />{tx("처음부터 듣기")}</button>
+        <button onClick={() => { onClose(); onSave() }}><Icon n="list" s={20} />{tx("목록에 담기")}</button>
+        <button onClick={() => { onClose(); onTrim() }}><Icon n="ab" s={20} />{tx("시작·끝 지점 정하기")}{player.trims[t.id] && <small className="num">{fmt(player.trims[t.id].s ?? 0)}~{player.trims[t.id].e != null ? fmt(player.trims[t.id].e!) : tx("끝")}</small>}</button>
+        {!t.talk && <button onClick={() => { onClose(); onLevel() }}><Icon n="speaker" s={20} />{tx("이 곡 소리 크기")}{player.levels[t.id] ? <small>{player.levels[t.id] > 0 ? tx("크게") : tx("작게")}</small> : null}</button>}
+        {t.talk && <button onClick={go(() => player.markDone(t.id, !done))}><Icon n={done ? 'undo' : 'check'} s={20} />{done ? tx("안 들은 것으로 되돌리기") : tx("다 들은 것으로 표시")}</button>}
+        <button onClick={go(() => onKind(t, 'one', !t.talk))}><Icon n="move" s={20} />{where} {tx("옮기기")}<small>{t.talk ? tx("강의가 아니에요") : tx("강의예요")}</small></button>
+        {t.folder && <button onClick={go(() => onKind(t, 'folder', !t.talk))}><Icon n="move" s={20} /><span className="one">「{t.folder}{tx("」 폴더 모두 ")}{where}</span></button>}
       </div>
     </Sheet>
   )

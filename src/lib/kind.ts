@@ -1,3 +1,4 @@
+import { tx } from './i18n'
 // 강의와 음악 가르기. 소리는 듣지 않고, 휴대폰 표시·장르·이름·폴더·길이와 음질만 본다.
 // 틀린 것은 사용자가 길게 눌러 옮기고, 옮긴 것은 기억한다.
 import type { Track } from './library'
@@ -55,7 +56,7 @@ export function lectureOf(t: Track): { no: string; name: string; speaker: string
   const m = full.match(NO)
   const { name } = lectureName(t.title, t.folder)
   const speaker = t.artist && !NO.test(t.artist) && !(t.folder && t.artist.includes(t.folder)) ? t.artist : ''
-  return { no: m ? `${Number(m[1])}강` : '', name, speaker, order: m ? Number(m[1]) : Infinity }
+  return { no: m ? tx('{0}강', Number(m[1])) : '', name, speaker, order: m ? Number(m[1]) : Infinity }
 }
 
 /** 1강 → 2강 → 10강, 번호 없으면 이름 순 */
@@ -71,7 +72,7 @@ export function lectureName(title: string, folder: string): { no: string; name: 
   if (folder && folder.length > 1) name = name.split(folder).join(' ')
   if (m) name = name.replace(m[0], ' ')
   name = name.replace(/^[\s\-_.·:|｜()[\]]+|[\s\-_.·:|｜]+$/g, '').replace(/\s{2,}/g, ' ').trim()
-  return { no: m ? `${Number(m[1])}강` : '', name: name || title }
+  return { no: m ? tx('{0}강', Number(m[1])) : '', name: name || title }
 }
 
 /** 1강, 2강 … 10강 순서 */

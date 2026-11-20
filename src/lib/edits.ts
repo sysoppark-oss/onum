@@ -2,6 +2,7 @@
 // "어느 곡의 몇 초부터 몇 초까지"만 기억한다(이 기기에만).
 import { useState } from 'react'
 import type { Track } from './library'
+import { tx } from "./i18n";
 import { load, save } from './store'
 import { parseTitle } from './title'
 
@@ -45,7 +46,7 @@ export function partTracks(ed: Edit, byId: Map<string, Track>): Track[] {
     id: `edit:${ed.id}#${k}`,
     src: t.id,
     title: ed.name,
-    artist: `내 편집곡 · ${k + 1}/${ok.length}`,
+    artist: tx("내 편집곡 · {0}/{1}", k + 1, ok.length),
     album: '',
     talk: false,
     clip: { s: p.s, e: p.e },

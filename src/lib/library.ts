@@ -1,3 +1,4 @@
+import { tx } from "./i18n";
 
 export interface Track {
   id: string // 이름+크기: 다시 불러와도 같은 곡을 알아보기 위함
@@ -37,7 +38,7 @@ export interface ScanResult {
 function folderOf(f: File): string {
   const p = (f as File & { webkitRelativePath?: string }).webkitRelativePath || ''
   const parts = p.split('/')
-  return parts.length > 1 ? parts[parts.length - 2] : '선택한 파일'
+  return parts.length > 1 ? parts[parts.length - 2] : tx("선택한 파일")
 }
 
 /** "가수 - 제목.mp3" 형태 파일 이름에서 가수와 제목을 짐작한다 */
