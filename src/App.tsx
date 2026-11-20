@@ -110,7 +110,7 @@ export default function App() {
           </>
         )}
       </main>
-      {!easy && tab === 'now' && <VerseStrip trackId={player.current?.id} moving={verseMove} onOpen={() => setReading(true)} />}
+      {!easy && tab === 'now' && <VerseStrip moving={verseMove} onOpen={() => setReading(true)} />}
       {reading && <ReadPage onClose={closeReading} />}
       {!easy && player.current && tab !== 'now' && <Mini player={player} onOpen={() => setTab('now')} />}
       {!easy && (

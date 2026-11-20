@@ -44,7 +44,7 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, norm,
         </li>
         <li>
           <div className="lrow">
-            <span className="x"><span className="x1" id="vm-l">아래 말씀 천천히 바꾸기</span><span className="x2">끄면 「지금」 아래 말씀이 멈춘 채로 보여요</span></span>
+            <span className="x"><span className="x1" id="vm-l">아래 말씀 흘려 보내기</span><span className="x2">끄면 「지금」 아래 말씀이 멈춘 채로 보여요</span></span>
             <button className="sw" role="switch" aria-checked={verseMove} aria-labelledby="vm-l" onClick={() => setVerseMove(!verseMove)} />
           </div>
         </li>

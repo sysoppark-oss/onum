@@ -1,36 +1,45 @@
-// 「지금」 아래 탭 바로 위: 오늘의 말씀을 마디별로 제자리에서 천천히 바꿔 보여 준다.
-// 글자는 움직이지 않고, 6초마다 다음 마디로 부드럽게 바뀐다. 곡이 바뀌면 처음부터.
-// 바꾸기를 끄면(쉼 › 보기) 말씀 전체를 멈춘 채로 보여 준다. 누르면 크게 본다.
-import { useEffect, useState } from 'react'
+// 「지금」 아래 탭 바로 위: 오늘의 말씀이 끊기지 않고 오른쪽에서 왼쪽으로 천천히 흘러간다.
+// 같은 글을 두 번 이어 붙여 한 바퀴가 이음매 없이 돌아간다. 누르고 있으면 멈추고, 누르면 크게 본다.
+// 흘려 보내기를 끄거나(쉼 › 보기) 휴대폰의 움직임 줄이기가 켜져 있으면 멈춘 채 전체를 보여 준다.
+import { useEffect, useRef, useState } from 'react'
 import { today } from '../lib/verses'
 
-const STEP = 6000
-const LAST = 8000 // 장절이 붙은 마지막 마디는 조금 더 오래
+const SPEED = 36 // 1초에 움직이는 거리(px). 어르신이 따라 읽을 수 있는 빠르기
 
-export function VerseStrip({ trackId, moving, onOpen }: { trackId?: string; moving: boolean; onOpen: () => void }) {
+export function VerseStrip({ moving, onOpen }: { moving: boolean; onOpen: () => void }) {
   const v = today()
-  const parts = v.parts?.length ? v.parts : [v.text]
-  const [i, setI] = useState(0)
-  const [held, setHeld] = useState(false) // 누르고 있거나 초점이 있으면 멈춘다
+  const one = useRef<HTMLSpanElement>(null)
+  const [dur, setDur] = useState(30)
+  const [held, setHeld] = useState(false)
+  const downAt = useRef(0) // 길게 눌러 멈춰 읽은 뒤 손을 떼면 크게 보기를 열지 않는다(키보드는 detail 0)
   const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
-  const run = moving && !reduce && parts.length > 1 && !held
+  const run = moving && !reduce
 
-  useEffect(() => { setI(0) }, [trackId, v.ref])
+  // 글 한 벌의 길이에 맞춰 한 바퀴 시간을 정한다(글자 크기가 바뀌어도 같은 빠르기)
   useEffect(() => {
-    if (!run) return
-    const h = setTimeout(() => setI((x) => (x + 1) % parts.length), i === parts.length - 1 ? LAST : STEP)
-    return () => clearTimeout(h)
-  }, [i, run, parts.length])
+    if (!run || !one.current) return
+    const measure = () => { if (one.current) setDur(Math.max(8, one.current.offsetWidth / SPEED)) }
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(one.current)
+    return () => ro.disconnect()
+  }, [run, v.ref])
 
-  const last = i === parts.length - 1
+  const piece = (
+    <>
+      {v.text}<span className="vs-r"> · {v.ref}</span><span className="vs-gap" aria-hidden="true">✦</span>
+    </>
+  )
   return (
-    <button className="vstrip" onClick={onOpen}
-      onPointerDown={() => setHeld(true)} onPointerUp={() => setHeld(false)} onPointerCancel={() => setHeld(false)} onPointerLeave={() => setHeld(false)}
-      onFocus={() => setHeld(true)} onBlur={() => setHeld(false)}
+    <button className={'vstrip' + (run ? ' run' : '')}
+      onClick={(e) => { if (e.detail === 0 || Date.now() - downAt.current < 450) onOpen() }}
+      onPointerDown={() => { downAt.current = Date.now(); setHeld(true) }} onPointerUp={() => setHeld(false)} onPointerCancel={() => setHeld(false)} onPointerLeave={() => setHeld(false)}
+      onFocus={() => { downAt.current = 0; setHeld(true) }} onBlur={() => setHeld(false)}
       aria-label={`오늘의 말씀: ${v.text}, ${v.ref} 개역한글. 누르면 크게 봐요`}>
-      {moving && !reduce && parts.length > 1 ? (
-        <span key={i} className="vs-t" aria-hidden="true">
-          {parts[i]}{last && <span className="vs-r"> · {v.ref}</span>}
+      {run ? (
+        <span className="vs-track" aria-hidden="true" style={{ animationDuration: `${dur}s`, animationPlayState: held ? 'paused' : 'running' }}>
+          <span ref={one} className="vs-one">{piece}</span>
+          <span className="vs-one">{piece}</span>
         </span>
       ) : (
         <span className="vs-t still" aria-hidden="true">{v.text}<span className="vs-r"> · {v.ref}</span></span>
