@@ -84,7 +84,9 @@ mark { background: none; color: var(--now-text); font-weight: 800; }
 /* 소리 나가는 곳: 동그란 그림 + 이름 */
 .now .out { --oc: var(--ink2); gap: 8px; min-height: 36px; padding: 4px 14px 4px 4px; background: var(--bg); border: 1px solid var(--line); border-radius: 20px; }
 .now .top .chbrand { flex: 0 1 auto; }
-.now .top .out { flex: 0 4 auto; min-width: 38px; max-width: 46%; }
+.now .top .chbrand .cm-names { flex-shrink: 0; }
+.now .top .out { flex: 0 1 auto; min-width: 7.5em; }
+.now .out .ot { max-width: 9em; }
 .now .out .oi { display: flex; align-items: center; justify-content: center; flex-shrink: 0; width: 28px; height: 28px; border-radius: 14px; background: color-mix(in srgb, var(--oc) 14%, transparent); }
 .now .out .oi svg { color: var(--oc); }
 .now .out .ot { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 700; color: var(--ink); letter-spacing: -0.01em; }
@@ -1080,8 +1082,9 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
   .main.with-mini { padding-bottom: 72px; }
 
   /* 지금: 왼쪽(이름·곡·소리 모양) | 오른쪽(단추·음량·이어서) */
-  .page.now { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 32px; height: 100dvh; min-height: 0; padding-bottom: calc(var(--strip) + 8px); overflow: hidden; }
-  .now .nl, .now .nr { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  /* 한 화면에 다 안 들어오면(키·빠르기 칩 등) 화면째 위아래로 움직인다 */
+  .page.now { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 32px; min-height: 100dvh; padding-bottom: calc(var(--strip) + 12px); }
+  .now .nl, .now .nr { display: flex; flex-direction: column; min-width: 0; }
   .now .nl .song { margin-top: auto; padding-top: 8px; }
   .now .nl > :last-child { margin-bottom: auto; }
   .now .nr .ctl { grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto; }
@@ -1089,7 +1092,6 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
   .now .nr .ctl .jump { width: 56px; }
   .now .song h1 { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; }
   .now .nr .ctl { margin-top: 4px; }
-  .now .nr .flow { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   /* 말씀 줄: 왼쪽 탭 바로 옆부터 오른쪽 끝까지 */
   .vstrip { left: var(--rail); right: 0; bottom: 0; max-width: none; margin: 0; height: var(--strip); padding: 0 calc(24px + var(--right)) 0 24px; border-top: 1px solid var(--line); }
   .vstrip.run { padding: 0 var(--right) 0 0; }
