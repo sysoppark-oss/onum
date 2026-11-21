@@ -274,7 +274,7 @@ export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind
       if (gap < 1.6) { bt.gaps.push(gap); if (bt.gaps.length > 9) bt.gaps.shift() }
       bt.last = bt.clock
       const g = [...bt.gaps].sort((a, b) => a - b), med = g.length >= 3 ? g[g.length >> 1] : 0.55
-      const tempo = Math.max(0.65, Math.min(1.6, 0.55 / med))
+      const tempo = Math.max(0.8, Math.min(1.25, 0.55 / med))
       const power = Math.max(0, Math.min(1, Math.log10(bt.fast / Math.max(bt.slow, 1e-7)) / 0.6))
       const small = H < 110
       let ox = W / 2, oy = H / 2, col: RGB = GREEN, side = 0

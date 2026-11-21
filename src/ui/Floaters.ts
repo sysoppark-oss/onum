@@ -48,10 +48,10 @@ export class Floaters {
       const t = b.tempo
       this.ps.push({
         k: shapeFor(g, this.n++), x: b.x + (Math.random() - 0.5) * 8, y: b.y + this.up, s, col: b.col,
-        vx: b.side * 30 + (Math.random() - 0.5) * 24, vy: -(50 + 70 * b.power + 60 * heavy) * t,
+        vx: b.side * 14 + (Math.random() - 0.5) * 12, vy: -(24 + 26 * b.power + 18 * heavy) * t,
         rot: (Math.random() - 0.5) * 0.5, vr: this.reduce ? 0 : (Math.random() - 0.5) * (0.6 + b.bright * 2.4),
-        age: 0, life: (1.5 + Math.random() * 0.7) / Math.sqrt(t), sway: this.reduce ? 0 : 3 + b.bright * 14,
-        w: 2.5 + b.bright * 5, ph: Math.random() * 6.28, kind: 'fly', tx: 0, ty: 0,
+        age: 0, life: (2.6 + Math.random() * 0.9) / Math.sqrt(t), sway: this.reduce ? 0 : 3 + b.bright * 14,
+        w: 1.6 + b.bright * 2.6, ph: Math.random() * 6.28, kind: 'fly', tx: 0, ty: 0,
       })
     }
   }
@@ -97,8 +97,8 @@ export class Floaters {
     for (const p of this.ps) {
       p.age += dt
       if (p.kind === 'fly') {
-        p.vy *= Math.exp(-dt * 0.9); p.vy -= 18 * dt // 처음엔 세게, 차츰 둥실
-        p.vx *= Math.exp(-dt * 1.5)
+        p.vy *= Math.exp(-dt * 0.6); p.vy -= 6 * dt // 천천히 둥실
+        p.vx *= Math.exp(-dt * 1.2)
         p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt
         if (p.age >= p.life) {
           // 몇 개는 그림 바로 위에 남아 맴돈다(곡 끝에 흩어질 것들)
