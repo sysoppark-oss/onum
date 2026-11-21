@@ -1091,7 +1091,7 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
   .now .nl .song h1 { margin-top: 2px; }
   .now .nl .song .who { margin-top: 2px; font-size: 15px; }
   .now .nl .chiprow { margin-top: 6px; }
-  .now .nl .shape { margin-top: 14px; }
+  .now .nl .shape { margin-top: 32px; } /* 위에 「후렴(추정)」 글자 자리 */
   .now .nl .shape.v-meter, .now .nl .shape.v-spec, .now .nl .shape.v-phase { margin-top: 10px; }
   .now .nl .times { margin-top: 6px; }
   .now .nl .song { margin-top: auto; padding-top: 8px; }

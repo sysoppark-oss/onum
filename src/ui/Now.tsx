@@ -59,7 +59,7 @@ export function ShapeBar({ t, time, duration, onSeek, ab, mark, viz = 'shape', e
           <span className={'mk num' + (mark / duration < 0.12 ? ' b' : '')} aria-hidden="true" style={{ left: `${(mark / duration) * 100}%` }}>↺ {fmt(mark)}</span>
         </>
       )}
-      {!ab && mark == null && hook != null && !t.talk && <span className="hook" aria-hidden="true" style={{ left: `${Math.min(88, Math.max(12, hook * 100))}%` }}>{tx("후렴(추정)")}</span>}
+      {!ab && mark == null && hook != null && !t.talk && (duration || t.duration || 0) <= 480 && <span className="hook" aria-hidden="true" style={{ left: `${Math.min(88, Math.max(12, hook * 100))}%` }}>{tx("후렴(추정)")}</span>}
       <span className="head" aria-hidden="true" style={{ left: `${ratio * 100}%` }} />
       {onSeek && (
         <input type="range" className="scrub" min={0} max={Math.max(1, Math.floor(duration))} step={1} value={Math.floor(time)}
