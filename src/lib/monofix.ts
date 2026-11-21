@@ -69,8 +69,8 @@ function wire(g: Graph, c: AudioContext) {
   // 소리 모양: 나가는 소리를 그대로 엿본다(소리에는 손대지 않는다)
   if (fx.viz) {
     if (!g.meters) {
-      const an = c.createAnalyser(); an.fftSize = 4096; an.smoothingTimeConstant = 0.55; an.minDecibels = -90; an.maxDecibels = -12
-      const l = c.createAnalyser(), r = c.createAnalyser(); l.fftSize = r.fftSize = 2048
+      const an = c.createAnalyser(); an.fftSize = 8192; an.smoothingTimeConstant = 0 // 오르내림은 그리는 쪽이 계측기 규격대로
+      const l = c.createAnalyser(), r = c.createAnalyser(); l.fftSize = r.fftSize = 2048; l.smoothingTimeConstant = r.smoothingTimeConstant = 0
       g.meters = { an, lr: c.createChannelSplitter(2), l, r }
     }
     head.connect(g.meters.an)

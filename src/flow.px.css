@@ -999,13 +999,30 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .upd-t span { font-size: 13px; line-height: 1.45; color: var(--ink2); }
 .upd-banner .pillbtn { flex-shrink: 0; }
 
-/* 소리 모양: 실시간(스펙트럼·레벨 미터·물결·고리) · 고요 */
-.shape.v-spec, .shape.v-meter, .shape.v-wave, .shape.v-ring { height: 88px; }
-.shape .lviz { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.shape.v-spec .head, .shape.v-meter .head, .shape.v-wave .head, .shape.v-ring .head, .shape.v-ring .hook { display: none; }
+/* 소리 모양: 콘솔식(레벨 미터·스펙트럼·스테레오 위상) · 고요 */
+.shape.v-meter { height: 126px; }
+.shape.v-spec { height: 158px; }
+.shape.v-phase { height: 178px; }
+.shape .cviz { position: absolute; left: 0; right: 0; top: 0; bottom: 10px; width: 100%; height: calc(100% - 10px); border-radius: 12px; pointer-events: none; }
+.shape .cv-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; pointer-events: none; }
+.shape .cv-prog b { display: block; height: 100%; background: var(--now); }
+.shape.v-meter .head, .shape.v-spec .head, .shape.v-phase .head, .shape.v-meter .hook, .shape.v-spec .hook, .shape.v-phase .hook { display: none; }
+.shape .cv-open { position: absolute; top: 4px; right: 4px; z-index: 3; display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: 12px; color: #8b939d; }
+.shape .cv-open:active { color: #e6edf3; }
 .shape .calm { position: absolute; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; background: var(--line); overflow: hidden; }
 .shape .calm b { display: block; height: 100%; background: var(--now); border-radius: 2px; }
+/* 콘솔 보기 */
+.cpage { display: flex; flex-direction: column; gap: 4px; padding-bottom: 24px; }
+.cpage .cviz { display: block; width: 100%; border-radius: 12px; }
+.cpage .cviz.meter { height: 150px; }
+.cpage .cviz.spec { height: 260px; }
+.cpage .cviz.phase { height: 300px; }
+@media (orientation: landscape) and (min-width: 640px) {
+  .cpage { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .cpage section:first-child { grid-column: 1 / -1; }
+}
 .vizpick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
 .vizpick button { min-height: 44px; padding: 0 6px; border-radius: 22px; background: var(--sf); font-size: 15px; font-weight: 700; color: var(--ink2); white-space: nowrap; }
 .vizpick button.on { background: var(--ink); color: var(--on-ink); }
 .shape.v-calm .head { display: none; }
+.shape.v-meter .cv-open { top: auto; bottom: 12px; }

@@ -16,13 +16,13 @@ import { ChooseEditSheet } from './Edits'
 import type { Edits } from '../lib/edits'
 import { lineOf, useChurch } from '../lib/church'
 import { live, useViz, type Viz } from '../lib/viz'
-import { LiveViz } from './Viz'
+import { ConsoleOpen, ConsolePage, ConsoleViz, type ConsoleKind } from './Viz'
 import { CardMark, ChurchPage } from './Church'
 import { tx } from "../lib/i18n";
 import { useFlag } from '../lib/flag'
 
 /* ── 소리 모양 ── */
-export function ShapeBar({ t, time, duration, onSeek, ab, mark, viz = 'shape', el, playing = false }: { t: Track; time: number; duration: number; onSeek?: (s: number) => void; ab?: AB | null; mark?: number | null; viz?: Viz; el?: () => HTMLAudioElement | null; playing?: boolean }) {
+export function ShapeBar({ t, time, duration, onSeek, ab, mark, viz = 'shape', el, playing = false, onConsole }: { t: Track; time: number; duration: number; onSeek?: (s: number) => void; ab?: AB | null; mark?: number | null; viz?: Viz; el?: () => HTMLAudioElement | null; playing?: boolean; onConsole?: () => void }) {
   const [shape, setShape] = useState<Shape | null | undefined>(() => cachedShape(t))
   useEffect(() => {
     let alive = true
@@ -40,7 +40,10 @@ export function ShapeBar({ t, time, duration, onSeek, ab, mark, viz = 'shape', e
         <i key={`${t.id}-${bars ? 1 : 0}-${i}`} className={(i / BARS < ratio ? 'done' : '') + (bars ? ' in' : '')}
           style={{ height: `${(bars ? bars[i] : 0.14) * 100}%`, ['--i' as string]: i }} />
       ))}
-      {live(viz) && el && <LiveViz kind={viz} el={el} playing={playing} ratio={ratio} />}
+      {live(viz) && el && <>
+        <ConsoleViz kind={viz as ConsoleKind} el={el} playing={playing} />
+        <span className="cv-prog" aria-hidden="true"><b style={{ width: `${ratio * 100}%` }} /></span>
+      </>}
       {viz === 'calm' && <span className="calm" aria-hidden="true"><b style={{ width: `${ratio * 100}%` }} /></span>}
       {ab && duration > 0 && (
         <>
@@ -63,6 +66,7 @@ export function ShapeBar({ t, time, duration, onSeek, ab, mark, viz = 'shape', e
           onChange={(e) => onSeek(+e.target.value)} aria-label={tx("재생 위치")}
           aria-valuetext={tx("{0}, 전체 {1}", fmt(time), fmt(duration))} />
       )}
+      {live(viz) && onConsole && <ConsoleOpen onOpen={onConsole} />}
     </div>
   )
 }
@@ -312,6 +316,8 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
   const notesOn = useFlag('notes', true)
   const church = useChurch()
   const viz = useViz()
+  const [consoleOpen, setConsole] = useState(false)
+  const closeConsole = useCallback(() => setConsole(false), [])
   const [chOpen, setChOpen] = useState(false)
   const closeCh = useCallback(() => setChOpen(false), [])
   const [repeatOpen, setRepeatOpen] = useState(false)
@@ -389,7 +395,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
         <>
           <ShapeBar t={shown} time={cur ? player.time : player.resumePos} duration={cur ? player.duration : shown.duration}
             onSeek={cur ? player.seek : undefined} ab={cur ? (player.ab ?? (cur.clip ? { a: cur.clip.s, b: cur.clip.e, n: 1 } : null)) : null} mark={cur ? player.bookmark : null}
-            viz={cur && !cur.talk ? viz : 'shape'} el={player.el} playing={!!cur && player.playing} />
+            viz={cur && !cur.talk ? viz : 'shape'} el={player.el} playing={!!cur && player.playing} onConsole={() => setConsole(true)} />
           <div className="times num" aria-hidden="true">
             {notesOn && cur && !cur.talk && viz === 'shape' && <NoteFloat playing={player.playing} ratio={player.duration > 0 ? player.time / player.duration : 0} bars={cachedShape(cur)?.bars ?? null} />}
             {cur?.clip ? (
@@ -497,6 +503,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
       {levelOpen && cur && <LevelSheet t={cur} player={player} onClose={closeLevel} />}
       {pracOpen && cur && <PracticeSheet t={cur} player={player} onClose={closePrac} />}
       {chOpen && <ChurchPage onClose={closeCh} start="current" />}
+      {consoleOpen && <ConsolePage el={player.el} playing={player.playing} onClose={closeConsole} />}
       {lyOpen && cur && <LyricsPage t={cur} player={player} onClose={closeLy} start={lyOpen === 'view' ? undefined : lyOpen} />}
       {queueOpen && <QueuePage player={player} tracks={tracks} lists={lists} onClose={closeQueue} />}
     </div>
