@@ -64,7 +64,8 @@ export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind
       x.fillStyle = BG; x.fillRect(0, 0, W, H)
     }
     fit()
-    const ro = new ResizeObserver(fit)
+    // 다른 탭에 있다가 돌아오면(크기가 생기면) 다시 그린다
+    const ro = new ResizeObserver(() => { fit(); idle = 0; start() })
     ro.observe(c)
     const m: Meter = fresh()
     let tdL: Float32Array<ArrayBuffer> | null = null, tdR: Float32Array<ArrayBuffer> | null = null
@@ -244,6 +245,7 @@ export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind
       const dt = last ? Math.min(0.05, (t - last) / 1000) : 1 / 60
       last = t
       const on = measure(dt)
+      if (!W || !H) { idle += dt; if (idle > 2.5) { cancelAnimationFrame(raf); raf = 0; last = 0 } return }
       if (kind === 'meter') drawMeter()
       else if (kind === 'spec') drawSpec()
       else drawPhase(on)
