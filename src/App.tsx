@@ -182,7 +182,7 @@ export default function App() {
       </main>
       {!easy && tab === 'now' && <VerseStrip moving={verseMove} onOpen={() => setReading(true)} />}
       {reading && <ReadPage onClose={closeReading} />}
-      {!easy && player.current && tab !== 'now' && <Mini player={player} onOpen={() => setTab('now')} />}
+      {!easy && player.current && tab !== 'now' && <Mini player={player} />}
       {!easy && (
         <nav className="tabs" aria-label={tx("주요 메뉴")}>
           {TABS.map(([id, label, ic]) => (
@@ -207,21 +207,18 @@ export default function App() {
   )
 }
 
-/** 다른 탭에서 보이는 작은 재생 막대 */
-function Mini({ player, onOpen }: { player: Player; onOpen: () => void }) {
-  const t = player.current!
-  const x = info(t)
-  const soon = player.duration - player.time < 15 && player.next && player.next !== t
+/** 다른 탭에서 보이는 작은 재생 단추: 동그라미 하나, 테두리가 곡이 흘러간 만큼 차오른다 */
+function Mini({ player }: { player: Player }) {
+  const x = info(player.current!)
+  const p = Math.min(1, player.time / (player.duration || 1))
+  const C = 2 * Math.PI * 27
   return (
-    <div className="mini">
-      <button className="mini-open" onClick={onOpen} aria-label={tx("지금 화면 열기: {0}", x.song)}>
-        <span className="x1">{x.song}</span>
-        <span className="x2">{soon ? tx("다음 곡 · {0}", info(player.next!).song) : x.singer || x.program || ' '}</span>
-      </button>
-      <button className="mini-play" onClick={player.toggle} aria-label={player.playing ? tx("일시 정지") : tx("재생")}>
-        <Icon n={player.playing ? 'pause' : 'play'} s={22} />
-      </button>
-      <span className="mini-bar" aria-hidden="true" style={{ transform: `scaleX(${Math.min(1, player.time / (player.duration || 1))})` }} />
-    </div>
+    <button className="mini" onClick={player.toggle} aria-label={(player.playing ? tx("일시 정지") : tx("재생")) + ' · ' + x.song}>
+      <svg className="mini-ring" viewBox="0 0 60 60" aria-hidden="true">
+        <circle cx="30" cy="30" r="27" className="mr-bg" />
+        <circle cx="30" cy="30" r="27" className="mr-fg" style={{ strokeDasharray: C, strokeDashoffset: C * (1 - p) }} />
+      </svg>
+      <Icon n={player.playing ? 'pause' : 'play'} s={24} />
+    </button>
   )
 }
