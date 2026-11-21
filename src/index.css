@@ -999,3 +999,14 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .upd-t b { font-size: 1rem; font-weight: 800; }
 .upd-t span { font-size: 0.8125rem; line-height: 1.45; color: var(--ink2); }
 .upd-banner .pillbtn { flex-shrink: 0; }
+
+/* 소리 모양: 실시간(스펙트럼·레벨 미터·물결·고리) · 고요 */
+.shape.v-spec, .shape.v-meter, .shape.v-wave, .shape.v-ring { height: 5.5rem; }
+.shape .lviz { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.shape.v-spec .head, .shape.v-meter .head, .shape.v-wave .head, .shape.v-ring .head, .shape.v-ring .hook { display: none; }
+.shape .calm { position: absolute; left: 0; right: 0; top: 50%; height: 0.25rem; margin-top: -2px; border-radius: 2px; background: var(--line); overflow: hidden; }
+.shape .calm b { display: block; height: 100%; background: var(--now); border-radius: 2px; }
+.vizpick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.375rem; margin-top: 0.625rem; }
+.vizpick button { min-height: 2.75rem; padding: 0 0.375rem; border-radius: 1.375rem; background: var(--sf); font-size: 0.9375rem; font-weight: 700; color: var(--ink2); white-space: nowrap; }
+.vizpick button.on { background: var(--ink); color: var(--on-ink); }
+.shape.v-calm .head { display: none; }

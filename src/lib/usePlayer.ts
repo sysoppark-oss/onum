@@ -4,7 +4,8 @@ import { shuffledOrder } from './shuffle'
 import { load, save } from './store'
 import { onMediaAction, setNowPlaying } from './native'
 import { cachedShape, getShape, normGain } from './shape'
-import { setFx } from './monofix'
+import { fxOf, setFx } from './monofix'
+import { getViz, live, useViz } from './viz'
 import { gainsOf, getEq, onEq } from './eq'
 import { addListen } from './stats'
 import { useFlag } from './flag'
@@ -202,6 +203,7 @@ export function usePlayer(tracks: Track[]) {
     semis: t.talk ? 0 : practiceRef.current[t.src ?? t.id]?.k ?? 0,
     rate: t.talk ? 1 : practiceRef.current[t.src ?? t.id]?.r ?? 1,
     eq: gainsOf(getEq(t.talk ? 'talk' : 'music')),
+    viz: live(getViz()),
   })
 
   const start = useCallback((t: Track, at?: number) => {
@@ -838,7 +840,13 @@ export function usePlayer(tracks: Track[]) {
   const nextId = next?.id
   useEffect(() => { if (normOn && next && next.id !== current?.id) getShape(next) }, [nextId, normOn]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 소리 모양을 실시간으로 바꾸면 지금 재생기도 분석 길을 잇는다
+  const viz = useViz()
+  useEffect(() => { if (live(viz)) setFx(audio.current, { viz: true }); else if (fxOf(audio.current)) setFx(audio.current, { viz: false }) }, [viz, elGen])
+  const el = useCallback(() => audio.current, [])
+
   return {
+    el,
     current, playing, time, duration, shuffle, repeat, repeatLeft,
     resumeTrack, resumePos: resume?.pos ?? 0,
     queueTracks, index, next, nextNote, gain, plays, last, sleep, sleepLeft, goodnight,

@@ -8,7 +8,7 @@ import processorUrl from '@soundtouchjs/audio-worklet/processor?url'
 
 type Side = 0 | 1 | 2
 export const EQ_BANDS = [60, 250, 1000, 3500, 10000] as const
-export interface Fx { side: Side; semis: number; rate: number; eq: number[] | null }
+export interface Fx { side: Side; semis: number; rate: number; eq: number[] | null; viz?: boolean }
 interface Graph {
   src: MediaElementAudioSourceNode
   split: ChannelSplitterNode
@@ -16,6 +16,7 @@ interface Graph {
   st: SoundTouchNode | null
   filters: BiquadFilterNode[]
   pre: GainNode
+  meters: { an: AnalyserNode; lr: ChannelSplitterNode; l: AnalyserNode; r: AnalyserNode } | null // 소리 모양(실시간)
   fx: Fx
   key: string
 }
@@ -24,7 +25,7 @@ let ctx: AudioContext | null = null
 let stReady: Promise<boolean> | null = null
 const graphs = new WeakMap<HTMLAudioElement, Graph>()
 const flatEq = (eq: number[] | null) => !eq || eq.every((g) => Math.abs(g) < 0.1)
-const NONE: Fx = { side: 0, semis: 0, rate: 1, eq: null }
+const NONE: Fx = { side: 0, semis: 0, rate: 1, eq: null, viz: false }
 
 function audioCtx(): AudioContext {
   if (!ctx) ctx = new AudioContext({ latencyHint: 'playback' })
@@ -39,7 +40,7 @@ function loadSoundTouch(c: AudioContext): Promise<boolean> {
 
 function wire(g: Graph, c: AudioContext) {
   const { fx } = g
-  const key = `${fx.side}|${fx.semis ? 1 : 0}|${flatEq(fx.eq) ? 0 : 1}|${g.st ? 1 : 0}`
+  const key = `${fx.side}|${fx.semis ? 1 : 0}|${flatEq(fx.eq) ? 0 : 1}|${g.st ? 1 : 0}|${fx.viz ? 1 : 0}`
   // 값만 바뀌면 잇기는 그대로 두고 값만 고친다
   if (g.st) {
     g.st.pitchSemitones.value = fx.semis
@@ -51,7 +52,7 @@ function wire(g: Graph, c: AudioContext) {
   g.pre.gain.value = Math.pow(10, -Math.max(0, ...eq) / 20)
   if (key === g.key) return
   g.key = key
-  for (const n of [g.src, g.split, g.merge, g.st, g.pre, ...g.filters]) n?.disconnect()
+  for (const n of [g.src, g.split, g.merge, g.st, g.pre, ...g.filters, g.meters?.lr]) n?.disconnect()
   let head: AudioNode = g.src
   if (fx.side) {
     g.src.connect(g.split)
@@ -65,13 +66,25 @@ function wire(g: Graph, c: AudioContext) {
     for (const f of g.filters) { head.connect(f); head = f }
   }
   head.connect(c.destination)
+  // 소리 모양: 나가는 소리를 그대로 엿본다(소리에는 손대지 않는다)
+  if (fx.viz) {
+    if (!g.meters) {
+      const an = c.createAnalyser(); an.fftSize = 4096; an.smoothingTimeConstant = 0.55; an.minDecibels = -90; an.maxDecibels = -12
+      const l = c.createAnalyser(), r = c.createAnalyser(); l.fftSize = r.fftSize = 2048
+      g.meters = { an, lr: c.createChannelSplitter(2), l, r }
+    }
+    head.connect(g.meters.an)
+    head.connect(g.meters.lr)
+    g.meters.lr.connect(g.meters.l, 0)
+    g.meters.lr.connect(g.meters.r, 1)
+  }
 }
 
 /** 이 재생기의 소리 길을 fx에 맞춘다. 효과가 하나도 없고 아직 돌린 적 없으면 아무것도 하지 않는다 */
 export function setFx(a: HTMLAudioElement, fx: Partial<Fx>) {
   let g = graphs.get(a)
   const want: Fx = { ...(g?.fx ?? NONE), ...fx }
-  const need = want.side || want.semis || !flatEq(want.eq)
+  const need = want.side || want.semis || !flatEq(want.eq) || want.viz
   // 키를 쓸 때는 브라우저의 음 높이 지키기를 끄고(SoundTouch가 맞춘다), 아니면 켠다
   ;(a as HTMLAudioElement & { preservesPitch?: boolean }).preservesPitch = !(want.semis && g?.st)
   if (!need && !g) return
@@ -85,7 +98,7 @@ export function setFx(a: HTMLAudioElement, fx: Partial<Fx>) {
         f.Q.value = 0.9
         return f
       })
-      g = { src: c.createMediaElementSource(a), split: c.createChannelSplitter(2), merge: c.createChannelMerger(2), st: null, filters, pre: c.createGain(), fx: NONE, key: '' }
+      g = { src: c.createMediaElementSource(a), split: c.createChannelSplitter(2), merge: c.createChannelMerger(2), st: null, filters, pre: c.createGain(), meters: null, fx: NONE, key: '' }
       graphs.set(a, g)
     }
     g.fx = want
@@ -102,6 +115,12 @@ export function setFx(a: HTMLAudioElement, fx: Partial<Fx>) {
     }
     wire(g, c)
   } catch { /* 고치지 못해도 재생은 그대로 */ }
+}
+
+/** 소리 모양을 그릴 분석기(소리 모양을 켠 재생기만) */
+export function metersOf(a: HTMLAudioElement | null | undefined) {
+  const g = a ? graphs.get(a) : undefined
+  return g?.fx.viz && g.meters ? { ...g.meters, ctx } : null
 }
 
 /** 예전 이름: 모노 보정만 */

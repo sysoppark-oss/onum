@@ -22,6 +22,7 @@ import { isNative } from '../lib/native'
 import type { Battery } from './Battery'
 import { EFFECTIVE, PRIVACY } from '../lib/privacy'
 import { kindOf, useCards, useChurch } from '../lib/church'
+import { live, setViz, useViz, VIZ } from '../lib/viz'
 import { ChurchCard, ChurchPage, NaverBtn } from './Church'
 
 const REPO = 'https://github.com/sysoppark-oss/onum'
@@ -102,6 +103,7 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
   const [eqOpen, setEqOpen] = useState(false)
   const closeEq = useCallback(() => setEqOpen(false), [])
   const eqs = useEq()
+  const viz = useViz()
   return (
     <div className="page set-page">
       <div className="ph"><h1>{tx("설정")}</h1></div>
@@ -126,6 +128,12 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
           <div className="lrow">
             <span className="x"><span className="x1" id="vm-l">{tx("아래 말씀 흘려 보내기")}</span><span className="x2">{tx("끄면 「지금」 아래 말씀이 멈춘 채로 보여요")}</span></span>
             <button className="sw" role="switch" aria-checked={verseMove} aria-labelledby="vm-l" onClick={() => setVerseMove(!verseMove)} />
+          </div>
+        </li>
+        <li className="setrow">
+          <span className="x"><span className="x1" id="viz-l">{tx("소리 모양")}</span><span className="x2">{live(viz) ? tx("지금 나오는 소리에 맞춰 실시간으로 움직여요") : viz === 'calm' ? tx("진행 줄만 조용히 보여요") : tx("곡 전체의 소리 크기를 미리 그려 보여요")}</span></span>
+          <div className="vizpick" role="radiogroup" aria-labelledby="viz-l">
+            {VIZ.map((o) => <button key={o.id} role="radio" aria-checked={viz === o.id} className={viz === o.id ? 'on' : undefined} onClick={() => setViz(o.id)}>{tx(o.name)}</button>)}
           </div>
         </li>
         <li>
