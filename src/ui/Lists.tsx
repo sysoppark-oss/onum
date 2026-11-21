@@ -88,7 +88,7 @@ export function ListsScreen({ tracks, music, player, lists, edits, onPlayed, hid
       {lists.items.length === 0 ? (
         <p className="empty">{tx("아직 만든 목록이 없어요. \"새 목록\"을 눌러 듣고 싶은 곡을 모아 보세요.")}</p>
       ) : (
-        <ul className="pl">
+        <ul className="pl two">
           {lists.items.map((p) => {
             const items = itemsOf(p)
             const lp = resumeOf(p, items)
@@ -109,7 +109,7 @@ export function ListsScreen({ tracks, music, player, lists, edits, onPlayed, hid
       )}
       <EditsSection edits={edits} tracks={tracks} player={player} play={play} />
       <h2 className="sub">{tx("저절로 모이는 목록")}</h2>
-      <ul className="pl auto">
+      <ul className="pl auto two">
         {autos.map((a) => (
           <li key={a.id}>
             <button className="lrow" onClick={() => setAuto(a.id)}>
@@ -203,7 +203,7 @@ function AutoDetail({ a, player, play, onClose }: { a: Auto; player: Player; pla
       {a.items.length > 0
         ? <div className="acts"><button className="go grow" onClick={() => play(a.items, a.items[0].id, undefined, true)}><Icon n="play" s={18} />{tx("처음부터 듣기")}</button></div>
         : <p className="empty">{a.id === 'often' ? tx("두 번 이상 들은 곡이 여기 모여요.") : tx("아직 해당하는 곡이 없어요.")}</p>}
-      <VirtualList items={a.items} className="pl" rowRem={4.25} render={(t) => {
+      <VirtualList items={a.items} className="pl two" rowRem={4.25} render={(t) => {
         const x = info(t)
         return (
           <li key={t.id}>

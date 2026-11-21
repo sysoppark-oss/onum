@@ -174,7 +174,7 @@ export function MusicScreen({ tracks: all, scan, player, lists, onPlayed, onKind
         <p className="empty">{q ? tx("'{0}'에 맞는 곡이 없어요. 초성이나 부른 사람 이름으로도 찾아 보세요.", q) : tx("곡이 없어요.")}</p>
       )}
       {showNames ? (
-        <VirtualList items={names} className="pl" rowRem={4.25} render={([name, n]) => (
+        <VirtualList items={names} className="pl two" rowRem={4.25} render={([name, n]) => (
           <li key={name}>
             <button className="lrow" onClick={() => setGroup({ by: group!.by, name })}>
               <span className="x"><span className="x1">{name}</span></span>
@@ -183,7 +183,7 @@ export function MusicScreen({ tracks: all, scan, player, lists, onPlayed, onKind
           </li>
         )} />
       ) : (
-        <VirtualList items={filtered} className="list" render={(t) => {
+        <VirtualList items={filtered} className="list two" render={(t) => {
           const x = info(t)
           const at = picked.indexOf(t.id)
           const now = player.current?.id === t.id

@@ -1059,6 +1059,15 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
   .main.with-mini { padding-bottom: 5.25rem; }
   .page, .with-strip .page { min-height: 100dvh; padding: calc(var(--top) + 0.75rem) calc(1.5rem + var(--right)) 1.25rem 1.5rem; }
   .page:not(.now), .no-tabs .page { width: 100%; max-width: 45rem; margin: 0 auto; }
+  /* 넓으면 곡·목록을 두 줄로 */
+  .page:not(.now):has(.two) { max-width: 65rem; }
+  .two { --cols: 1; }
+}
+@media (orientation: landscape) and (max-height: 560px) and (min-width: 760px) {
+  .two { --cols: 2; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 2rem; align-content: start; }
+  .pl.two li:nth-last-child(2):nth-child(odd) { border-bottom: 0; }
+}
+@media (orientation: landscape) and (max-height: 560px) {
 
   /* 아래 탭 → 왼쪽 세로 줄 */
   .tabs {

@@ -207,18 +207,20 @@ export function VirtualList<T>({ items, render, rowRem = 4, className = 'list' }
   items: T[]; render: (item: T, i: number) => React.ReactNode; rowRem?: number; className?: string
 }) {
   const ref = useRef<HTMLUListElement>(null)
-  const [range, setRange] = useState({ from: 0, to: 24 })
+  const [range, setRange] = useState({ from: 0, to: 24, cols: 1 })
   useEffect(() => {
     let raf = 0
     const calc = () => {
       raf = 0
       const el = ref.current
       if (!el) return
+      // 가로 화면에서 두 줄로 나뉘면(--cols: 2) 한 칸 높이에 곡이 두 개씩
+      const cols = Math.max(1, parseInt(getComputedStyle(el).getPropertyValue('--cols')) || 1)
       const rowH = parseFloat(getComputedStyle(document.documentElement).fontSize) * rowRem
       const top = el.getBoundingClientRect().top
-      const from = Math.max(0, Math.floor(-top / rowH) - 8)
-      const to = Math.min(items.length, Math.ceil((window.innerHeight - top) / rowH) + 8)
-      setRange((r) => (r.from === from && r.to === to ? r : { from, to }))
+      const from = Math.max(0, Math.floor(-top / rowH) - 8) * cols
+      const to = Math.min(items.length, (Math.ceil((window.innerHeight - top) / rowH) + 8) * cols)
+      setRange((r) => (r.from === from && r.to === to && r.cols === cols ? r : { from, to, cols }))
     }
     const on = () => { if (!raf) raf = requestAnimationFrame(calc) }
     calc()
@@ -230,10 +232,11 @@ export function VirtualList<T>({ items, render, rowRem = 4, className = 'list' }
       if (raf) cancelAnimationFrame(raf)
     }
   }, [items.length, rowRem])
+  const c = range.cols
   const from = Math.min(range.from, items.length)
   const to = Math.min(Math.max(range.to, from), items.length)
   return (
-    <ul ref={ref} className={className} style={{ paddingTop: `${from * rowRem}rem`, paddingBottom: `${(items.length - to) * rowRem}rem` }}>
+    <ul ref={ref} className={className} style={{ paddingTop: `${(from / c) * rowRem}rem`, paddingBottom: `${(Math.ceil(items.length / c) - Math.ceil(to / c)) * rowRem}rem` }}>
       {items.slice(from, to).map((it, k) => render(it, from + k))}
     </ul>
   )
