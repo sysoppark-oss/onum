@@ -2,7 +2,7 @@
 import { rt } from './rich'
 import { CURRENT } from '../lib/version'
 import { load } from '../lib/store'
-import { BUILD, type Check } from '../lib/update'
+import { applyPending, BUILD, hasPending, type Check } from '../lib/update'
 import { useCallback, useState } from 'react'
 import { dayIndex, type Verse } from '../lib/verses'
 import { MOODS, YEAR } from '../lib/verses365'
@@ -35,6 +35,7 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
   const notesOn = useFlag('notes', true)
   const updOn = useFlag('updateCheck', true)
   const [chk, setChk] = useState('')
+  const [ready, setReady] = useState(false) // 받아 둔 새 판을 바로 바꿔 끼울 수 있음
   const [dl, setDl] = useState(() => load<number>('dlCount', 0))
   const [shared, setShared] = useState('')
   const [about, setAbout] = useState(false)
@@ -176,12 +177,15 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
           <li>
             <div className="lrow">
               <span className="x"><span className="x1">{tx("새 판 확인")}</span><span className="x2" role="status">{chk === '…' ? tx("확인하는 중…") : chk || tx("새 판이 있는지 지금 알아봐요")}</span></span>
-              <button className="pillbtn small" disabled={chk === '…'} onClick={async () => {
-                setChk('…')
-                const u = await onCheck(true)
-                setDl(load<number>('dlCount', 0))
-                setChk(!u ? tx("확인하지 못했어요. 인터넷 연결을 확인해 주세요") : u.kind === 'same' ? tx("지금이 가장 새 판이에요") : u.kind === 'web' ? tx("새 판을 받아 두었어요. 음악을 멈추고 앱을 다시 열면 바뀌어요") : tx("새 판이 나왔어요"))
-              }}>{tx("확인")}</button>
+              {ready
+                ? <button className="pillbtn small" onClick={() => { player.pause(); applyPending() }}>{tx("지금 바꾸기")}</button>
+                : <button className="pillbtn small" disabled={chk === '…'} onClick={async () => {
+                    setChk('…')
+                    const u = await onCheck(true)
+                    setDl(load<number>('dlCount', 0))
+                    setReady(u?.kind === 'web' && hasPending())
+                    setChk(!u ? tx("확인하지 못했어요. 인터넷 연결을 확인해 주세요") : u.kind === 'same' ? tx("지금이 가장 새 판이에요") : u.kind === 'web' ? tx("새 판을 받아 두었어요. 「지금 바꾸기」를 누르면 바로 바뀌어요") : tx("새 판이 나왔어요"))
+                  }}>{tx("확인")}</button>}
             </div>
           </li>
         )}

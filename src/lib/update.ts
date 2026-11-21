@@ -42,7 +42,8 @@ export async function checkUpdate(force = false): Promise<Check | null> {
   const r = await fetchRemote().catch(() => null)
   if (!r || r.sha === BUILD.sha) return r ? { kind: 'same', r } : null
   if (r.native === BUILD.native && r.web && r.sum) {
-    if (load<string>('pendingSha', '') === r.sha) return { kind: 'web', r }
+    // 받아 둔 판이 실제로 남아 있을 때만 그대로 쓴다(새 APK를 깔면 받아 둔 판은 지워진다)
+    if (load<string>('pendingSha', '') === r.sha && await bundleLeft(load<string>('pendingId', ''))) return { kind: 'web', r }
     try {
       // 꾸러미 지문(SHA-256)이 맞아야만 받아 들인다
       const b = await CapacitorUpdater.download({ url: r.web, version: r.sha, checksum: r.sum })
@@ -63,5 +64,14 @@ export async function applyPending(): Promise<void> {
   const id = load<string>('pendingId', '')
   if (!id) return
   save('pendingId', '')
-  await CapacitorUpdater.set({ id }).catch(() => {})
+  try {
+    await CapacitorUpdater.set({ id }) // 잘 되면 앱이 새 판으로 다시 열린다
+  } catch {
+    // 받아 둔 판이 사라졌다: 기억을 지워 다음 확인 때 다시 받게 한다
+    save('pendingSha', '')
+  }
+}
+async function bundleLeft(id: string): Promise<boolean> {
+  if (!id) return false
+  try { return (await CapacitorUpdater.list()).bundles.some((b) => b.id === id && b.status !== 'error') } catch { return false }
 }
