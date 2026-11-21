@@ -20,7 +20,7 @@ import { Share } from '@capacitor/share'
 import { isNative } from '../lib/native'
 import type { Battery } from './Battery'
 import { EFFECTIVE, PRIVACY } from '../lib/privacy'
-import { useChurch } from '../lib/church'
+import { kindOf, useChurch } from '../lib/church'
 import { ChurchCard, ChurchPage, NaverBtn } from './Church'
 import { AI_MB, aiOn, downloadAi, removeAi, setAiAsked, useAi } from '../lib/ai'
 
@@ -59,7 +59,7 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
   return (
     <div className="page rest-page">
       <div className="ph"><h1>{tx("쉼")}</h1></div>
-      {church && <div className="chtop"><ChurchCard c={church} foot={<NaverBtn c={church} />} /></div>}
+      {church && <div className="chtop"><ChurchCard c={church} foot={kindOf(church) === 'church' ? <NaverBtn c={church} /> : undefined} /></div>}
       <section className="rest" aria-labelledby="rest-h">
         <h2 className="wl" id="rest-h">{tx("오늘의 한 문장")}</h2>
         <p className="rest-w" lang={v.lang}>{v.text}</p>
@@ -168,11 +168,11 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
       {shared && <p className="done-note" role="status">{shared}</p>}
       {dl > 0 && <p className="dlcount">{rt("**{0}**번 내려받았어요 · 고맙습니다", nf.format(dl))}</p>}
 
-      <h2 className="sub">{tx("교회")}</h2>
+      <h2 className="sub">{tx("교회 · 선물 카드")}</h2>
       <ul className="pl">
         <li><button className="lrow" onClick={() => setChOpen(true)}><span className="x">
-          <span className="x1">{church ? tx("교회 카드 나누기 · 고치기") : tx("교회 카드 만들기")}</span>
-          <span className="x2">{church ? tx("QR이나 링크로 성도들에게 나눠요") : tx("교회 이름을 넣어 성도들에게 나눠요")}</span>
+          <span className="x1">{church ? tx("카드 보내기 · 고치기") : tx("카드 만들기")}</span>
+          <span className="x2">{church ? tx("QR이나 링크로 보내요") : tx("교회 이름, 선물·축하, 커플 이름을 화면 맨 위에")}</span>
         </span><Icon n="chev" s={20} /></button></li>
       </ul>
       <h2 className="sub">{tx("온음에 대하여")}</h2>

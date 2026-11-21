@@ -10,7 +10,8 @@ import { classify, loadOverrides } from '../lib/kind'
 import { Icon, nf } from './common'
 import { LANGS, lang, setLang, tx } from "../lib/i18n";
 import { Page } from './Sheets'
-import { useChurch } from '../lib/church'
+import { lineOf, useChurch } from '../lib/church'
+import { CardMark } from './Church'
 import { AI_MB, aiAsked, aiOn, downloadAi, refreshAi, setAiAsked } from '../lib/ai'
 
 // 마우스를 쓰는 넓은 화면이면 PC로 본다
@@ -226,6 +227,6 @@ export function FoldersPage({ tracks, hidden, setHidden, onClose }: { tracks: Tr
 function Mark() {
   const ch = useChurch()
   return ch
-    ? <p className="gift"><b>{ch.name}</b><span>{tx("에서 드리는 온음")}</span></p>
+    ? <p className="gift"><CardMark c={{ ...ch, line: lineOf(ch) }} /></p>
     : <p className="mark">{tx("온음")}</p>
 }

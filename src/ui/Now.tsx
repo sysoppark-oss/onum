@@ -14,8 +14,8 @@ import { LevelSheet, PracticeSheet, QueuePage, RepeatSheet, SpeedSheet, TrimShee
 import { NoteFloat } from './Notes'
 import { ChooseEditSheet } from './Edits'
 import type { Edits } from '../lib/edits'
-import { useChurch } from '../lib/church'
-import { ChurchPage } from './Church'
+import { lineOf, useChurch } from '../lib/church'
+import { CardMark, ChurchPage } from './Church'
 import { tx } from "../lib/i18n";
 import { useFlag } from '../lib/flag'
 
@@ -356,8 +356,8 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
     <div className="page now">
       <div className="top">
         {church
-          ? <button className="chbrand" onClick={() => setChOpen(true)} aria-label={tx("{0}에서 드리는 온음 · 교회 카드 열기", church.name)}>
-              <b>{church.name}</b><span>{tx("에서 드리는 온음")}</span>
+          ? <button className="chbrand" onClick={() => setChOpen(true)} aria-label={tx("카드 열기: {0}", church.name)}>
+              <CardMark c={{ ...church, line: lineOf(church) }} size="bar" />
             </button>
           : <span className="mark">{tx("온음")}</span>}
         {output && <span className="out" role="status"><Icon n={outputIcon(output)} s={16} />{outputLabel(output)}</span>}
