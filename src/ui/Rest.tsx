@@ -1,8 +1,9 @@
-// 「쉼」: 오늘의 한 구절, 말씀 천천히 보기, 찬송가 반주(준비 중), 보기 설정, 온음이 무료인 이유
+// 「쉼」: 오늘의 한 구절, 카드, 말씀 천천히 보기, 찬송가 반주(준비 중), 이 앱 알려 주기
+// 「설정」: 화면·소리·휴대폰, 온음에 대하여(새 판 확인 포함)
 import { rt } from './rich'
 import { CURRENT } from '../lib/version'
 import { load } from '../lib/store'
-import { applyPending, BUILD, hasPending, type Check } from '../lib/update'
+import { applyPending, BUILD, hasPending, useUpd, type Check } from '../lib/update'
 import { useCallback, useState } from 'react'
 import { dayIndex, type Verse } from '../lib/verses'
 import { MOODS, YEAR } from '../lib/verses365'
@@ -26,32 +27,17 @@ import { ChurchCard, ChurchPage, NaverBtn } from './Church'
 const REPO = 'https://github.com/sysoppark-oss/onum'
 const MAIL = 'sysoppark@gmail.com'
 
-export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verseMove, setVerseMove, player, onNews, onCheck, music }: {
-  easy: boolean; setEasy: (v: boolean) => void; onFolders?: () => void; battery: Battery; onBattery: () => void
-  verseMove: boolean; setVerseMove: (v: boolean) => void; player: Player; onNews: () => void; onCheck: (force?: boolean) => Promise<Check | null>; music: Track[]
-}) {
-  const norm = player.normOn, setNorm = player.setNorm
+export function RestScreen({ player, music }: { player: Player; music: Track[] }) {
   const kjv = useKjv()
-  const notesOn = useFlag('notes', true)
-  const updOn = useFlag('updateCheck', true)
-  const [chk, setChk] = useState('')
-  const [ready, setReady] = useState(false) // 받아 둔 새 판을 바로 바꿔 끼울 수 있음
-  const [dl, setDl] = useState(() => load<number>('dlCount', 0))
+  const [dl] = useState(() => load<number>('dlCount', 0))
   const [shared, setShared] = useState('')
-  const [about, setAbout] = useState(false)
   const church = useChurch()
   const cards = useCards()
   const [chOpen, setChOpen] = useState(false)
   const closeCh = useCallback(() => setChOpen(false), [])
   const [reading, setReading] = useState(false)
-  const [privacy, setPrivacy] = useState(false)
-  const closePrivacy = useCallback(() => setPrivacy(false), [])
-  const closeAbout = useCallback(() => setAbout(false), [])
-  const [eqOpen, setEqOpen] = useState(false)
   const [med, setMed] = useState(false)
   const closeMed = useCallback(() => setMed(false), [])
-  const closeEq = useCallback(() => setEqOpen(false), [])
-  const eqs = useEq()
   const closeReading = useCallback(() => setReading(false), [])
   const v = shown(YEAR[dayIndex()], kjv)
   const [mood, setMood] = useState(false)
@@ -59,7 +45,6 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
   return (
     <div className="page rest-page">
       <div className="ph"><h1>{tx("쉼")}</h1></div>
-      {church && <div className="chtop"><ChurchCard c={church} foot={kindOf(church) === 'church' ? <NaverBtn c={church} /> : undefined} /></div>}
       <section className="rest" aria-labelledby="rest-h">
         <h2 className="wl" id="rest-h">{tx("오늘의 한 구절")}</h2>
         <p className="rest-w" lang={v.lang}>{v.text}</p>
@@ -70,10 +55,66 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
         <p className="rest-n">{tx("듣고 있는 음악은 그대로 흘러요")}</p>
       </section>
 
+
+      {/* 카드: 한 구절 바로 아래, 쉼을 열면 함께 보이게 */}
+      <h2 className="sub">{tx("교회 · 선물 카드")}</h2>
+      {church && <div className="chtop"><ChurchCard c={church} foot={kindOf(church) === 'church' ? <NaverBtn c={church} /> : undefined} /></div>}
+      <ul className="pl">
+        <li><button className="lrow" onClick={() => setChOpen(true)}><span className="x">
+          <span className="x1">{tx("카드 관리")}</span>
+          <span className="x2">{cards.list.length ? tx("받은 카드 {0} · 보낸 카드 {1}", cards.list.filter((e) => !e.mine).length, cards.list.filter((e) => e.mine).length) : tx("교회 이름, 선물·축하, 커플 이름을 화면 맨 위에")}</span>
+        </span><Icon n="chev" s={20} /></button></li>
+      </ul>
+
       <h2 className="sub">{tx("찬송가 반주 ")}<span>{tx("· 무료 · 가사 없이 곡조만")}</span></h2>
       <p className="soon">{tx("연주와 녹음을 준비하고 있어요. 다 되면 여기서 무료로 받을 수 있어요.")}</p>
 
-      <h2 className="sub">{tx("보기")}</h2>
+
+      <button className="sharebtn" onClick={async () => setShared(await shareApp())}><Icon n="heart" s={20} />{tx("이 앱 알려 주기")}</button>
+      {shared && <p className="done-note" role="status">{shared}</p>}
+      {dl > 0 && <p className="dlcount">{rt("**{0}**번 내려받았어요 · 고맙습니다", nf.format(dl))}</p>}
+
+
+      {med && <MeditatePage player={player} music={music} onClose={closeMed} />}
+      {chOpen && <ChurchPage onClose={closeCh} />}
+      {reading && <ReadPage onClose={closeReading} />}
+      {mood && <MoodPage onClose={closeMood} />}
+    </div>
+  )
+}
+
+/** 「설정」 탭: 보기·소리·휴대폰·온음. 새 판이 있으면 맨 위에 알린다 */
+export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, verseMove, setVerseMove, player, onNews, onCheck }: {
+  easy: boolean; setEasy: (v: boolean) => void; onFolders?: () => void; battery: Battery; onBattery: () => void
+  verseMove: boolean; setVerseMove: (v: boolean) => void; player: Player; onNews: () => void; onCheck: (force?: boolean) => Promise<Check | null>
+}) {
+  const norm = player.normOn, setNorm = player.setNorm
+  const kjv = useKjv()
+  const notesOn = useFlag('notes', true)
+  const updOn = useFlag('updateCheck', true)
+  const upd = useUpd()
+  const [chk, setChk] = useState('')
+  const [ready, setReady] = useState(() => hasPending()) // 받아 둔 새 판을 바로 바꿔 끼울 수 있음
+  const [about, setAbout] = useState(false)
+  const [privacy, setPrivacy] = useState(false)
+  const closePrivacy = useCallback(() => setPrivacy(false), [])
+  const closeAbout = useCallback(() => setAbout(false), [])
+  const [eqOpen, setEqOpen] = useState(false)
+  const closeEq = useCallback(() => setEqOpen(false), [])
+  const eqs = useEq()
+  return (
+    <div className="page set-page">
+      <div className="ph"><h1>{tx("설정")}</h1></div>
+      {(isNative || import.meta.env.DEV) && upd !== 'none' && (
+        <div className="upd-banner" role="status">
+          <span className="upd-dot" aria-hidden="true" />
+          <span className="upd-t"><b>{tx("새 판이 있어요")}</b><span>{upd === 'web' ? tx("누르면 음악을 멈추고 바로 바뀌어요") : tx("휴대폰 쪽이 바뀐 판이라 새로 설치해야 해요")}</span></span>
+          {upd === 'web'
+            ? <button className="pillbtn ink" onClick={() => { player.pause(); applyPending() }}>{tx("지금 바꾸기")}</button>
+            : <button className="pillbtn ink" onClick={() => onCheck(true)}>{tx("받기")}</button>}
+        </div>
+      )}
+      <h2 className="sub">{tx("화면 · 소리")}</h2>
       <ul className="pl">
         <li>
           <div className="lrow">
@@ -153,17 +194,7 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
         )}
       </ul>
 
-      <button className="sharebtn" onClick={async () => setShared(await shareApp())}><Icon n="heart" s={20} />{tx("이 앱 알려 주기")}</button>
-      {shared && <p className="done-note" role="status">{shared}</p>}
-      {dl > 0 && <p className="dlcount">{rt("**{0}**번 내려받았어요 · 고맙습니다", nf.format(dl))}</p>}
 
-      <h2 className="sub">{tx("교회 · 선물 카드")}</h2>
-      <ul className="pl">
-        <li><button className="lrow" onClick={() => setChOpen(true)}><span className="x">
-          <span className="x1">{tx("카드 관리")}</span>
-          <span className="x2">{cards.list.length ? tx("받은 카드 {0} · 보낸 카드 {1}", cards.list.filter((e) => !e.mine).length, cards.list.filter((e) => e.mine).length) : tx("교회 이름, 선물·축하, 커플 이름을 화면 맨 위에")}</span>
-        </span><Icon n="chev" s={20} /></button></li>
-      </ul>
       <h2 className="sub">{tx("온음에 대하여")}</h2>
       <ul className="pl about">
         <li><button className="lrow" onClick={() => setAbout(true)}><span className="x"><span className="x1">{tx("온음이 무료인 이유")}</span></span><Icon n="chev" s={20} /></button></li>
@@ -183,7 +214,6 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
                 : <button className="pillbtn small" disabled={chk === '…'} onClick={async () => {
                     setChk('…')
                     const u = await onCheck(true)
-                    setDl(load<number>('dlCount', 0))
                     setReady(u?.kind === 'web' && hasPending())
                     setChk(!u ? tx("확인하지 못했어요. 인터넷 연결을 확인해 주세요") : u.kind === 'same' ? tx("지금이 가장 새 판이에요") : u.kind === 'web' ? tx("새 판을 받아 두었어요. 「지금 바꾸기」를 누르면 바로 바뀌어요") : tx("새 판이 나왔어요"))
                   }}>{tx("확인")}</button>}
@@ -191,13 +221,10 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
           </li>
         )}
       </ul>
+
       {eqOpen && <EqPage onClose={closeEq} />}
-      {med && <MeditatePage player={player} music={music} onClose={closeMed} />}
       {about && <AboutPage onClose={closeAbout} />}
-      {chOpen && <ChurchPage onClose={closeCh} />}
-      {reading && <ReadPage onClose={closeReading} />}
       {privacy && <PrivacyPage onClose={closePrivacy} />}
-      {mood && <MoodPage onClose={closeMood} />}
     </div>
   )
 }

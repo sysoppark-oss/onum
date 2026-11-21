@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from 'react'
 // 새 판 알림과 화면 부분 자동 업데이트(설치형 앱만).
 // GitHub의 시험판 안내(릴리스)에 적힌 지문을 보고:
 //  · 안드로이드 쪽이 그대로면 화면 부분(web.zip)만 받아 두었다가, 음악이 멈춰 있을 때 바꿔 끼운다.
@@ -32,9 +33,22 @@ export async function fetchRemote(): Promise<Remote | null> {
   return { ...info, apk: asset('onum-test.apk'), web: asset('web.zip') }
 }
 
+// 새 판 소식: 설정 탭에 표시를 띄우려고 앱 어디서나 본다. web = 받아 두어 바로 바꿀 수 있음, apk = 새로 설치할 판
+type Upd = 'none' | 'web' | 'apk'
+// 개발 서버에서 ?upd=web / ?upd=apk 로 화면을 시험한다
+let upd: Upd = import.meta.env.DEV && typeof location !== 'undefined' ? ((new URLSearchParams(location.search).get('upd') as Upd | null) ?? 'none') : 'none'
+const updSubs = new Set<() => void>()
+const setUpd = (u: Upd) => { if (u !== upd) { upd = u; updSubs.forEach((f) => f()) } }
+export const useUpd = () => useSyncExternalStore((f) => { updSubs.add(f); return () => { updSubs.delete(f) } }, () => upd)
+
 /** 하루 몇 번만 본다. 돌려주는 값: 'apk'면 새로 설치할 판, 'web'이면 받아 둔 판, 없으면 null */
 export type Check = { kind: 'apk' | 'web' | 'same'; r: Remote; err?: string }
 export async function checkUpdate(force = false): Promise<Check | null> {
+  const c = await checkUpdate0(force)
+  if (c) setUpd(c.kind === 'same' ? 'none' : c.kind === 'web' ? (hasPending() ? 'web' : 'none') : 'apk')
+  return c
+}
+async function checkUpdate0(force: boolean): Promise<Check | null> {
   if (!isNative || BUILD.sha === 'dev') return null
   const last = load<number>('updAt', 0)
   if (!force && Date.now() - last < EVERY) return null

@@ -1,5 +1,5 @@
 // 온음 — 「흐름」 화면
-import { appReady, applyPending, checkUpdate, hasPending, type Remote } from './lib/update'
+import { appReady, applyPending, checkUpdate, hasPending, useUpd, type Remote } from './lib/update'
 import { UpdateSheet } from './ui/Update'
 import type { Hide } from './ui/Dupes'
 import { useFlag } from './lib/flag'
@@ -21,7 +21,7 @@ import { Icon, SAFE_VOLUME, closers, info, useOutput, useVolume } from './ui/com
 import { NowScreen } from './ui/Now'
 import { MusicScreen } from './ui/Music'
 import { ListsScreen } from './ui/Lists'
-import { RestScreen } from './ui/Rest'
+import { RestScreen, SettingsScreen } from './ui/Rest'
 import { FirstScreen, FoldersPage } from './ui/First'
 import { EasyScreen } from './ui/Easy'
 import { BatteryPage, useBattery } from './ui/Battery'
@@ -30,8 +30,8 @@ import { ReadPage } from './ui/Rest'
 import { tx } from "./lib/i18n";
 import { GoodnightScreen, SleepSheet } from './ui/Sheets'
 
-type Tab = 'now' | 'music' | 'lists' | 'rest'
-const TABS: [Tab, string, string][] = [['now', tx("지금"), 'clock'], ['music', tx("음악"), 'search'], ['lists', tx("내 목록"), 'list'], ['rest', tx("쉼"), 'heart']]
+type Tab = 'now' | 'music' | 'lists' | 'rest' | 'set'
+const TABS: [Tab, string, string][] = [['now', tx("지금"), 'clock'], ['music', tx("음악"), 'search'], ['lists', tx("내 목록"), 'list'], ['rest', tx("쉼"), 'heart'], ['set', tx("설정"), 'gear']]
 
 export default function App() {
   useDayNight()
@@ -108,6 +108,7 @@ export default function App() {
   // 새 판: 화면 부분은 받아 두었다가 음악이 멈춰 있을 때 바꿔 끼우고, 휴대폰 쪽이 바뀐 판은 알린다
   const updOn = useFlag('updateCheck', true)
   const [apk, setApk] = useState<Remote | null>(null)
+  const upd = useUpd() // 새 판이 있으면 설정 탭에 점
   const playingRef = useRef(player.playing)
   playingRef.current = player.playing
   const runCheck = useCallback(async (force = false) => {
@@ -174,7 +175,8 @@ export default function App() {
             {tab === 'now' && <NowScreen tracks={tracks} player={player} vol={vol} loud={loud} output={output} lists={lists} edits={edits} onSleep={openSleep} />}
             {tab === 'music' && <MusicScreen tracks={tracks} scan={scan} player={player} lists={lists} onPlayed={() => setTab('now')} onKind={moveKind} />}
             {tab === 'lists' && <ListsScreen tracks={tracks} music={music} player={player} lists={lists} edits={edits} onPlayed={() => setTab('now')} hide={hide} notSame={notSame} />}
-            {tab === 'rest' && <RestScreen easy={easy} setEasy={setEasy} onFolders={() => setFolders(true)} battery={battery} onBattery={() => setBatteryOpen(true)} verseMove={verseMove} setVerseMove={setVerseMove} player={player} onNews={() => setNews(true)} onCheck={runCheck} music={music} />}
+            {tab === 'rest' && <RestScreen player={player} music={music} />}
+            {tab === 'set' && <SettingsScreen easy={easy} setEasy={setEasy} onFolders={() => setFolders(true)} battery={battery} onBattery={() => setBatteryOpen(true)} verseMove={verseMove} setVerseMove={setVerseMove} player={player} onNews={() => setNews(true)} onCheck={runCheck} />}
           </>
         )}
       </main>
@@ -184,8 +186,9 @@ export default function App() {
       {!easy && (
         <nav className="tabs" aria-label={tx("주요 메뉴")}>
           {TABS.map(([id, label, ic]) => (
-            <button key={id} className={tab === id ? 'on' : undefined} aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)}>
-              <Icon n={ic} s={24} w={tab === id ? 2.4 : 2} />{label}
+            <button key={id} className={tab === id ? 'on' : undefined} aria-current={tab === id ? 'page' : undefined} onClick={() => setTab(id)}
+              aria-label={id === 'set' && upd !== 'none' ? tx("{0} · 새 판이 있어요", label) : undefined}>
+              <span className="tab-ic"><Icon n={ic} s={24} w={tab === id ? 2.4 : 2} />{id === 'set' && upd !== 'none' && <span className="tab-dot" aria-hidden="true" />}</span>{label}
             </button>
           ))}
         </nav>

@@ -986,3 +986,15 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 /* 「주빛의 생일을 축하해요」처럼 조사로 이어지면 이름에 붙여 한 줄로 흐르게 */
 .cm.cm-big.glued { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 0; }
 .cm.cm-big.glued .cm-line { font-size: 18px; }
+
+/* 아래 탭 다섯 개 · 새 판 점 */
+.tabs { grid-template-columns: repeat(5, 1fr); }
+.tab-ic { position: relative; display: inline-flex; }
+.tab-dot { position: absolute; top: -1px; right: -3px; width: 9px; height: 9px; border-radius: 50%; background: var(--warn); box-shadow: 0 0 0 2px var(--bg); }
+/* 설정 맨 위 새 판 알림 */
+.upd-banner { display: flex; align-items: center; gap: 12px; margin: 4px 0 8px; padding: 14px 14px 14px 16px; border-radius: 18px; background: var(--sf); }
+.upd-dot { flex-shrink: 0; width: 10px; height: 10px; border-radius: 50%; background: var(--warn); }
+.upd-t { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.upd-t b { font-size: 16px; font-weight: 800; }
+.upd-t span { font-size: 13px; line-height: 1.45; color: var(--ink2); }
+.upd-banner .pillbtn { flex-shrink: 0; }
