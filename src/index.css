@@ -1035,3 +1035,37 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .notes i svg { display: block; }
 .shape.v-calm .head { display: none; }
 .shape.v-meter .cv-open, .shape.v-phase .cv-open { top: auto; bottom: 0.625rem; }
+
+/* ───────── 가로 화면(폰을 눕혔을 때, 납작한 창) ───────── */
+.now .nl, .now .nr { display: contents; }
+@media (orientation: landscape) and (max-height: 560px) {
+  :root { --rail: calc(5.25rem + max(var(--safe-area-inset-left, 0px), env(safe-area-inset-left, 0px))); --strip: 3rem; }
+  .app { max-width: none; }
+  .main, .main.with-strip, .main.with-mini { padding-bottom: 0; }
+  .main:not(.no-tabs) { padding-left: var(--rail); }
+  .main.with-mini { padding-bottom: 5.25rem; }
+  .page, .with-strip .page { min-height: 100dvh; padding: calc(var(--top) + 0.75rem) 1.5rem 1.25rem; }
+  .page:not(.now), .no-tabs .page { width: 100%; max-width: 45rem; margin: 0 auto; }
+
+  /* 아래 탭 → 왼쪽 세로 줄 */
+  .tabs {
+    top: 0; bottom: 0; right: auto; width: var(--rail); height: auto; max-width: none; margin: 0;
+    padding: var(--top) 0 var(--bottom) max(var(--safe-area-inset-left, 0px), env(safe-area-inset-left, 0px));
+    grid-template-columns: 1fr; grid-template-rows: repeat(5, minmax(0, 1fr));
+    border-top: 0; border-right: 1px solid var(--line);
+  }
+  .mini { left: calc(var(--rail) + 0.75rem); right: 0.75rem; bottom: 0.625rem; }
+
+  /* 지금: 왼쪽(이름·곡·소리 모양) | 오른쪽(단추·음량·이어서) */
+  .page.now { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: 2rem; height: 100dvh; min-height: 0; padding-bottom: calc(var(--strip) + 0.5rem); overflow: hidden; }
+  .now .nl, .now .nr { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+  .now .nl .song { margin-top: auto; padding-top: 0.5rem; }
+  .now .nl .times { margin-bottom: auto; }
+  .now .nr .ctl { grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr) auto; }
+  .now .nr .ctl .small { width: auto; min-width: 3.5rem; padding: 0 0.375rem; }
+  .now .nr .ctl .jump { width: 3.5rem; }
+  .now .song h1 { font-size: 1.625rem; }
+  .now .nr .ctl { margin-top: 0.25rem; }
+  .now .nr .flow { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .vstrip { left: calc(var(--rail) + (100vw - var(--rail)) / 2 + 0.25rem); right: 0; bottom: 0; max-width: none; margin: 0; height: var(--strip); padding: 0 1.5rem; border-top: 1px solid var(--line); }
+}

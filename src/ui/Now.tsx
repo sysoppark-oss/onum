@@ -365,6 +365,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
 
   return (
     <div className="page now">
+      <div className="nl">
       <div className="top">
         {church
           ? <button className="chbrand" onClick={() => setChOpen(true)} aria-label={tx("카드 열기: {0}", church.name)}>
@@ -415,7 +416,9 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
           </div>
         </>
       )}
+      </div>
 
+      <div className="nr">
       {talk ? (
         <div className="ctl">
           <button className="small" aria-haspopup="dialog" onClick={() => setSpeedOpen(true)} disabled={!cur} aria-label={tx("빠르기 {0}배", r)}>
@@ -496,6 +499,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
         )}
       </section>
       )}
+      </div>
 
       {repeatOpen && <RepeatSheet player={player} onClose={closeRepeat} />}
       {speedOpen && <SpeedSheet player={player} onClose={closeSpeed} />}
