@@ -1,4 +1,4 @@
-// 카드: 교회 이름(「생명샘교회에서 드리는 온음」)·선물·축하·커플(「강빛 ♥ 주빛」)
+// 카드: 교회 이름(「맑은물속교회에서 드리는 온음」)·선물·축하·커플(「강빛 ♥ 주빛」)
 // 보기(네이버에서 교회 보기·QR 나누기) · 만들기 · 고치기(처음 만든 분의 비밀번호) · 받은 카드 넣기
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
@@ -164,7 +164,7 @@ function ChurchView({ e, on, onEdit, onList }: { e: Entry; on: boolean; onEdit: 
 
 // 고르는 모양: 종류마다 이어지는 말을 미리 채워 둔다(고쳐 쓸 수 있음)
 const PRESETS: { id: string; label: string; kind: Kind; name: string; line: string; q?: string }[] = [
-  { id: 'church', label: "교회", kind: 'church', name: "예) 생명샘교회", line: "에서 드리는 온음", q: "예) 생명샘교회 평창" },
+  { id: 'church', label: "교회", kind: 'church', name: "예) 맑은물속교회", line: "에서 드리는 온음", q: "예) 맑은물속교회 평창" },
   { id: 'gift', label: "선물", kind: 'gift', name: "예) 주빛", line: "에게 보내는 선물" },
   { id: 'heart', label: "마음", kind: 'gift', name: "예) 강빛이가", line: "주빛을 사랑하며" },
   { id: 'cheer', label: "축하", kind: 'gift', name: "예) 주빛", line: "의 생일을 축하해요" },

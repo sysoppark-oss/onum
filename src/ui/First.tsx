@@ -228,7 +228,7 @@ export function FoldersPage({ tracks, hidden, setHidden, onClose }: { tracks: Tr
   )
 }
 
-/** 교회 카드로 받은 분께: 「생명샘교회가 드리는」 + 온음 */
+/** 교회 카드로 받은 분께: 「맑은물속교회에서 드리는」 + 온음 */
 function Mark() {
   const ch = useChurch()
   return ch
