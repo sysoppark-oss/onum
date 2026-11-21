@@ -22,7 +22,6 @@ import type { Battery } from './Battery'
 import { EFFECTIVE, PRIVACY } from '../lib/privacy'
 import { kindOf, useChurch } from '../lib/church'
 import { ChurchCard, ChurchPage, NaverBtn } from './Church'
-import { AI_MB, aiOn, downloadAi, removeAi, setAiAsked, useAi } from '../lib/ai'
 
 const REPO = 'https://github.com/sysoppark-oss/onum'
 const MAIL = 'sysoppark@gmail.com'
@@ -32,7 +31,6 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
   verseMove: boolean; setVerseMove: (v: boolean) => void; player: Player; onNews: () => void; onCheck: (force?: boolean) => Promise<Check | null>; music: Track[]
 }) {
   const norm = player.normOn, setNorm = player.setNorm
-  const ai = useAi()
   const kjv = useKjv()
   const notesOn = useFlag('notes', true)
   const updOn = useFlag('updateCheck', true)
@@ -98,17 +96,6 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
             <div className="lrow">
               <span className="x"><span className="x1" id="up-l">{tx("새 판 알림")}</span><span className="x2">{tx("새 판이 나오면 받아 두거나 알려 드려요(GitHub에 확인)")}</span></span>
               <button className="sw" role="switch" aria-checked={updOn} aria-labelledby="up-l" onClick={() => setFlag('updateCheck', !updOn)} />
-            </div>
-          </li>
-        )}
-        {aiOn && ai.st?.ok && (
-          <li>
-            <div className="lrow">
-              <span className="x"><span className="x1">{tx("가사 저절로 맞추기")}</span>
-                <span className="x2">{ai.dl != null ? tx("받고 있어요 {0}%", nf.format(Math.round(ai.dl * 100))) : ai.st.ready ? tx("받아 두었어요 · {0}MB", nf.format(Math.round(ai.st.bytes / 1e6))) : tx("약 {0}MB · 휴대폰 안에서만 돌아요", AI_MB)}</span></span>
-              {ai.dl == null && (ai.st.ready
-                ? <button className="pillbtn small" onClick={() => removeAi()}>{tx("지우기")}</button>
-                : <button className="pillbtn small" onClick={() => { setAiAsked(); downloadAi() }}>{tx("받기")}</button>)}
             </div>
           </li>
         )}

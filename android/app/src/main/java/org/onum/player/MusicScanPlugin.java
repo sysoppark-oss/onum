@@ -74,6 +74,15 @@ public class MusicScanPlugin extends Plugin {
     @Override
     public void load() {
         inst = this;
+        // 예전 판에서 받아 둔 가사 맞추기 AI 모델(약 160MB)은 이제 쓰지 않으니 지운다
+        new Thread(() -> {
+            java.io.File d = new java.io.File(getContext().getFilesDir(), "ai");
+            java.io.File[] fs = d.listFiles();
+            if (fs != null) for (java.io.File f : fs) //noinspection ResultOfMethodCallIgnored
+                f.delete();
+            //noinspection ResultOfMethodCallIgnored
+            d.delete();
+        }).start();
         AudioManager am = (AudioManager) getContext().getSystemService(Context.AUDIO_SERVICE);
         deviceCallback = new AudioDeviceCallback() {
             @Override
@@ -293,62 +302,6 @@ public class MusicScanPlugin extends Plugin {
                 call.resolve(r);
             } catch (Exception e) { call.reject("export_failed", e); }
         }).start();
-    }
-
-    /** 가사 자동 맞추기 AI: 받았는지·크기·이 휴대폰에서 돌 수 있는지 */
-    @PluginMethod
-    public void aiStatus(PluginCall call) {
-        JSObject o = new JSObject();
-        o.put("ok", AiLyrics.supported());
-        o.put("ready", AiLyrics.ready(getContext()));
-        o.put("bytes", AiLyrics.bytes(getContext()));
-        call.resolve(o);
-    }
-
-    @PluginMethod
-    public void aiDownload(PluginCall call) {
-        if (!AiLyrics.supported()) { call.reject("unsupported"); return; }
-        new Thread(() -> {
-            try {
-                AiLyrics.download(getContext(), (stage, done, total) -> progress(stage, done, total));
-                call.resolve();
-            } catch (Exception e) { call.reject(String.valueOf(e.getMessage()), e); }
-        }).start();
-    }
-
-    @PluginMethod
-    public void aiRemove(PluginCall call) {
-        AiLyrics.remove(getContext());
-        call.resolve();
-    }
-
-    /** 받아쓰기: {w:[낱말…], t:[초…]} — 노래는 휴대폰 밖으로 나가지 않는다 */
-    @PluginMethod
-    public void aiTranscribe(PluginCall call) {
-        String path = call.getString("path");
-        String lang = call.getString("lang", "ko");
-        if (path == null) { call.reject("no_path"); return; }
-        if (!AiLyrics.supported()) { call.reject("unsupported"); return; }
-        if (!AiLyrics.ready(getContext())) { call.reject("no_model"); return; }
-        new Thread(() -> {
-            try {
-                java.util.List<Object> r = AiLyrics.transcribe(getContext(), path, lang, (stage, done, total) -> progress(stage, done, total));
-                JSArray w = new JSArray(), t = new JSArray();
-                for (int i = 0; i + 1 < r.size(); i += 2) { w.put(r.get(i)); t.put(((Float) r.get(i + 1)).doubleValue()); }
-                JSObject o = new JSObject();
-                o.put("w", w);
-                o.put("t", t);
-                call.resolve(o);
-            } catch (Throwable e) { call.reject(String.valueOf(e.getMessage()), e instanceof Exception ? (Exception) e : new Exception(e)); }
-        }).start();
-    }
-
-    private void progress(String stage, long done, long total) {
-        JSObject o = new JSObject();
-        o.put("stage", stage);
-        o.put("done", done);
-        o.put("total", total);
-        notifyListeners("aiProgress", o);
     }
 
     /** 강의의 조용한 구간: 처음부터 끝까지 50ms 창으로 재어, 0.7초 넘게 조용한 곳을 [시작, 끝](1/100초)으로 돌려준다 */

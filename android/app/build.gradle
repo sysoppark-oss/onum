@@ -27,16 +27,6 @@ android {
             keyPassword "android"
         }
     }
-    packaging {
-        jniLibs {
-            // 가사 자동 맞추기 엔진(sherpa-onnx)은 64비트용만 싣고, 압축해서 앱을 가볍게 한다
-            useLegacyPackaging = true
-            excludes += ['**/armeabi-v7a/libonnxruntime.so', '**/armeabi-v7a/libsherpa-onnx-*.so',
-                         '**/x86/libonnxruntime.so', '**/x86/libsherpa-onnx-*.so',
-                         '**/x86_64/libonnxruntime.so', '**/x86_64/libsherpa-onnx-*.so',
-                         '**/libsherpa-onnx-c-api.so', '**/libsherpa-onnx-cxx-api.so']
-        }
-    }
     buildTypes {
         debug {
             signingConfig signingConfigs.test
@@ -56,9 +46,6 @@ repositories {
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
-    // 가사 자동 맞추기: CI가 libs/에 내려받는다 (k2-fsa/sherpa-onnx v2.0.2, Apache-2.0)
-    implementation files('libs/sherpa-onnx-2.0.2.aar')
-    implementation "org.jetbrains.kotlin:kotlin-stdlib:1.9.24"
     implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"

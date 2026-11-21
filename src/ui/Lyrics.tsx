@@ -1,4 +1,4 @@
-// 가사: 붙여 넣기 → 박자 맞추기(줄이 시작될 때 누르기) → 노래방처럼 따라가기.
+// 가사: 음악 파일 속 가사·곡 옆 .lrc 찾기, 붙여 넣기, 가사 파일 가져오기·보내기. 시각이 붙은 LRC면 노래방처럼 따라간다.
 // 인터넷에서 가사를 가져오지 않는다. 이 휴대폰 안에만 저장한다.
 import { rt } from './rich'
 import { useEffect, useRef, useState } from 'react'
@@ -7,17 +7,15 @@ import type { Player } from '../lib/usePlayer'
 import { findLyrics, fromPasted, linesOf, stateAt, type LyState, setLyrics, synced, toLrc, useLyrics, type Lyrics } from '../lib/lyrics'
 import { isNative } from '../lib/native'
 import { Share } from '@capacitor/share'
-import { fmt } from '../lib/library'
 import { tx } from "../lib/i18n";
-import { Icon, info, nf } from './common'
+import { Icon, info } from './common'
 import { Page } from './Sheets'
-import { AI_MB, aiOn, autoSync, downloadAi, useAi } from '../lib/ai'
 
-type Mode = 'view' | 'edit' | 'sync' | 'find'
+type Mode = 'view' | 'edit' | 'find'
 
-export function LyricsPage({ t, player, onClose, start }: { t: Track; player: Player; onClose: () => void; start?: 'edit' | 'sync' }) {
+export function LyricsPage({ t, player, onClose, start }: { t: Track; player: Player; onClose: () => void; start?: 'edit' }) {
   const ly = useLyrics(t)
-  const [mode, setMode] = useState<Mode>(start === 'edit' ? 'edit' : start === 'sync' && ly ? 'sync' : ly ? 'view' : 'find')
+  const [mode, setMode] = useState<Mode>(start === 'edit' ? 'edit' : ly ? 'view' : 'find')
   const [found, setFound] = useState(false)
   const x = info(t)
   // 처음 열 때 음악 파일 속 가사(또는 곡 옆 .lrc)를 먼저 찾아본다
@@ -35,8 +33,7 @@ export function LyricsPage({ t, player, onClose, start }: { t: Track; player: Pl
     <Page label={tx("가사 · {0}", x.song)} onClose={onClose}>
       {mode === 'find' && <p className="ly-finding" role="status">{tx("음악 파일에 든 가사를 찾고 있어요…")}</p>}
       {mode === 'edit' && <EditLyrics t={t} ly={ly} onDone={(next) => setMode(next)} />}
-      {mode === 'sync' && ly && <SyncLyrics t={t} ly={ly} player={player} onDone={() => setMode('view')} />}
-      {mode === 'view' && ly && <ViewLyrics t={t} ly={ly} player={player} isCur={isCur} found={found} onEdit={() => setMode('edit')} onSync={() => setMode('sync')} />}
+      {mode === 'view' && ly && <ViewLyrics t={t} ly={ly} player={player} isCur={isCur} found={found} onEdit={() => setMode('edit')} />}
     </Page>
   )
 }
@@ -50,7 +47,7 @@ function EditLyrics({ t, ly, onDone }: { t: Track; ly: Lyrics | null; onDone: (m
     if (!v.trim()) return
     const l = fromPasted(ly, v)
     setLyrics(t, l)
-    onDone(next === 'sync' && synced(l) ? 'view' : next)
+    onDone(next)
   }
   const fromFile = async (f: File | undefined) => {
     if (!f) return
@@ -61,13 +58,10 @@ function EditLyrics({ t, ly, onDone }: { t: Track; ly: Lyrics | null; onDone: (m
   }
   return (
     <div className="ly-edit">
-      <p className="say">{rt("가사를 **붙여 넣어** 주세요. 시각이 붙은 LRC 가사를 넣으면 박자도 함께 맞춰져요.")}</p>
+      <p className="say">{rt("가사를 **붙여 넣어** 주세요. 시각이 붙은 LRC 가사를 넣으면 노래를 따라 줄이 바뀌어요.")}</p>
       <textarea ref={box} className="ly-ta" value={v} onChange={(e) => setV(e.target.value)} aria-label={tx("가사")} placeholder={tx("예)\n사랑이란 말은 너무 흔해\n하지만 오늘은 말할게")} spellCheck={false} />
       <p className="hint num">{n ? tx("{0}줄 · ", n) : ''}{tx("가사는 이 휴대폰 안에만 저장되고 어디로도 보내지 않아요.")}</p>
-      <div className="nb">
-        <button className="ghost" onClick={() => keep('view')} disabled={!v.trim()}>{tx("저장")}</button>
-        <button className="go" onClick={() => keep('sync')} disabled={!v.trim()}>{tx("박자 맞추기")}</button>
-      </div>
+      <button className="go" onClick={() => keep('view')} disabled={!v.trim()}>{tx("저장")}</button>
       <label className="ly-file">
         <input type="file" className="sr" accept=".lrc,.txt,text/plain" onChange={(e) => fromFile(e.target.files?.[0])} />
         <Icon n="folder" s={18} /><span>{tx("가사 파일(.lrc) 가져오기")}</span>
@@ -77,73 +71,7 @@ function EditLyrics({ t, ly, onDone }: { t: Track; ly: Lyrics | null; onDone: (m
   )
 }
 
-/** 노래를 들으며 줄이 시작될 때 누른다 */
-function SyncLyrics({ t, ly, player, onDone }: { t: Track; ly: Lyrics; player: Player; onDone: () => void }) {
-  const lines = linesOf(ly.text)
-  const real = lines.map((l, i) => (l ? i : -1)).filter((i) => i >= 0)
-  const [k, setK] = useState(0) // real 안의 다음 줄
-  const [resting, setResting] = useState(false) // 「간주」를 눌러 노래가 쉬는 중
-  const times = useRef<(number | null)[]>(lines.map(() => null))
-  const ends = useRef<(number | null)[]>(lines.map(() => null))
-  const isCur = !!player.current && (player.current.src ?? player.current.id) === (t.src ?? t.id)
-  // 처음부터 들려준다
-  useEffect(() => {
-    if (!isCur) player.playFrom([t], t.id, 0, true)
-    else { player.seek(t.clip?.s ?? 0); if (!player.playing) player.play() }
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-  const save = (done: boolean) => {
-    const tt = lines.map((_, i) => times.current[i] ?? (done ? null : ly.t[i] ?? null))
-    const ee = lines.map((_, i) => ends.current[i] ?? (done ? null : ly.e?.[i] ?? null))
-    setLyrics(t, { ...ly, t: tt, e: ee.some((v) => v != null) ? ee : undefined, off: 0 })
-  }
-  const now = () => Math.max(0, player.time - 0.15) // 누르는 데 걸리는 짧은 시간만큼 앞당긴다
-  const tap = () => {
-    const i = real[k]
-    if (i == null) return
-    times.current[i] = now()
-    setResting(false)
-    if (k + 1 >= real.length) { save(true); onDone() } else setK(k + 1)
-  }
-  /** 노래가 멈추고 간주가 시작될 때: 앞 줄이 여기서 끝났다고 적는다 */
-  const rest = () => {
-    if (k === 0) return
-    ends.current[real[k - 1]] = now()
-    setResting(true)
-  }
-  const back = () => {
-    if (resting) { ends.current[real[k - 1]] = null; setResting(false); return }
-    if (k === 0) return
-    const i = real[k - 1]
-    const at = times.current[i]
-    times.current[i] = null
-    if (k >= 2) ends.current[real[k - 2]] = null
-    setK(k - 1)
-    player.seek(Math.max(0, (at ?? player.time) - 3))
-  }
-  const cur = real[k] != null ? lines[real[k]] : ''
-  const prev = k > 0 ? lines[real[k - 1]] : ''
-  const after = real[k + 1] != null ? lines[real[k + 1]] : ''
-  return (
-    <div className="ly-sync">
-      <p className="hint num">{k + 1} / {real.length}{tx("줄 · ")}<span>{fmt(player.time)}</span></p>
-      <div className="ly-cards" aria-live="polite">
-        <p className="ly-prev">{prev ? <><span className="ly-lab">{resting ? tx("여기서 멈춤") : tx("부르는 중")}</span>{prev}</> : ' '}</p>
-        {resting && <p className="ly-rest"><Icon n="note" s={16} />{tx("간주 중 · 노래가 다시 시작되면 아래 줄에서 누르세요")}</p>}
-        <p className="ly-cur"><span className="ly-lab">{k === 0 ? tx("첫 줄") : resting ? tx("간주 뒤 첫 줄") : tx("다음 줄")}</span>{cur}</p>
-        <p className="ly-after">{after || ' '}</p>
-      </div>
-      <button className="ly-tap" onClick={tap}>{tx("이 줄이 시작될 때 누르기")}</button>
-      <button className="ly-restbtn" onClick={rest} disabled={k === 0 || resting}><Icon n="note" s={18} />{resting ? tx("간주로 표시했어요") : tx("노래가 멈추면 · 간주")}</button>
-      <div className="nb">
-        <button className="ghost" onClick={back} disabled={k === 0 && !resting}>{resting ? tx("간주 표시 취소") : tx("한 줄 되돌리기")}</button>
-        <button className="ghost" onClick={() => { save(false); onDone() }}>{tx("여기까지 저장")}</button>
-      </div>
-      <p className="hint">{tx("줄이 시작되는 순간 큰 버튼을 누르세요. 간주가 나오면 「간주」를 누르고, 노래가 다시 시작될 때 큰 버튼을 누르면 돼요.")}</p>
-    </div>
-  )
-}
-
-function ViewLyrics({ t, ly, player, isCur, found, onEdit, onSync }: { t: Track; ly: Lyrics; player: Player; isCur: boolean; found: boolean; onEdit: () => void; onSync: () => void }) {
+function ViewLyrics({ t, ly, player, isCur, found, onEdit }: { t: Track; ly: Lyrics; player: Player; isCur: boolean; found: boolean; onEdit: () => void }) {
   const lines = linesOf(ly.text)
   const st: LyState = isCur && synced(ly) ? stateAt(ly, player.time) : { on: -1, next: -1, gap: null, len: 0 }
   const on = st.gap != null ? -1 : st.on
@@ -169,12 +97,6 @@ function ViewLyrics({ t, ly, player, isCur, found, onEdit, onSync }: { t: Track;
   return (
     <div className="ly-view" onTouchMove={() => { touched.current = Date.now() }} onWheel={() => { touched.current = Date.now() }}>
       {found && <p className="ly-note">{tx("음악 파일에 함께 들어 있던 가사를 가져왔어요.")}</p>}
-      {!synced(ly) && (
-        <div className="ly-tip">
-          <p>{tx("박자를 맞추면 노래방처럼 지금 부르는 줄을 따라가요.")}</p>
-          <button className="pillbtn small" onClick={onSync}>{tx("박자 맞추기")}</button>
-        </div>
-      )}
       <ol className="ly-lines" ref={list}>
         {lines.flatMap((l, i) => {
           const at = ly.t[i]
@@ -202,7 +124,6 @@ function ViewLyrics({ t, ly, player, isCur, found, onEdit, onSync }: { t: Track;
           {isCur && <button className="mini-play" onClick={player.toggle} aria-label={player.playing ? tx("일시 정지") : tx("재생")}><Icon n={player.playing ? 'pause' : 'play'} s={22} /></button>}
           <div className="pz-tools">
             <button onClick={onEdit}><Icon n="edit" s={22} /><span>{tx("고치기")}</span></button>
-            <button onClick={onSync}><Icon n="clock" s={22} /><span>{synced(ly) ? tx("박자 다시") : tx("박자 맞추기")}</span></button>
             <button onClick={exportLrc}><Icon n="share" s={22} /><span>{isNative ? tx("보내기") : tx("파일로 저장")}</span></button>
           </div>
         </div>
@@ -212,7 +133,7 @@ function ViewLyrics({ t, ly, player, isCur, found, onEdit, onSync }: { t: Track;
 }
 
 /** 「지금」 화면 안 가사 칸: 박자가 맞으면 지금 줄 둘레를, 없으면 넣는 길을 바로 보여 준다 */
-export function LyricsInline({ t, player, onOpen }: { t: Track; player: Player; onOpen: (m?: 'edit' | 'sync') => void }) {
+export function LyricsInline({ t, player, onOpen }: { t: Track; player: Player; onOpen: (m?: 'edit') => void }) {
   const ly = useLyrics(t)
   const [looking, setLooking] = useState(!ly)
   useEffect(() => {
@@ -268,70 +189,9 @@ export function LyricsInline({ t, player, onOpen }: { t: Track; player: Player; 
           return st.gap != null && i === st.next ? [<GapRow key="gap" st={st} />, row] : [row]
         })}
       </ol>
-      <AutoSync t={t} synced={sync} />
       <div className="lyi-foot">
-        {!sync && <button className="pillbtn small" onClick={() => onOpen('sync')}>{tx("직접 맞추기")}</button>}
         <button className="more" onClick={() => onOpen()}>{tx("가사 전체 보기")}<Icon n="chev" s={16} /></button>
       </div>
-    </div>
-  )
-}
-
-/** 저절로 맞추기: 휴대폰 앱에서만. 기능(모델)이 없으면 먼저 받을지 묻는다 */
-export function AutoSync({ t, synced: sync }: { t: Track; synced: boolean }) {
-  const ai = useAi()
-  const [ask, setAsk] = useState(false)
-  if (!aiOn || !ai.st?.ok || !(t.path || !isNative)) return null
-  const mine = ai.job?.id === t.id
-  const err = ai.jobErr?.id === t.id ? ai.jobErr.msg : ''
-  const run = () => { setAsk(false); autoSync(t) }
-  const get = async () => { setAsk(false); if (await downloadAi()) autoSync(t) }
-  const msg = err === 'nomatch' ? tx("노래에서 가사를 찾지 못했어요. 가사가 이 곡과 맞는지 봐 주세요.")
-    : err === 'changed' ? '' : (ai.dlErr && !ai.st.ready) || err === 'no_model' ? tx("기능을 받지 못했어요. 인터넷을 확인하고 다시 해 주세요.")
-    : err ? tx("맞추지 못했어요. 다시 해 보거나 직접 맞춰 주세요.") : ''
-  const pct = (f: number) => nf.format(Math.round(f * 100)) + '%'
-
-  if (ai.dl != null) {
-    return (
-      <div className="ais" role="status">
-        <p className="ais-t"><Icon n="spark" s={18} />{tx("맞추기 기능을 받고 있어요")}<span className="num">{pct(ai.dl)}</span></p>
-        <div className="prog"><span style={{ width: pct(ai.dl) }} /></div>
-        <p className="ais-s">{tx("다 받으면 이 곡부터 맞춰 드릴게요.")}</p>
-      </div>
-    )
-  }
-  if (mine && ai.job) {
-    return (
-      <div className="ais" role="status">
-        <p className="ais-t"><Icon n="spark" s={18} />{ai.job.stage === 'listen' ? tx("노래를 들으며 줄마다 시각을 찾고 있어요") : tx("거의 다 됐어요")}<span className="num">{pct(ai.job.f)}</span></p>
-        <div className="prog"><span style={{ width: pct(ai.job.f) }} /></div>
-        <p className="ais-s">{tx("다른 곡을 들어도 계속 맞춰요. 휴대폰 밖으로는 보내지 않아요.")}</p>
-      </div>
-    )
-  }
-  if (ask) {
-    return (
-      <div className="ais ask">
-        <p className="ais-t"><Icon n="spark" s={18} />{tx("저절로 맞추기 기능을 받을까요?")}</p>
-        <p className="ais-s">{tx("약 {0}MB · 와이파이에서 받기를 권해요", AI_MB)}</p>
-        <div className="ais-acts">
-          <button className="pillbtn ink" onClick={get}>{tx("받기")}</button>
-          <button className="pillbtn" onClick={() => setAsk(false)}>{tx("나중에")}</button>
-        </div>
-      </div>
-    )
-  }
-  if (ai.done === t.id && sync) {
-    return <p className="ais-ok" role="status"><Icon n="check" s={18} /><span><b>{tx("줄마다 시각을 찾았어요")}</b>{tx("어긋나면 「가사 전체 보기」에서 고칠 수 있어요")}</span></p>
-  }
-  if (sync) return null
-  return (
-    <div className="ais">
-      {msg && <p className="ais-err" role="alert">{msg}</p>}
-      <button className="ais-go" onClick={() => (ai.st?.ready ? run() : setAsk(true))} disabled={!!ai.job}>
-        <Icon n="spark" s={20} />
-        <span className="ais-gt"><b>{tx("저절로 맞추기")}</b><span>{ai.job ? tx("다른 곡을 맞추는 중이에요") : tx("노래를 듣고 줄마다 시각을 찾아요")}</span></span>
-      </button>
     </div>
   )
 }

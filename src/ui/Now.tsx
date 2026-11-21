@@ -317,7 +317,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
   const [levelOpen, setLevelOpen] = useState(false)
   const [pracOpen, setPracOpen] = useState(false)
   const closePrac = useCallback(() => setPracOpen(false), [])
-  const [lyOpen, setLyOpen] = useState<false | 'view' | 'edit' | 'sync'>(false)
+  const [lyOpen, setLyOpen] = useState<false | 'view' | 'edit'>(false)
   const [view, setView] = useState<'flow' | 'lyrics'>(() => load('nowView', 'flow'))
   const pickView = (v: 'flow' | 'lyrics') => { setView(v); save('nowView', v) }
   const closeLy = useCallback(() => setLyOpen(false), [])
