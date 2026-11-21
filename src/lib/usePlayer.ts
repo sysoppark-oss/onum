@@ -629,10 +629,10 @@ export function usePlayer(tracks: Track[]) {
   useEffect(() => { notify() }, [playing, current, notify])
   useEffect(() => {
     const a = audio.current
-    a.addEventListener('seeked', notify)
-    a.addEventListener('ratechange', notify)
-    a.addEventListener('loadedmetadata', notify)
-    return () => { a.removeEventListener('seeked', notify); a.removeEventListener('ratechange', notify); a.removeEventListener('loadedmetadata', notify) }
+    // 소리를 줄이며 멈추면(0.3초) 화면 상태가 먼저 바뀌므로, 실제로 멈춘·다시 나는 순간에도 알린다
+    const ev = ['seeked', 'ratechange', 'loadedmetadata', 'pause', 'play', 'playing', 'ended'] as const
+    ev.forEach((e) => a.addEventListener(e, notify))
+    return () => ev.forEach((e) => a.removeEventListener(e, notify))
   }, [notify, elGen])
 
   // 알림·잠금 화면·차 버튼에서 온 명령
