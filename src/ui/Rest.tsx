@@ -1,4 +1,4 @@
-// 「쉼」: 오늘의 한 문장, 말씀 천천히 보기, 찬송가 반주(준비 중), 보기 설정, 온음이 무료인 이유
+// 「쉼」: 오늘의 한 구절, 말씀 천천히 보기, 찬송가 반주(준비 중), 보기 설정, 온음이 무료인 이유
 import { rt } from './rich'
 import { CURRENT } from '../lib/version'
 import { load } from '../lib/store'
@@ -61,7 +61,7 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
       <div className="ph"><h1>{tx("쉼")}</h1></div>
       {church && <div className="chtop"><ChurchCard c={church} foot={kindOf(church) === 'church' ? <NaverBtn c={church} /> : undefined} /></div>}
       <section className="rest" aria-labelledby="rest-h">
-        <h2 className="wl" id="rest-h">{tx("오늘의 한 문장")}</h2>
+        <h2 className="wl" id="rest-h">{tx("오늘의 한 구절")}</h2>
         <p className="rest-w" lang={v.lang}>{v.text}</p>
         <p className="wr">{v.ref} · {v.ver}</p>
         <button className="go rest-go" onClick={() => setReading(true)}>{tx("말씀 천천히 보기")}</button>

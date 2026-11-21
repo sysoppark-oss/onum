@@ -1,4 +1,4 @@
-// 「지금」: 곡 · 소리 모양 · 조작 · 음량 · 흐름(앞으로 무엇이 언제) · 오늘의 한 문장
+// 「지금」: 곡 · 소리 모양 · 조작 · 음량 · 흐름(앞으로 무엇이 언제) · 오늘의 한 구절
 import { rt } from './rich'
 import { useCallback, useEffect, useState } from 'react'
 import { fmt, type Track } from '../lib/library'
