@@ -10,6 +10,9 @@ import { tx } from '../lib/i18n'
 import type { Viz } from '../lib/viz'
 import { Icon } from './common'
 import { Page } from './Sheets'
+import { Floaters } from './Floaters'
+import { getGlyph } from '../lib/glyph'
+import { useFlag } from '../lib/flag'
 
 const BANDS = [20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000]
 const BG = '#07080a', FRAME = '#1c2026', TXT = '#8b939d', HI = '#e6edf3'
@@ -50,6 +53,12 @@ export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind
   const cv = useRef<HTMLCanvasElement>(null)
   const playRef = useRef(playing)
   playRef.current = playing
+  const fxc = useRef<HTMLCanvasElement>(null)
+  const notesOn = useFlag('notes', true)
+  const notesRef = useRef(notesOn)
+  notesRef.current = notesOn
+  const big = !!className?.includes('big')
+  const UP = big ? 56 : 64 // 그림 위로 떠오를 여유
 
   useEffect(() => {
     const c = cv.current
@@ -64,9 +73,13 @@ export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind
       x.fillStyle = BG; x.fillRect(0, 0, W, H)
     }
     fit()
+    const fx = fxc.current ? new Floaters(fxc.current, UP, H < 110) : null
+    fx?.fit()
     // 다른 탭에 있다가 돌아오면(크기가 생기면) 다시 그린다
-    const ro = new ResizeObserver(() => { fit(); idle = 0; start() })
+    const ro = new ResizeObserver(() => { fit(); fx?.fit(); idle = 0; start() })
     ro.observe(c)
+    // 박자 찾기: 짧은 순간의 세기가 최근 평균보다 확 커지면
+    const bt = { fast: 0, slow: 0, last: -9, clock: 0, gaps: [] as number[], bright: 0.4, ip: [-90, -90], e: 0, d: 0, prev: new Float32Array(31).fill(-90), side: 0, ended: false }
     const m: Meter = fresh()
     let tdL: Float32Array<ArrayBuffer> | null = null, tdR: Float32Array<ArrayBuffer> | null = null
     let fq: Float32Array<ArrayBuffer> | null = null
@@ -91,14 +104,22 @@ export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind
           for (let i = 0; i < b.length; i++) { const a = Math.abs(b[i]); if (a > p) p = a; s += b[i] * b[i] }
           return [p > 0 ? 20 * Math.log10(p) : -90, s > 0 ? 10 * Math.log10(s / b.length) : -90]
         }
+        let e = 0, d = 0, aL = 0, aR = 0
+        for (let i = 1; i < tdL.length; i += 2) {
+          const l = tdL[i], r = tdR![i], mm = (l + r) * 0.5, pm = (tdL[i - 1] + tdR![i - 1]) * 0.5
+          e += mm * mm; d += (mm - pm) * (mm - pm); aL += Math.abs(l); aR += Math.abs(r)
+        }
+        bt.e = e / (tdL.length / 2); bt.d = d / (tdL.length / 2); bt.side = aL + aR > 1e-6 ? (aL - aR) / (aL + aR) : 0
         ;[tdL, tdR!].forEach((b, ch) => {
           const [p, r] = lvl(b)
+          bt.ip[ch] = p
           m.rms[ch] += (r - m.rms[ch]) * (1 - Math.exp(-dt / 0.3))
           m.pk[ch] = p > m.pk[ch] ? p : m.pk[ch] - 13.3 * dt
           if (p > m.hold[ch]) { m.hold[ch] = p; m.ht[ch] = 1.5 } else if ((m.ht[ch] -= dt) < 0) m.hold[ch] -= 13.3 * dt
           if (p >= -0.1) m.clip[ch] = 2.5
         })
         if (kind === 'spec') {
+          bt.prev.set(m.band)
           if (!fq || fq.length !== g.an.frequencyBinCount) fq = new Float32Array(g.an.frequencyBinCount)
           g.an.getFloatFrequencyData(fq)
           const hz = (g.ctx?.sampleRate ?? 48000) / g.an.fftSize
@@ -214,7 +235,7 @@ export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind
         x.fillStyle = 'rgba(80,230,150,.22)'
         const k = r * m.gain * 0.7071, maxY = small ? H - 2 : H - 26, maxX = small ? cx + r + 6 : W - 2
         for (let i = 0; i < tdL.length; i += 2) {
-          const px = cx + (tdL[i] - tdR[i]) * k, py = cy - (tdL[i] + tdR[i]) * k
+          const px = cx + (tdR[i] - tdL[i]) * k, py = cy - (tdL[i] + tdR[i]) * k
           if (px > 2 && px < maxX && py > 2 && py < maxY) x.fillRect(px, py, 1.6, 1.6)
         }
         x.globalCompositeOperation = 'source-over'
@@ -239,6 +260,50 @@ export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind
       x.strokeStyle = FRAME; x.strokeRect(0.5, 0.5, W - 1, H - 1)
     }
 
+    const beat = (dt: number) => {
+      if (!fx) return
+      bt.clock += dt
+      const e = bt.e
+      bt.fast += (e - bt.fast) * (1 - Math.exp(-dt / 0.04))
+      bt.slow += (e - bt.slow) * (1 - Math.exp(-dt / 0.9))
+      const br = bt.e > 1e-7 ? Math.max(0, Math.min(1, (Math.log10(bt.d / bt.e) + 2.2) / 2)) : bt.bright
+      bt.bright += (br - bt.bright) * (1 - Math.exp(-dt / 0.5))
+      const gap = bt.clock - bt.last
+      if (bt.fast < 3e-5 || gap < 0.2 || bt.fast < bt.slow * 1.45) return
+      // 곡 빠르기: 최근 박자 사이의 가운뎃값
+      if (gap < 1.6) { bt.gaps.push(gap); if (bt.gaps.length > 9) bt.gaps.shift() }
+      bt.last = bt.clock
+      const g = [...bt.gaps].sort((a, b) => a - b), med = g.length >= 3 ? g[g.length >> 1] : 0.55
+      const tempo = Math.max(0.65, Math.min(1.6, 0.55 / med))
+      const power = Math.max(0, Math.min(1, Math.log10(bt.fast / Math.max(bt.slow, 1e-7)) / 0.6))
+      const small = H < 110
+      let ox = W / 2, oy = H / 2, col: RGB = GREEN, side = 0
+      if (kind === 'meter') {
+        const L = 30, Rr = W - 52, rowH = small ? 13 : Math.max(16, Math.min(26, (H - 70) / 2)), gap2 = small ? 5 : 10, y0 = small ? 8 : 12
+        const ch = bt.ip[1] > bt.ip[0] ? 1 : 0, p = bt.ip[ch]
+        ox = L + iec(m.rms[ch] + 3) * (Rr - L); oy = y0 + ch * (rowH + gap2) + rowH / 2
+        col = p > -3 ? RED : zone(m.rms[ch] + 3); side = (ox / W - 0.5) * 0.6
+      } else if (kind === 'spec') {
+        const n = 31, L = 34, top = small ? 8 : 12, bot = H - (small ? 20 : 26), cw = (W - L - 10) / n
+        let bi = 0, bv = -1e9
+        for (let i = 0; i < n; i++) { const v = (m.band[i] - bt.prev[i]) * 2 + m.band[i] * 0.15; if (v > bv) { bv = v; bi = i } }
+        const lv = Math.max(0, Math.min(1, (m.band[bi] + 72) / 72))
+        ox = L + bi * cw + cw / 2; oy = bot - lv * (bot - top); col = zone(m.band[bi]); side = (bi / (n - 1) - 0.5) * 0.8
+      } else {
+        const cy = small ? H / 2 : (H - 24) / 2 + 2, cx = small ? Math.min(W * 0.3, 70) + 10 : W / 2, r = small ? H / 2 - 8 : Math.min(cx - 14, cy - 10)
+        side = -bt.side // 왼쪽 소리면 왼쪽으로
+        ox = cx + side * r * 0.6; oy = cy - r * 0.35; col = m.corr < 0 ? RED : GREEN
+      }
+      fx.emit({ x: ox, y: oy, col, power, side, bright: bt.bright, tempo }, getGlyph())
+    }
+
+    // 누르면 톡: 모양이 있는 자리만 가로챈다(그 밑의 단추·진행 줄은 그대로)
+    let swallow = false
+    const down = (e: PointerEvent) => { if (fx && notesRef.current && fx.hit(e.clientX, e.clientY)) { e.preventDefault(); e.stopPropagation(); swallow = true; idle = 0; start() } }
+    const click = (e: MouseEvent) => { if (swallow) { swallow = false; e.preventDefault(); e.stopPropagation() } }
+    document.addEventListener('pointerdown', down, true)
+    document.addEventListener('click', click, true)
+
     let idle = 0
     const frame = (t: number) => {
       raf = requestAnimationFrame(frame)
@@ -249,8 +314,20 @@ export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind
       if (kind === 'meter') drawMeter()
       else if (kind === 'spec') drawSpec()
       else drawPhase(on)
+      let alive = false
+      if (fx) {
+        if (on && notesRef.current) beat(dt)
+        const a = el()
+        if (a && a.duration > 0) {
+          const end = a.ended || (!a.paused && a.duration - a.currentTime < 0.3)
+          if (end && !bt.ended) { bt.ended = true; fx.finale() }
+          else if (!end && a.currentTime < a.duration - 1) bt.ended = false
+        }
+        if (!notesRef.current && fx.busy) fx.clear()
+        alive = fx.step(dt)
+      }
       // 멈춘 채 다 내려왔으면 쉰다
-      idle = on ? 0 : idle + dt
+      idle = on || alive ? 0 : idle + dt
       if (idle > 2.5) { cancelAnimationFrame(raf); raf = 0; last = 0 }
     }
     const start = () => { if (!raf && !document.hidden) raf = requestAnimationFrame(frame) }
@@ -258,10 +335,15 @@ export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind
     document.addEventListener('visibilitychange', vis)
     start()
     const kick = window.setInterval(() => { if (playRef.current) start() }, 400)
-    return () => { cancelAnimationFrame(raf); clearInterval(kick); ro.disconnect(); document.removeEventListener('visibilitychange', vis) }
-  }, [kind, el])
+    return () => { cancelAnimationFrame(raf); clearInterval(kick); ro.disconnect(); document.removeEventListener('visibilitychange', vis); document.removeEventListener('pointerdown', down, true); document.removeEventListener('click', click, true) }
+  }, [kind, el, UP])
 
-  return <canvas ref={cv} className={'cviz ' + kind + (className ? ' ' + className : '')} aria-hidden="true" />
+  return (
+    <div className={'cvbox ' + kind + (className ? ' ' + className : '')}>
+      <canvas ref={cv} className="cviz" aria-hidden="true" />
+      <canvas ref={fxc} className="cv-fx" style={{ top: -UP, height: `calc(100% + ${UP}px)` }} aria-hidden="true" />
+    </div>
+  )
 }
 
 /** 「콘솔 보기」: 세 가지를 크게(가로로 돌리면 나란히) */

@@ -1001,7 +1001,9 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 
 /* 소리 모양: 콘솔식(레벨 미터·스펙트럼·스테레오 위상) · 고요 */
 .shape.v-meter, .shape.v-spec, .shape.v-phase { height: 84px; margin-top: 12px; } /* 파형과 비슷한 높이: 지금 화면이 한 화면에 들게 */
-.shape .cviz { position: absolute; left: 0; right: 0; top: 0; bottom: 10px; width: 100%; height: calc(100% - 10px); border-radius: 12px; pointer-events: none; }
+.shape .cvbox { position: absolute; left: 0; right: 0; top: 0; bottom: 10px; pointer-events: none; }
+.cvbox .cviz { display: block; width: 100%; height: 100%; border-radius: 12px; }
+.cvbox .cv-fx { position: absolute; left: 0; width: 100%; z-index: 2; pointer-events: none; }
 .shape .cv-prog { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; border-radius: 2px; background: var(--line); overflow: hidden; pointer-events: none; }
 .shape .cv-prog b { display: block; height: 100%; background: var(--now); }
 .shape.v-meter .head, .shape.v-spec .head, .shape.v-phase .head, .shape.v-meter .hook, .shape.v-spec .hook, .shape.v-phase .hook { display: none; }
@@ -1011,10 +1013,10 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .shape .calm b { display: block; height: 100%; background: var(--now); border-radius: 2px; }
 /* 콘솔 보기 */
 .cpage { display: flex; flex-direction: column; gap: 4px; padding-bottom: 24px; }
-.cpage .cviz { display: block; width: 100%; border-radius: 12px; }
-.cpage .cviz.meter { height: 150px; }
-.cpage .cviz.spec { height: 260px; }
-.cpage .cviz.phase { height: 300px; }
+.cpage .cvbox { position: relative; }
+.cpage .cvbox.meter { height: 150px; }
+.cpage .cvbox.spec { height: 260px; }
+.cpage .cvbox.phase { height: 300px; }
 @media (orientation: landscape) and (min-width: 640px) {
   .cpage { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .cpage section:first-child { grid-column: 1 / -1; }
@@ -1022,5 +1024,13 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .vizpick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
 .vizpick button { min-height: 44px; padding: 0 6px; border-radius: 22px; background: var(--sf); font-size: 15px; font-weight: 700; color: var(--ink2); white-space: nowrap; }
 .vizpick button.on { background: var(--ink); color: var(--on-ink); }
+.glyphpick { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.pl li.setrow > .lrow { height: auto; min-height: 44px; }
+.glyphpick button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-height: 60px; border-radius: 16px; background: var(--sf); font-size: 13px; font-weight: 700; color: var(--ink2); white-space: nowrap; }
+.glyphpick button svg { color: var(--ink2); }
+.glyphpick button.on { background: var(--ink); color: var(--on-ink); }
+.glyphpick button.on svg { color: var(--on-ink); }
+.glyphpick .gp-mix { display: flex; align-items: center; gap: 1px; height: 20px; }
+.notes i svg { display: block; }
 .shape.v-calm .head { display: none; }
 .shape.v-meter .cv-open, .shape.v-phase .cv-open { top: auto; bottom: 10px; }

@@ -24,6 +24,7 @@ import { EFFECTIVE, PRIVACY } from '../lib/privacy'
 import { kindOf, useCards, useChurch } from '../lib/church'
 import { live, setViz, useViz, VIZ } from '../lib/viz'
 import { ChurchCard, ChurchPage, NaverBtn } from './Church'
+import { GLYPHS, GlyphIcon, setGlyph, useGlyph } from '../lib/glyph'
 
 const REPO = 'https://github.com/sysoppark-oss/onum'
 const MAIL = 'sysoppark@gmail.com'
@@ -92,6 +93,7 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
   const norm = player.normOn, setNorm = player.setNorm
   const kjv = useKjv()
   const notesOn = useFlag('notes', true)
+  const glyph = useGlyph()
   const updOn = useFlag('updateCheck', true)
   const upd = useUpd()
   const [chk, setChk] = useState('')
@@ -136,11 +138,23 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
             {VIZ.map((o) => <button key={o.id} role="radio" aria-checked={viz === o.id} className={viz === o.id ? 'on' : undefined} onClick={() => setViz(o.id)}>{tx(o.name)}</button>)}
           </div>
         </li>
-        <li>
+        <li className={notesOn ? 'setrow' : undefined}>
           <div className="lrow">
-            <span className="x"><span className="x1" id="nt-l">{tx("음표 띄우기")}</span><span className="x2">{tx("들을 때 파형 아래에서 음표가 떠올라요")}</span></span>
+            <span className="x"><span className="x1" id="nt-l">{tx("소리 따라 떠오르기")}</span><span className="x2">{tx("소리가 커질 때 떠올라요 · 누르면 톡")}</span></span>
             <button className="sw" role="switch" aria-checked={notesOn} aria-labelledby="nt-l" onClick={() => setFlag('notes', !notesOn)} />
           </div>
+          {notesOn && (
+            <div className="glyphpick" role="radiogroup" aria-label={tx("떠오르는 모양")}>
+              {GLYPHS.map((o) => (
+                <button key={o.id} role="radio" aria-checked={glyph === o.id} className={glyph === o.id ? 'on' : undefined} onClick={() => setGlyph(o.id)}>
+                  {o.id === 'mix'
+                    ? <span className="gp-mix"><GlyphIcon k="heart" s={12} /><GlyphIcon k="star" s={12} /><GlyphIcon k="note" s={12} /></span>
+                    : <GlyphIcon k={o.id} s={20} />}
+                  <span>{tx(o.name)}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </li>
         {isNative && (
           <li>
