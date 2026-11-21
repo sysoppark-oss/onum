@@ -355,10 +355,11 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
   return (
     <div className="page now">
       <div className="top">
-        <div className="brand">
-          <span className="mark">{tx("온음")}</span>
-          {church && <button className="chmark" onClick={() => setChOpen(true)} aria-label={tx("교회 카드: {0}", church.name)}><span>{church.name}</span></button>}
-        </div>
+        {church
+          ? <button className="chbrand" onClick={() => setChOpen(true)} aria-label={tx("{0}에서 드리는 온음 · 교회 카드 열기", church.name)}>
+              <b>{church.name}</b><span>{tx("에서 드리는 온음")}</span>
+            </button>
+          : <span className="mark">{tx("온음")}</span>}
         {output && <span className="out" role="status"><Icon n={outputIcon(output)} s={16} />{outputLabel(output)}</span>}
       </div>
 

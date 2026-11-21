@@ -2,8 +2,8 @@
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { Share } from '@capacitor/share'
-import { answer, appLink, bad, code, create, edit, LIMIT, link, setChurch, unlock, useChurch, useIncoming, type Church } from '../lib/church'
-import { isNative } from '../lib/native'
+import { answer, appLink, bad, code, create, edit, LIMIT, link, naverUrl, setChurch, unlock, useChurch, useIncoming, type Church } from '../lib/church'
+import { isNative, openWeb } from '../lib/native'
 import { tx } from '../lib/i18n'
 import { Icon, Sheet } from './common'
 import { Page } from './Sheets'
@@ -31,6 +31,7 @@ export function ChurchCard({ c, foot }: { c: Church; foot?: React.ReactNode }) {
     <div className="chc">
       <p className="chc-k">{tx("우리 교회")}</p>
       <h3 className="chc-n">{c.name}</h3>
+      <p className="chc-s">{tx("에서 드리는 온음")}</p>
       {foot}
     </div>
   )
@@ -57,7 +58,9 @@ function ChurchView({ c, onEdit, onRemove }: { c: Church; onEdit: () => void; on
     <div className="chv">
       <ChurchCard c={c} />
 
-      <h2 className="sub">{tx("QR로 나누기")}</h2>
+      <NaverBtn c={c} />
+
+      <h2 className="sub">{tx("성도들에게 나누기")}</h2>
       <figure className="chq">
         <div className="chq-box" role="img" aria-label={tx("{0} 교회 카드 QR 코드", c.name)} dangerouslySetInnerHTML={{ __html: qr }} />
         <figcaption>{tx("휴대폰 카메라로 찍으면 이 카드가 열려요")}</figcaption>
@@ -165,5 +168,16 @@ export function IncomingSheet() {
         <button className="ghost" onClick={() => answer(false)}>{tx("넣지 않기")}</button>
       </div>
     </Sheet>
+  )
+}
+
+/** 네이버에서 교회 소개·주소·대표 연락처 보기 */
+export function NaverBtn({ c }: { c: Church }) {
+  return (
+    <button className="naver" onClick={() => openWeb(naverUrl(c))}>
+      <span className="naver-n" aria-hidden="true">N</span>
+      <span className="naver-t"><b>{tx("네이버에서 교회 보기")}</b><span>{tx("교회 소개 · 주소 · 대표 연락처")}</span></span>
+      <Icon n="chev" s={18} />
+    </button>
   )
 }

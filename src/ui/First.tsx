@@ -226,6 +226,6 @@ export function FoldersPage({ tracks, hidden, setHidden, onClose }: { tracks: Tr
 function Mark() {
   const ch = useChurch()
   return ch
-    ? <p className="mark gift"><span className="gift-ch">{tx("{0}에서 드리는", ch.name)}</span>{tx("온음")}</p>
+    ? <p className="gift"><b>{ch.name}</b><span>{tx("에서 드리는 온음")}</span></p>
     : <p className="mark">{tx("온음")}</p>
 }

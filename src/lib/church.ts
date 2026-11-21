@@ -16,6 +16,8 @@ export interface Church {
 }
 
 export const WEB = 'https://sysoppark-oss.github.io/onum/'
+/** 교회 소개·주소·대표 연락처는 앱에 담지 않고 네이버 검색으로 보여 준다 */
+export const naverUrl = (c: Church) => 'https://m.search.naver.com/search.naver?query=' + encodeURIComponent(c.name)
 export const LIMIT = { name: 24, addr: 60, tel: 20 }
 
 const b64 = (u: Uint8Array) => btoa(String.fromCharCode(...u)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')

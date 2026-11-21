@@ -166,6 +166,12 @@ export function openDownload(url: string): Promise<boolean> {
   return isNative ? MusicScan.openUrl({ url }).then(() => true, () => false) : Promise.resolve(false)
 }
 
+/** 바깥 웹 페이지 열기(설치형 앱은 휴대폰 브라우저로) */
+export function openWeb(url: string): void {
+  if (isNative) MusicScan.openUrl({ url }).catch(() => window.open(url, '_blank', 'noopener'))
+  else window.open(url, '_blank', 'noopener')
+}
+
 // 가사 자동 맞추기 AI — 휴대폰 앱에서만 (모델은 사용자가 고를 때만 받는다)
 export function aiStatus(): Promise<AiStatus | null> {
   return isNative ? MusicScan.aiStatus().catch(() => null) : Promise.resolve(null)

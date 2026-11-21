@@ -21,7 +21,7 @@ import { isNative } from '../lib/native'
 import type { Battery } from './Battery'
 import { EFFECTIVE, PRIVACY } from '../lib/privacy'
 import { useChurch } from '../lib/church'
-import { ChurchCard, ChurchPage } from './Church'
+import { ChurchCard, ChurchPage, NaverBtn } from './Church'
 import { AI_MB, aiOn, downloadAi, removeAi, setAiAsked, useAi } from '../lib/ai'
 
 const REPO = 'https://github.com/sysoppark-oss/onum'
@@ -59,7 +59,7 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
   return (
     <div className="page rest-page">
       <div className="ph"><h1>{tx("쉼")}</h1></div>
-      {church && <button className="chbtn" onClick={() => setChOpen(true)} aria-label={tx("교회 카드 열기: {0}", church.name)}><ChurchCard c={church} foot={<span className="chbtn-go">{tx("QR·링크로 나누기")}<Icon n="chev" s={16} /></span>} /></button>}
+      {church && <div className="chtop"><ChurchCard c={church} foot={<NaverBtn c={church} />} /></div>}
       <section className="rest" aria-labelledby="rest-h">
         <h2 className="wl" id="rest-h">{tx("오늘의 한 문장")}</h2>
         <p className="rest-w" lang={v.lang}>{v.text}</p>
@@ -168,12 +168,13 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
       {shared && <p className="done-note" role="status">{shared}</p>}
       {dl > 0 && <p className="dlcount">{rt("**{0}**번 내려받았어요 · 고맙습니다", nf.format(dl))}</p>}
 
-      {!church && <>
-        <h2 className="sub">{tx("교회")}</h2>
-        <ul className="pl">
-          <li><button className="lrow" onClick={() => setChOpen(true)}><span className="x"><span className="x1">{tx("교회 카드 만들기")}</span><span className="x2">{tx("교회 이름을 넣어 성도들에게 나눠요")}</span></span><Icon n="chev" s={20} /></button></li>
-        </ul>
-      </>}
+      <h2 className="sub">{tx("교회")}</h2>
+      <ul className="pl">
+        <li><button className="lrow" onClick={() => setChOpen(true)}><span className="x">
+          <span className="x1">{church ? tx("교회 카드 나누기 · 고치기") : tx("교회 카드 만들기")}</span>
+          <span className="x2">{church ? tx("QR이나 링크로 성도들에게 나눠요") : tx("교회 이름을 넣어 성도들에게 나눠요")}</span>
+        </span><Icon n="chev" s={20} /></button></li>
+      </ul>
       <h2 className="sub">{tx("온음에 대하여")}</h2>
       <ul className="pl about">
         <li><button className="lrow" onClick={() => setAbout(true)}><span className="x"><span className="x1">{tx("온음이 무료인 이유")}</span></span><Icon n="chev" s={20} /></button></li>
