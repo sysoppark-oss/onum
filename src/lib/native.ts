@@ -100,6 +100,11 @@ export function onMediaAction(fn: (a: MediaAction) => void): () => void {
 }
 
 export function getOutput(): Promise<Output | null> {
+  if (import.meta.env.DEV && !isNative) {
+    // 시험용: ?out=speaker|wired|bt|car
+    const q = new URLSearchParams(location.search).get('out')
+    if (q) return Promise.resolve(q === 'bt' ? { kind: 'bluetooth', name: 'Galaxy Buds2 Pro' } : q === 'car' ? { kind: 'bluetooth', name: 'SsangYong', car: true } : { kind: q as Output['kind'] })
+  }
   return isNative ? MusicScan.output().catch(() => null) : Promise.resolve(null)
 }
 

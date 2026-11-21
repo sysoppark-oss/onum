@@ -372,7 +372,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
               <CardMark c={{ ...church, line: lineOf(church) }} size="bar" />
             </button>
           : <span className="mark">{tx("온음")}</span>}
-        {output && <span className="out" role="status"><Icon n={outputIcon(output)} s={16} />{outputLabel(output)}</span>}
+        {output && <span className={'out o-' + (output.kind === 'bluetooth' ? (output.car ? 'car' : 'bt') : output.kind)} role="status" aria-label={outputLabel(output)}><span className="oi"><Icon n={outputIcon(output)} s={16} /></span><span className="ot" aria-hidden="true">{output.kind === 'bluetooth' && output.name ? output.name : output.kind === 'speaker' ? tx("휴대폰") : outputLabel(output)}</span></span>}
       </div>
 
       <div className="song">
