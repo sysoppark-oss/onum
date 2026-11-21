@@ -31,8 +31,19 @@ async function keyFrom(pw: string, id: string): Promise<Uint8Array> {
 }
 
 export function verify(c: Church): boolean {
+  if (bad(c.name) || bad(c.addr)) return false
   try { return ed25519.verify(unb64(c.sig), body(c), unb64(c.pub)) } catch { return false }
 }
+
+/** 이름·주소 칸에 다른 연락 통로를 숨기지 못하게: 인터넷 주소, 전자우편, 메신저, 전화번호 */
+const LURE = [
+  /https?:|www\.|\.(com|net|org|kr|me|io|ly|gl|link|site|app|xyz)\b/i,
+  /@/,
+  /open\.?kakao|카카오\s*톡|카톡|오픈\s*채팅|텔레그램|텔레\b|라인\s*아이디|line\s*id|telegram|whatsapp|위챗|wechat|디스코드|discord|밴드\s*주소/i,
+  /(^|\D)0\d{1,2}[\s.\-)]*\d{3,4}[\s.\-]*\d{4}(\D|$)/,
+  /(^|\D)(15|16|18)\d{2}[\s.\-]*\d{4}(\D|$)/,
+]
+export const bad = (s: string) => LURE.some((r) => r.test(s))
 
 /** 새로 만들기 */
 export async function create(v: { name: string; addr: string; tel: string }, pw: string): Promise<Church> {

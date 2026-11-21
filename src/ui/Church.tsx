@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { Share } from '@capacitor/share'
-import { answer, appLink, code, create, edit, LIMIT, link, setChurch, telText, unlock, useChurch, useIncoming, type Church } from '../lib/church'
+import { answer, appLink, bad, code, create, edit, LIMIT, link, setChurch, unlock, useChurch, useIncoming, type Church } from '../lib/church'
 import { isNative } from '../lib/native'
 import { tx } from '../lib/i18n'
 import { Icon, Sheet } from './common'
@@ -31,12 +31,6 @@ export function ChurchCard({ c, foot }: { c: Church; foot?: React.ReactNode }) {
     <div className="chc">
       <p className="chc-k">{tx("우리 교회")}</p>
       <h3 className="chc-n">{c.name}</h3>
-      {(c.addr || c.tel) && (
-        <dl className="chc-d">
-          {c.addr && <><dt className="sr">{tx("주소")}</dt><dd>{c.addr}</dd></>}
-          {c.tel && <><dt className="sr">{tx("전화")}</dt><dd className="num">{telText(c.tel)}</dd></>}
-        </dl>
-      )}
       {foot}
     </div>
   )
@@ -50,10 +44,8 @@ function ChurchView({ c, onEdit, onRemove }: { c: Church; onEdit: () => void; on
   useEffect(() => {
     QRCode.toString(url, { type: 'svg', errorCorrectionLevel: 'M', margin: 0, color: { dark: '#111111', light: '#ffffff' } }).then(setQr).catch(() => setQr(''))
   }, [url])
-  const tel = c.tel.replace(/[^\d+]/g, '')
-  const msg = tx("온음 앱을 보고 연락드려요.")
   const share = async () => {
-    const text = tx("{0} 교회 카드예요. 누르면 무료 음악 앱 「온음」과 함께 열려요.", c.name) + '\n' + url
+    const text = tx("{0}에서 드리는 무료 음악 앱 「온음」이에요. 누르면 열려요.", c.name) + '\n' + url
     try {
       if (isNative) await Share.share({ title: c.name, text })
       else if (navigator.share) await navigator.share({ title: c.name, text })
@@ -64,12 +56,6 @@ function ChurchView({ c, onEdit, onRemove }: { c: Church; onEdit: () => void; on
   return (
     <div className="chv">
       <ChurchCard c={c} />
-      {tel && (
-        <div className="chv-acts">
-          <a className="pillbtn" href={'tel:' + tel}><Icon n="phone" s={18} />{tx("전화하기")}</a>
-          <a className="pillbtn" href={`sms:${tel}?body=${encodeURIComponent(msg)}`}><Icon n="mail" s={18} />{tx("문자 보내기")}</a>
-        </div>
-      )}
 
       <h2 className="sub">{tx("QR로 나누기")}</h2>
       <figure className="chq">
@@ -95,15 +81,16 @@ function ChurchView({ c, onEdit, onRemove }: { c: Church; onEdit: () => void; on
 }
 
 function ChurchForm({ init, onDone }: { init?: Church; onDone: (v: { name: string; addr: string; tel: string }, pw?: string) => Promise<void> }) {
-  const [v, setV] = useState({ name: init?.name ?? '', addr: init?.addr ?? '', tel: init?.tel ?? '' })
+  const [v, setV] = useState({ name: init?.name ?? '', addr: '', tel: '' })
   const [pw, setPw] = useState(''), [pw2, setPw2] = useState('')
-  const [err, setErr] = useState<'' | 'name' | 'pw' | 'pw2'>('')
+  const [err, setErr] = useState<'' | 'name' | 'lure-n' | 'pw' | 'pw2'>('')
   const [busy, setBusy] = useState(false)
   const first = useRef<HTMLInputElement>(null)
   useEffect(() => { first.current?.focus() }, [])
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!v.name.trim()) { setErr('name'); return }
+    if (bad(v.name)) { setErr('lure-n'); return }
     if (!init) {
       if (pw.length < 4) { setErr('pw'); return }
       if (pw !== pw2) { setErr('pw2'); return }
@@ -116,13 +103,10 @@ function ChurchForm({ init, onDone }: { init?: Church; onDone: (v: { name: strin
     <form className="form chf" onSubmit={submit} noValidate>
       {!init && <p className="chf-lead">{tx("교회 이름을 넣으면 온음 화면에 함께 보여요. 만든 카드를 QR이나 링크로 성도들에게 나눠 주세요.")}</p>}
       <label className="flabel" htmlFor="ch-n">{tx("교회 이름")}</label>
-      <input id="ch-n" ref={first} className="field" value={v.name} maxLength={LIMIT.name} autoComplete="organization" enterKeyHint="next"
-        placeholder={tx("예) 생명샘교회")} aria-invalid={err === 'name'} onChange={f('name')} />
+      <input id="ch-n" ref={first} className="field" value={v.name} maxLength={LIMIT.name} autoComplete="organization" enterKeyHint={init ? 'done' : 'next'}
+        placeholder={tx("예) 생명샘교회")} aria-invalid={err === 'name' || err === 'lure-n'} onChange={f('name')} />
       {err === 'name' && <p className="ferr" role="alert">{tx("교회 이름을 적어 주세요.")}</p>}
-      <label className="flabel" htmlFor="ch-a">{tx("주소")} <span className="opt-l">{tx("(넣지 않아도 돼요)")}</span></label>
-      <input id="ch-a" className="field" value={v.addr} maxLength={LIMIT.addr} autoComplete="street-address" enterKeyHint="next" onChange={f('addr')} />
-      <label className="flabel" htmlFor="ch-t">{tx("전화")} <span className="opt-l">{tx("(교회 대표 번호를 권해요)")}</span></label>
-      <input id="ch-t" className="field num" type="tel" inputMode="tel" value={v.tel} maxLength={LIMIT.tel} autoComplete="tel" enterKeyHint={init ? 'done' : 'next'} onChange={f('tel')} />
+      {err === 'lure-n' && <p className="ferr" role="alert">{tx("이름에는 전화번호·인터넷 주소·메신저를 넣을 수 없어요.")}</p>}
       {!init && (
         <fieldset className="chf-pw">
           <legend className="flabel">{tx("고칠 때 쓸 비밀번호")}</legend>
@@ -176,6 +160,7 @@ export function IncomingSheet() {
         <ChurchCard c={c} />
         <p className="chv-code">{tx("확인 번호")} <span className="num">{code(c)}</span></p>
         {now && <p className="chf-note">{tx("지금 카드 「{0}」 대신 이 카드가 들어가요.", now.name)}</p>}
+        <p className="chf-note">{tx("교회에서 직접 받은 QR·링크일 때만 넣어 주세요.")}</p>
         <button className="go" onClick={() => answer(true)}>{now ? tx("바꾸기") : tx("넣기")}</button>
         <button className="ghost" onClick={() => answer(false)}>{tx("넣지 않기")}</button>
       </div>

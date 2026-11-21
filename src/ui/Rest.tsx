@@ -59,7 +59,7 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
   return (
     <div className="page rest-page">
       <div className="ph"><h1>{tx("쉼")}</h1></div>
-      {church && <button className="chbtn" onClick={() => setChOpen(true)} aria-label={tx("교회 카드 열기: {0}", church.name)}><ChurchCard c={church} foot={<span className="chbtn-go">{tx("연락하기 · 나누기")}<Icon n="chev" s={16} /></span>} /></button>}
+      {church && <button className="chbtn" onClick={() => setChOpen(true)} aria-label={tx("교회 카드 열기: {0}", church.name)}><ChurchCard c={church} foot={<span className="chbtn-go">{tx("QR·링크로 나누기")}<Icon n="chev" s={16} /></span>} /></button>}
       <section className="rest" aria-labelledby="rest-h">
         <h2 className="wl" id="rest-h">{tx("오늘의 한 문장")}</h2>
         <p className="rest-w" lang={v.lang}>{v.text}</p>
