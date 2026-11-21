@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="w_name">온음 · 지금 듣는 곡</string>
+    <string name="w_desc">지금 듣는 곡을 보고 재생·이전·다음을 눌러요</string>
+    <string name="w_idle">온음</string>
+    <string name="w_idle2">눌러서 음악 듣기</string>
+    <string name="w_prev">이전 곡</string>
+    <string name="w_play">재생</string>
+    <string name="w_pause">일시 정지</string>
+    <string name="w_next">다음 곡</string>
+    <string name="n_channel">재생 중</string>
+</resources>

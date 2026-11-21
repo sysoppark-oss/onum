@@ -7,7 +7,15 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.Typeface;
 import android.graphics.drawable.Icon;
+import android.text.Layout;
+import android.text.StaticLayout;
+import android.text.TextPaint;
+import android.text.TextUtils;
 import android.media.MediaMetadata;
 import android.media.session.MediaSession;
 import android.media.session.PlaybackState;
@@ -27,6 +35,8 @@ public class PlaybackService extends Service {
     private PowerManager.WakeLock lock;
     private MediaSession session;
     private boolean foreground = false;
+    private String artKey = "";
+    private Bitmap art;
 
     @Override
     public void onCreate() {
@@ -71,13 +81,17 @@ public class PlaybackService extends Service {
         long pos = intent != null ? intent.getLongExtra("pos", 0) : 0;
         long dur = intent != null ? intent.getLongExtra("dur", 0) : 0;
         float rate = intent != null ? intent.getFloatExtra("rate", 1f) : 1f;
+        String brand = intent != null ? intent.getStringExtra("brand") : null;
         if (title == null) title = "온음";
         if (artist == null) artist = "";
+        if (brand == null) brand = "";
+        NowWidget.save(this, title, artist, brand, playing);
 
         session.setMetadata(new MediaMetadata.Builder()
             .putString(MediaMetadata.METADATA_KEY_TITLE, title)
             .putString(MediaMetadata.METADATA_KEY_ARTIST, artist)
             .putLong(MediaMetadata.METADATA_KEY_DURATION, dur)
+            .putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, artFor(title, artist, brand))
             .build());
         session.setPlaybackState(new PlaybackState.Builder()
             .setActions(PlaybackState.ACTION_PLAY | PlaybackState.ACTION_PAUSE | PlaybackState.ACTION_PLAY_PAUSE
@@ -88,23 +102,25 @@ public class PlaybackService extends Service {
 
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= 26 && nm.getNotificationChannel(CHANNEL) == null) {
-            NotificationChannel ch = new NotificationChannel(CHANNEL, "재생 중", NotificationManager.IMPORTANCE_LOW);
+            NotificationChannel ch = new NotificationChannel(CHANNEL, getString(R.string.n_channel), NotificationManager.IMPORTANCE_LOW);
             ch.setShowBadge(false);
             nm.createNotificationChannel(ch);
         }
         Notification.Builder b = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(this, CHANNEL) : new Notification.Builder(this);
-        b.setSmallIcon(playing ? android.R.drawable.ic_media_play : android.R.drawable.ic_media_pause)
+        b.setSmallIcon(R.drawable.ic_stat_onum)
             .setContentTitle(title)
             .setContentText(artist)
+            .setSubText(brand.isEmpty() ? null : brand)
+            .setLargeIcon(artFor(title, artist, brand))
             .setContentIntent(session.getController().getSessionActivity())
             .setVisibility(Notification.VISIBILITY_PUBLIC)
             .setOngoing(playing)
             .setShowWhen(false)
-            .addAction(button(android.R.drawable.ic_media_previous, "이전", "prev", 1))
+            .addAction(button(R.drawable.n_prev, getString(R.string.w_prev), "prev", 1))
             .addAction(playing
-                ? button(android.R.drawable.ic_media_pause, "일시 정지", "pause", 2)
-                : button(android.R.drawable.ic_media_play, "재생", "play", 3))
-            .addAction(button(android.R.drawable.ic_media_next, "다음", "next", 4))
+                ? button(R.drawable.n_pause, getString(R.string.w_pause), "pause", 2)
+                : button(R.drawable.n_play, getString(R.string.w_play), "play", 3))
+            .addAction(button(R.drawable.n_next, getString(R.string.w_next), "next", 4))
             .setStyle(new Notification.MediaStyle()
                 .setMediaSession(session.getSessionToken())
                 .setShowActionsInCompactView(0, 1, 2));
@@ -134,8 +150,52 @@ public class PlaybackService extends Service {
         return START_NOT_STICKY;
     }
 
+    /**
+     * 잠금 화면·알림의 그림: 앨범 그림 대신 곡 이름(세 줄까지)과 가수를 온음 글꼴 느낌으로.
+     * 위에는 카드 한 줄(「맑은물속교회에서 드리는 온음」), 없으면 「온음」. 같은 곡이면 다시 그리지 않는다.
+     */
+    private Bitmap artFor(String title, String artist, String brand) {
+        String key = title + "\u0001" + artist + "\u0001" + brand;
+        if (art != null && key.equals(artKey)) return art;
+        final int S = 720, PAD = 64, W = S - PAD * 2;
+        Bitmap b = Bitmap.createBitmap(S, S, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(b);
+        c.drawColor(0xFF111316);
+        Typeface bold = Typeface.create("sans-serif", Typeface.BOLD);
+        Typeface reg = Typeface.create("sans-serif", Typeface.NORMAL);
+
+        TextPaint top = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        top.setColor(0xFF9BA1A9); top.setTextSize(34); top.setTypeface(bold);
+        String head = brand.isEmpty() ? "온음" : brand;
+        c.drawText(TextUtils.ellipsize(head, top, W, TextUtils.TruncateAt.END).toString(), PAD, PAD + 34, top);
+
+        TextPaint tp = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        tp.setColor(0xFFEDEEF0); tp.setTypeface(bold); tp.setLetterSpacing(-0.03f);
+        // 긴 이름은 조금 작게: 세 줄 안에 들도록
+        StaticLayout tl = null;
+        for (int size = 76; size >= 48; size -= 4) {
+            tp.setTextSize(size);
+            tl = StaticLayout.Builder.obtain(title, 0, title.length(), tp, W)
+                .setLineSpacing(0, 1.12f).setMaxLines(3).setEllipsize(TextUtils.TruncateAt.END)
+                .setAlignment(Layout.Alignment.ALIGN_NORMAL).build();
+            if (tl.getLineCount() < 3 || tl.getEllipsisCount(2) == 0) break;
+        }
+        TextPaint ap = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+        ap.setColor(0xFF9BA1A9); ap.setTextSize(38); ap.setTypeface(reg);
+        String a = TextUtils.ellipsize(artist, ap, W, TextUtils.TruncateAt.END).toString();
+
+        int ah = artist.isEmpty() ? 0 : 38 + 20;
+        int y = S - PAD - ah - (tl != null ? tl.getHeight() : 0);
+        if (tl != null) { c.save(); c.translate(PAD, y); tl.draw(c); c.restore(); }
+        if (!artist.isEmpty()) c.drawText(a, PAD, S - PAD - 8, ap);
+
+        art = b; artKey = key;
+        return b;
+    }
+
     @Override
     public void onDestroy() {
+        NowWidget.stopped(this);
         if (lock != null && lock.isHeld()) lock.release();
         if (session != null) { session.setActive(false); session.release(); }
         stopForeground(Service.STOP_FOREGROUND_REMOVE);

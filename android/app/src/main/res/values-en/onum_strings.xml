@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="w_name">Onum · Now playing</string>
+    <string name="w_desc">See what\'s playing and play, skip back or forward</string>
+    <string name="w_idle">Onum</string>
+    <string name="w_idle2">Tap to listen</string>
+    <string name="w_prev">Previous</string>
+    <string name="w_play">Play</string>
+    <string name="w_pause">Pause</string>
+    <string name="w_next">Next</string>
+    <string name="n_channel">Now playing</string>
+</resources>

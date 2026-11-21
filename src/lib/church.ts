@@ -26,6 +26,11 @@ export const kindOf = (c: Church): Kind => c.kind ?? 'church'
 export const lineOf = (c: Church) => c.line ?? CHURCH_LINE
 /** 교회 소개·주소·대표 연락처는 앱에 담지 않고 네이버 검색으로: 검색어가 바로 들어간 결과 화면 */
 export const naverUrl = (c: Church) => 'https://m.search.naver.com/search.naver?where=m&sm=mtp_hty&query=' + encodeURIComponent((c.q || c.name).trim())
+// 이어지는 말이 조사로 시작하면 이름에 붙이고, 아니면 한 칸 띄운다
+const PARTICLE = /^((에서|에게|께서|께|의|은|는|을|를|와|과|가|로|으로|랑|이랑|하고|이와)(\s|$)|から|の|が|へ|に|と|より|'s\b|[,，、])/
+export const joint = (line: string) => (!line || PARTICLE.test(line) ? '' : ' ')
+/** 카드를 한 줄 글로: 「맑은물속교회에서 드리는 온음」「강빛 ♥ 주빛 함께 듣는 온음」 */
+export const cardText = (c: Church) => (kindOf(c) === 'couple' ? `${c.name} ♥ ${c.q ?? ''} ${lineOf(c)}` : c.name + joint(lineOf(c)) + lineOf(c)).trim()
 /** 커플 카드의 짝 이름 */
 export const partnerOf = (c: Church) => (kindOf(c) === 'couple' ? c.q ?? '' : '')
 export const LIMIT = { name: 16, line: 20, q: 30 }

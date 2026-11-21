@@ -48,7 +48,7 @@ import java.io.InputStream;
 )
 public class MusicScanPlugin extends Plugin {
 
-    private static MusicScanPlugin inst;
+    static MusicScanPlugin inst; // 앱이 열려 있는 동안만(위젯·알림 버튼을 화면에 넘길 곳)
 
     /** 알림·잠금 화면·차 버튼 → 화면(JS) */
     static void emit(String action) {
@@ -74,6 +74,7 @@ public class MusicScanPlugin extends Plugin {
     @Override
     public void load() {
         inst = this;
+        NowWidget.update(getContext()); // 위젯 버튼을 「화면에 넘기기」로
         // 예전 판에서 받아 둔 가사 맞추기 AI 모델(약 160MB)은 이제 쓰지 않으니 지운다
         new Thread(() -> {
             java.io.File d = new java.io.File(getContext().getFilesDir(), "ai");
@@ -114,6 +115,8 @@ public class MusicScanPlugin extends Plugin {
 
     @Override
     protected void handleOnDestroy() {
+        if (inst == this) inst = null;
+        NowWidget.update(getContext()); // 앱이 닫히면 위젯 버튼은 「앱 열기」로
         if (volumeReceiver != null) {
             try { getContext().unregisterReceiver(volumeReceiver); } catch (Exception ignored) {}
         }
@@ -553,6 +556,7 @@ public class MusicScanPlugin extends Plugin {
     private void startService(PluginCall call, Intent i) {
         i.putExtra("title", call.getString("title", "온음"));
         i.putExtra("artist", call.getString("artist", ""));
+        i.putExtra("brand", call.getString("brand", ""));
         i.putExtra("playing", call.getBoolean("playing", false));
         i.putExtra("pos", (long) (call.getDouble("pos", 0.0) * 1000));
         i.putExtra("dur", (long) (call.getDouble("dur", 0.0) * 1000));

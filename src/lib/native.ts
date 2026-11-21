@@ -1,4 +1,5 @@
 import { Capacitor, registerPlugin, type PluginListenerHandle } from '@capacitor/core'
+import { cardText, getChurch } from './church'
 import { fromName, type ScanResult, type Track } from './library'
 
 interface NativeTrack {
@@ -16,7 +17,7 @@ export interface Volume { value: number; max: number }
 interface MusicScanPlugin {
   scan(opts: { minMs: number }): Promise<{ tracks: NativeTrack[]; skippedFolder: number }>
   art(opts: { id: number; albumId: number; size: number }): Promise<{ dataUrl?: string }>
-  nowPlaying(opts: { playing: boolean; stop?: boolean; title?: string; artist?: string; pos?: number; dur?: number; rate?: number }): Promise<void>
+  nowPlaying(opts: { playing: boolean; stop?: boolean; title?: string; artist?: string; brand?: string; pos?: number; dur?: number; rate?: number }): Promise<void>
   output(): Promise<Output>
   fontScale(): Promise<{ scale: number }>
   battery(): Promise<{ free: boolean; maker: string }>
@@ -85,7 +86,9 @@ export function nativeArt(t: Track): Promise<string | undefined> {
 export function setNowPlaying(playing: boolean, t?: Track, pos = 0, dur = 0, rate = 1): void {
   if (!isNative) return
   if (!t) { MusicScan.nowPlaying({ playing: false, stop: true }).catch(() => {}); return }
-  MusicScan.nowPlaying({ playing, title: t.title, artist: t.artist, pos, dur, rate }).catch(() => {})
+  const c = getChurch()
+  // 잠금 화면 그림·홈 화면 위젯 맨 위에 보일 한 줄(카드가 있으면 「…에서 드리는 온음」)
+  MusicScan.nowPlaying({ playing, title: t.title, artist: t.artist, brand: c ? cardText(c) : '', pos, dur, rate }).catch(() => {})
 }
 
 export interface MediaAction { action: 'play' | 'pause' | 'next' | 'prev' | 'seek'; pos?: number }

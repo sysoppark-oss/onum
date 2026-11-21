@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="w_name">オヌム · 再生中の曲</string>
+    <string name="w_desc">再生中の曲を見て、再生・前・次を操作します</string>
+    <string name="w_idle">オヌム</string>
+    <string name="w_idle2">タップして音楽を聴く</string>
+    <string name="w_prev">前の曲</string>
+    <string name="w_play">再生</string>
+    <string name="w_pause">一時停止</string>
+    <string name="w_next">次の曲</string>
+    <string name="n_channel">再生中</string>
+</resources>

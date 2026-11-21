@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { Share } from '@capacitor/share'
-import { answer, appLink, bad, code, create, edit, kindOf, LIMIT, lineOf, link, naverUrl, partnerOf, setChurch, unlock, useChurch, useIncoming, type CardInput, type Church, type Kind } from '../lib/church'
+import { answer, appLink, bad, cardText, code, create, edit, joint, kindOf, LIMIT, lineOf, link, naverUrl, setChurch, unlock, useChurch, useIncoming, type CardInput, type Church, type Kind } from '../lib/church'
 import { isNative, openWeb } from '../lib/native'
 import { tx } from '../lib/i18n'
 import { Icon, Sheet } from './common'
@@ -11,9 +11,6 @@ import { Page } from './Sheets'
 
 type Mode = 'view' | 'make' | 'unlock' | 'edit'
 
-// 이어지는 말이 조사로 시작하면 이름에 붙이고, 아니면 한 칸 띄운다
-const PARTICLE = /^((에서|에게|께서|께|의|은|는|을|를|와|과|가|로|으로|랑|이랑|하고|이와)(\s|$)|から|の|が|へ|に|と|より|'s\b|[,，、])/
-export const joint = (line: string) => (!line || PARTICLE.test(line) ? '' : ' ')
 
 /** 이름 서명: bar = 지금 화면 맨 위 한 줄, big = 카드·첫 화면 */
 export function CardMark({ c, size = 'big' }: { c: Pick<Church, 'name' | 'line' | 'kind' | 'q'>; size?: 'bar' | 'big' }) {
@@ -69,7 +66,7 @@ function ChurchView({ c, onEdit, onRemove }: { c: Church; onEdit: () => void; on
   useEffect(() => {
     QRCode.toString(url, { type: 'svg', errorCorrectionLevel: 'M', margin: 0, color: { dark: '#111111', light: '#ffffff' } }).then(setQr).catch(() => setQr(''))
   }, [url])
-  const words = (kind === 'couple' ? `${c.name} ♥ ${partnerOf(c)} ${lineOf(c)}` : c.name + joint(lineOf(c)) + lineOf(c)).trim()
+  const words = cardText(c)
   const share = async () => {
     const text = tx("「{0}」 — 무료 음악 앱 「온음」에 담았어요. 누르면 열려요.", words) + '\n' + url
     try {

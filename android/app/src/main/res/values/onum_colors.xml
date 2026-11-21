@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 온음 화면과 같은 색(낮). 밤은 values-night -->
+<resources>
+    <color name="w_bg">#FFFFFF</color>
+    <color name="w_sf">#F2F3F5</color>
+    <color name="w_ink">#111316</color>
+    <color name="w_ink2">#5B6169</color>
+</resources>
