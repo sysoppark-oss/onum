@@ -3,25 +3,24 @@
 import { useEffect, useRef, useState } from 'react'
 import QRCode from 'qrcode'
 import { Share } from '@capacitor/share'
-import { answer, appLink, bad, cardText, code, create, edit, joint, kindOf, LIMIT, lineOf, link, naverUrl, setChurch, unlock, useChurch, useIncoming, type CardInput, type Church, type Kind } from '../lib/church'
+import { addCard, answer, appLink, bad, cardKey, cardText, code, create, edit, joint, kindOf, LIMIT, lineOf, link, markMine, naverUrl, pickCard, removeCard, unlock, useCards, type Entry, useChurch, useIncoming, type CardInput, type Church, type Kind } from '../lib/church'
 import { isNative, openWeb } from '../lib/native'
 import { tx } from '../lib/i18n'
 import { Icon, Sheet } from './common'
 import { Page } from './Sheets'
 
-type Mode = 'view' | 'make' | 'unlock' | 'edit'
 
 
 /** 이름 서명: bar = 지금 화면 맨 위 한 줄, big = 카드·첫 화면 */
-export function CardMark({ c, size = 'big' }: { c: Pick<Church, 'name' | 'line' | 'kind' | 'q'>; size?: 'bar' | 'big' }) {
+export function CardMark({ c, size = 'big' }: { c: Pick<Church, 'name' | 'line' | 'kind' | 'q'>; size?: 'bar' | 'big' | 'row' }) {
   const kind = c.kind ?? 'church'
   const line = c.line ?? (kind === 'church' ? '에서 드리는 온음' : '')
   const partner = kind === 'couple' ? c.q ?? '' : ''
   return (
-    <span className={'cm cm-' + size + (kind === 'couple' ? ' couple' : '')}>
+    <span className={'cm cm-' + size + (kind === 'couple' ? ' couple' : line && !joint(line) ? ' glued' : '')}>
       <span className="cm-names">
         <b>{c.name}</b>
-        {kind === 'couple' && <><span className="cm-heart" role="img" aria-label={tx("와")}><Icon n="heart" s={size === 'bar' ? 16 : 22} w={2.4} /></span><b>{partner}</b></>}
+        {kind === 'couple' && <><span className="cm-heart" role="img" aria-label={tx("와")}><Icon n="heart" s={size === 'big' ? 22 : 16} w={2.4} /></span><b>{partner}</b></>}
       </span>
       {line && <span className="cm-line">{kind === 'couple' ? '' : joint(line)}{line}</span>}
     </span>
@@ -30,18 +29,70 @@ export function CardMark({ c, size = 'big' }: { c: Pick<Church, 'name' | 'line' 
 
 const KIND_LAB: Record<Kind, string> = { church: "우리 교회", gift: "선물", couple: "우리 둘" }
 
-export function ChurchPage({ onClose }: { onClose: () => void }) {
-  const ch = useChurch()
-  const [mode, setMode] = useState<Mode>(ch ? 'view' : 'make')
-  const [key, setKey] = useState<Uint8Array | null>(null)
-  const title = mode === 'make' ? tx("카드 만들기") : mode === 'view' ? tx("카드") : tx("카드 고치기")
+type View = { m: 'home' } | { m: 'card'; k: string } | { m: 'make' } | { m: 'unlock'; k: string } | { m: 'edit'; k: string; sk: Uint8Array }
+
+/** 카드 관리: 지금 쓰는 카드 · 보낸 카드(내가 만든) · 받은 카드. start='current'면 지금 쓰는 카드부터 */
+export function ChurchPage({ onClose, start }: { onClose: () => void; start?: 'current' }) {
+  const st = useCards()
+  const [v, setV] = useState<View>(() => (start === 'current' && st.on ? { m: 'card', k: st.on } : { m: 'home' }))
+  // 화면이 바뀌면 맨 위부터 보이게
+  const top = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    // 스크롤하는 쪽이 .lb이든 .layer이든 맨 위로
+    for (let el = top.current?.parentElement; el; el = el.parentElement) { el.scrollTop = 0; if (el.classList.contains('layer')) break }
+  }, [v.m])
+  const find = (k: string) => st.list.find((e) => cardKey(e.c) === k)
+  const home = () => setV({ m: 'home' })
+  const e = v.m !== 'home' && v.m !== 'make' ? find(v.k) : undefined
+  if (v.m !== 'home' && v.m !== 'make' && !e) return <Page label={tx("카드")} onClose={onClose}><CardHome onOpen={(k) => setV({ m: 'card', k })} onMake={() => setV({ m: 'make' })} /></Page>
+  const title = v.m === 'home' ? tx("카드") : v.m === 'card' ? tx("카드 보기") : v.m === 'make' ? tx("카드 만들기") : tx("카드 고치기")
   return (
-    <Page label={title} onClose={onClose}>
-      {mode === 'view' && ch && <ChurchView c={ch} onEdit={() => setMode('unlock')} onRemove={() => { setChurch(null); onClose() }} />}
-      {mode === 'make' && <ChurchForm onDone={async (v, pw) => { setChurch(await create(v, pw!)); setMode('view') }} />}
-      {mode === 'unlock' && ch && <Unlock c={ch} onOk={(k) => { setKey(k); setMode('edit') }} />}
-      {mode === 'edit' && ch && key && <ChurchForm init={ch} onDone={async (v) => { setChurch(edit(ch, v, key)); setKey(null); setMode('view') }} />}
+    <Page label={title} onClose={v.m === 'home' || (start === 'current' && v.m === 'card') ? onClose : home}>
+      <div ref={top} />
+      {v.m === 'home' && <CardHome onOpen={(k) => setV({ m: 'card', k })} onMake={() => setV({ m: 'make' })} />}
+      {v.m === 'card' && e && <ChurchView e={e} on={st.on === v.k} onEdit={() => setV({ m: 'unlock', k: v.k })} onList={home} />}
+      {v.m === 'make' && <ChurchForm onDone={async (x, pw) => { const c = await create(x, pw!); addCard(c, true, true); setV({ m: 'card', k: cardKey(c) }) }} />}
+      {v.m === 'unlock' && e && <Unlock c={e.c} onOk={(sk) => { markMine(v.k); setV({ m: 'edit', k: v.k, sk }) }} />}
+      {v.m === 'edit' && e && <ChurchForm init={e.c} onDone={async (x) => { const c = edit(e.c, x, v.sk); addCard(c, true, st.on === v.k); setV({ m: 'card', k: cardKey(c) }) }} />}
     </Page>
+  )
+}
+
+/** 카드 목록 */
+function CardHome({ onOpen, onMake }: { onOpen: (k: string) => void; onMake: () => void }) {
+  const st = useCards()
+  const cur = st.list.find((e) => cardKey(e.c) === st.on)
+  const mine = st.list.filter((e) => e.mine), got = st.list.filter((e) => !e.mine)
+  const row = (e: Entry) => {
+    const k = cardKey(e.c), on = k === st.on
+    return (
+      <li key={k}>
+        <button className="lrow chrow" onClick={() => onOpen(k)}>
+          <span className="x">
+            <span className="x1"><CardMark c={{ ...e.c, line: lineOf(e.c) }} size="row" /></span>
+            <span className="x2">{tx(KIND_LAB[kindOf(e.c)])}{on && <b className="chrow-on"> · {tx("지금 쓰는 중")}</b>}</span>
+          </span>
+          <Icon n="chev" s={20} />
+        </button>
+      </li>
+    )
+  }
+  return (
+    <div className="chm">
+      <h2 className="sub">{tx("지금 쓰는 카드")}</h2>
+      {cur
+        ? <button className="chbtn" onClick={() => onOpen(cardKey(cur.c))} aria-label={tx("카드 열기: {0}", cur.c.name)}><ChurchCard c={cur.c} /></button>
+        : <p className="chm-empty">{tx("지금 쓰는 카드가 없어요. 아래 목록에서 골라 쓰거나 새로 만들 수 있어요.")}</p>}
+
+      <h2 className="sub">{tx("받은 카드")} <span className="num chm-n">{got.length}</span></h2>
+      <p className="chm-note">{tx("받은 카드는 다른 카드를 쓰거나 새로 만들어도 지우지 않는 한 여기 그대로 남아 있어요.")}</p>
+      {got.length ? <ul className="pl">{got.map(row)}</ul> : <p className="chm-empty">{tx("아직 받은 카드가 없어요.")}</p>}
+
+      <h2 className="sub">{tx("보낸 카드")} <span className="num chm-n">{mine.length}</span></h2>
+      <p className="chm-note">{tx("내가 만든 카드예요. 눌러서 QR·링크로 보내요.")}</p>
+      {mine.length ? <ul className="pl">{mine.map(row)}</ul> : <p className="chm-empty">{tx("아직 만든 카드가 없어요.")}</p>}
+      <button className="go chm-make" onClick={onMake}><Icon n="plus" s={20} />{tx("새 카드 만들기")}</button>
+    </div>
   )
 }
 
@@ -57,12 +108,14 @@ export function ChurchCard({ c, foot }: { c: Church; foot?: React.ReactNode }) {
   )
 }
 
-function ChurchView({ c, onEdit, onRemove }: { c: Church; onEdit: () => void; onRemove: () => void }) {
+function ChurchView({ e, on, onEdit, onList }: { e: Entry; on: boolean; onEdit: () => void; onList: () => void }) {
+  const c = e.c
   const [qr, setQr] = useState('')
   const [sent, setSent] = useState('')
   const [sure, setSure] = useState(false)
   const url = link(c)
   const kind = kindOf(c)
+  const k = cardKey(c)
   useEffect(() => {
     QRCode.toString(url, { type: 'svg', errorCorrectionLevel: 'M', margin: 0, color: { dark: '#111111', light: '#ffffff' } }).then(setQr).catch(() => setQr(''))
   }, [url])
@@ -79,6 +132,10 @@ function ChurchView({ c, onEdit, onRemove }: { c: Church; onEdit: () => void; on
   return (
     <div className="chv">
       <ChurchCard c={c} />
+      {on
+        ? <div className="chv-on"><p><Icon n="check" s={18} />{tx("지금 쓰는 카드예요")}</p><button className="pillbtn small" onClick={() => pickCard(null)}>{tx("쓰지 않기")}</button></div>
+        : <button className="go" onClick={() => pickCard(k)}>{tx("이 카드 쓰기")}</button>}
+      {!on && <p className="chv-note">{tx("다른 카드로 바꿔도 지금 카드는 목록에 그대로 남아요.")}</p>}
       {kind === 'church' && <NaverBtn c={c} />}
 
       <h2 className="sub">{kind === 'church' ? tx("성도들에게 나누기") : tx("QR·링크로 보내기")}</h2>
@@ -86,19 +143,20 @@ function ChurchView({ c, onEdit, onRemove }: { c: Church; onEdit: () => void; on
         <div className="chq-box" role="img" aria-label={tx("카드 QR 코드")} dangerouslySetInnerHTML={{ __html: qr }} />
         <figcaption>{tx("휴대폰 카메라로 찍으면 이 카드가 열려요")}</figcaption>
       </figure>
-      <button className="go" onClick={share}><Icon n="share" s={20} />{tx("링크 보내기")}</button>
+      <button className="ghost" onClick={share}><Icon n="share" s={20} />{tx("링크 보내기")}</button>
       {sent && <p className="chv-note" role="status">{sent}</p>}
       {android && <a className="ghost" href={`intent://c/${appLink(c).slice(9)}#Intent;scheme=onum;package=org.onum.player;end`}>{tx("휴대폰 앱에 넣기")}</a>}
 
       <div className="chv-foot">
         <p className="chv-code">{tx("확인 번호")} <span className="num">{code(c)}</span></p>
-        <p className="chv-note">{tx("같은 카드는 확인 번호가 같아요.")}</p>
+        <p className="chv-note">{e.mine ? tx("내가 만든 카드예요. 고치려면 만들 때 정한 비밀번호가 있어야 해요.") : tx("받은 카드예요. 같은 카드는 확인 번호가 같아요.")}</p>
         <div className="chv-fa">
-          <button className="textbtn plain" onClick={onEdit}>{tx("카드 고치기")}</button>
+          <button className="textbtn plain" onClick={onEdit}>{e.mine ? tx("카드 고치기") : tx("내가 만든 카드라면 고치기")}</button>
           {sure
-            ? <button className="textbtn" onClick={onRemove}>{tx("정말 빼기")}</button>
-            : <button className="textbtn plain" onClick={() => setSure(true)}>{tx("이 카드 빼기")}</button>}
+            ? <button className="textbtn" onClick={() => { removeCard(k); onList() }}>{tx("정말 빼기")}</button>
+            : <button className="textbtn plain" onClick={() => setSure(true)}>{tx("목록에서 빼기")}</button>}
         </div>
+        {sure && !e.mine && <p className="chv-note">{tx("빼면 다시 넣을 때 링크를 또 받아야 해요.")}</p>}
       </div>
     </div>
   )
@@ -233,15 +291,16 @@ export function IncomingSheet() {
   const now = useChurch()
   if (!c) return null
   return (
-    <Sheet label={tx("카드를 받았어요")} onClose={() => answer(false)}>
+    <Sheet label={tx("카드를 받았어요")} onClose={() => answer('no')}>
       <div className="form">
-        <h2 className="q lead">{now ? tx("카드를 바꿀까요?") : tx("카드를 받았어요")}</h2>
+        <h2 className="q lead">{tx("카드를 받았어요")}</h2>
         <ChurchCard c={c} />
         <p className="chv-code">{tx("확인 번호")} <span className="num">{code(c)}</span></p>
-        {now && <p className="chf-note">{tx("지금 카드 「{0}」 대신 이 카드가 들어가요.", now.name)}</p>}
+        {now && <p className="chf-note">{tx("지금 쓰는 「{0}」 카드도 받은 카드 목록에 그대로 남아요.", now.name)}</p>}
         <p className="chf-note">{tx("보낸 분을 아실 때만 넣어 주세요.")}</p>
-        <button className="go" onClick={() => answer(true)}>{now ? tx("바꾸기") : tx("넣기")}</button>
-        <button className="ghost" onClick={() => answer(false)}>{tx("넣지 않기")}</button>
+        <button className="go" onClick={() => answer('use')}>{tx("지금 쓰기")}</button>
+        <button className="ghost" onClick={() => answer('keep')}>{tx("받은 카드에 담아 두기")}</button>
+        <button className="textbtn plain" onClick={() => answer('no')}>{tx("넣지 않기")}</button>
       </div>
     </Sheet>
   )

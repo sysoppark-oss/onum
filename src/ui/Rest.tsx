@@ -20,7 +20,7 @@ import { Share } from '@capacitor/share'
 import { isNative } from '../lib/native'
 import type { Battery } from './Battery'
 import { EFFECTIVE, PRIVACY } from '../lib/privacy'
-import { kindOf, useChurch } from '../lib/church'
+import { kindOf, useCards, useChurch } from '../lib/church'
 import { ChurchCard, ChurchPage, NaverBtn } from './Church'
 
 const REPO = 'https://github.com/sysoppark-oss/onum'
@@ -40,6 +40,7 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
   const [shared, setShared] = useState('')
   const [about, setAbout] = useState(false)
   const church = useChurch()
+  const cards = useCards()
   const [chOpen, setChOpen] = useState(false)
   const closeCh = useCallback(() => setChOpen(false), [])
   const [reading, setReading] = useState(false)
@@ -159,8 +160,8 @@ export function RestScreen({ easy, setEasy, onFolders, battery, onBattery, verse
       <h2 className="sub">{tx("교회 · 선물 카드")}</h2>
       <ul className="pl">
         <li><button className="lrow" onClick={() => setChOpen(true)}><span className="x">
-          <span className="x1">{church ? tx("카드 보내기 · 고치기") : tx("카드 만들기")}</span>
-          <span className="x2">{church ? tx("QR이나 링크로 보내요") : tx("교회 이름, 선물·축하, 커플 이름을 화면 맨 위에")}</span>
+          <span className="x1">{tx("카드 관리")}</span>
+          <span className="x2">{cards.list.length ? tx("받은 카드 {0} · 보낸 카드 {1}", cards.list.filter((e) => !e.mine).length, cards.list.filter((e) => e.mine).length) : tx("교회 이름, 선물·축하, 커플 이름을 화면 맨 위에")}</span>
         </span><Icon n="chev" s={20} /></button></li>
       </ul>
       <h2 className="sub">{tx("온음에 대하여")}</h2>

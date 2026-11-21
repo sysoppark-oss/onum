@@ -120,31 +120,60 @@ export function fromLink(url: string): Church | null {
   } catch { return null }
 }
 
-// 저장·구독
-let cur: Church | null = (() => { const c = load<Church | null>('church', null); return c && verify(c) ? c : null })()
+// 저장·구독: 카드는 여러 장을 모아 두고(받은 카드·보낸 카드), 그 가운데 하나를 「지금 쓰는 카드」로 쓴다.
+// 다른 카드를 쓰거나 새로 만들어도 모아 둔 카드는 지우지 않는 한 남는다.
+export interface Entry { c: Church; mine: boolean; at: number } // mine: 이 휴대폰에서 만들었거나 비밀번호로 연 카드(보낸 카드)
+interface Store { list: Entry[]; on: string | null }
+const keyOf = (c: Church) => c.id + ':' + c.pub
+let st: Store = (() => {
+  const s0 = load<Store | null>('cards', null)
+  if (s0 && Array.isArray(s0.list)) return { list: s0.list.filter((e) => e?.c && verify(e.c)), on: s0.on }
+  // 예전 판(카드 한 장)에서 옮겨 온다
+  const old = load<Church | null>('church', null)
+  return old && verify(old) ? { list: [{ c: old, mine: false, at: Date.now() }], on: keyOf(old) } : { list: [], on: null }
+})()
+let cur: Church | null = st.list.find((e) => keyOf(e.c) === st.on)?.c ?? null
 let incoming: Church | null = null
 const subs = new Set<() => void>()
 const emit = () => subs.forEach((f) => f())
 const sub = (f: () => void) => { subs.add(f); return () => { subs.delete(f) } }
+const put = (n: Store) => { st = n; cur = n.list.find((e) => keyOf(e.c) === n.on)?.c ?? null; save('cards', n); save('church', cur); emit() }
 export const useChurch = () => useSyncExternalStore(sub, () => cur)
+export const useCards = () => useSyncExternalStore(sub, () => st)
 export const useIncoming = () => useSyncExternalStore(sub, () => incoming)
 export const getChurch = () => cur
+export const cardKey = keyOf
 
-export function setChurch(c: Church | null) { cur = c; save('church', c); emit() }
+/** 카드를 모아 두기(같은 카드면 새것으로 바꾼다). use면 지금 쓰는 카드로 */
+export function addCard(c: Church, mine: boolean, use: boolean) {
+  const k = keyOf(c)
+  const old = st.list.find((e) => keyOf(e.c) === k)
+  const e: Entry = { c, mine: mine || !!old?.mine, at: old?.at ?? Date.now() }
+  const list = old ? st.list.map((x) => (keyOf(x.c) === k ? e : x)) : [e, ...st.list]
+  put({ list, on: use ? k : st.on })
+}
+/** 지금 쓰는 카드 바꾸기(null이면 카드 없이) */
+export function pickCard(k: string | null) { put({ ...st, on: k }) }
+/** 목록에서 빼기(쓰던 카드면 카드 없이) */
+export function removeCard(k: string) { put({ list: st.list.filter((e) => keyOf(e.c) !== k), on: st.on === k ? null : st.on }) }
+/** 비밀번호로 열었으면 「보낸 카드」로 옮긴다 */
+export function markMine(k: string) { put({ ...st, list: st.list.map((e) => (keyOf(e.c) === k ? { ...e, mine: true } : e)) }) }
 
-/** 링크로 받은 카드: 같은 교회가 고친 것이면 조용히 바꾸고, 처음이거나 다른 교회면 물어본다 */
+/** 링크로 받은 카드: 모아 둔 카드를 만든 분이 고친 것이면 조용히 바꾸고, 처음 보는 카드면 물어본다 */
 export function receive(c: Church): 'same' | 'updated' | 'ask' {
-  if (cur && cur.pub === c.pub && cur.id === c.id) {
-    if (c.ts <= cur.ts) return 'same'
-    setChurch(c)
+  const old = st.list.find((e) => keyOf(e.c) === keyOf(c))
+  if (old) {
+    if (c.ts <= old.c.ts) return 'same'
+    addCard(c, old.mine, false)
     return 'updated'
   }
   incoming = c
   emit()
   return 'ask'
 }
-export function answer(keep: boolean) {
-  if (keep && incoming) setChurch(incoming)
+/** 받은 카드에 대한 답: use = 모아 두고 지금 쓰기, keep = 모아 두기만, no = 넣지 않기 */
+export function answer(how: 'use' | 'keep' | 'no') {
+  if (how !== 'no' && incoming) addCard(incoming, false, how === 'use')
   incoming = null
   emit()
 }

@@ -964,3 +964,25 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .wp-lang { display: flex; justify-content: center; margin-top: 4px; }
 .wp a.go { color: var(--on-ink); }
 .wp a.ghost { color: var(--ink); }
+
+/* 카드 관리: 지금 쓰는 카드 · 받은 카드 · 보낸 카드 */
+.chm { display: flex; flex-direction: column; padding-bottom: 24px; }
+.chm .sub { display: flex; align-items: baseline; gap: 6px; }
+.chm-n { font-size: 14px; font-weight: 700; color: var(--ink2); }
+.chm-note { margin: -4px 0 6px; font-size: 13px; line-height: 1.5; color: var(--ink2); }
+.chm-empty { padding: 14px 16px; border-radius: 16px; background: var(--sf); font-size: 14px; line-height: 1.5; color: var(--ink2); }
+.chm-make { margin-top: 16px; }
+.cm.cm-row { align-items: baseline; overflow: hidden; }
+.cm.cm-row .cm-names { flex-shrink: 0; max-width: 70%; align-items: baseline; }
+.cm.cm-row .cm-heart { align-self: center; }
+.cm.cm-row b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 17px; }
+.cm.cm-row .cm-line { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: pre; font-size: 14px; }
+.cm.cm-row.couple .cm-line { margin-left: 8px; }
+.chrow .x { min-width: 0; }
+.chrow .x1 { display: block; min-width: 0; }
+.chrow-on { font-weight: 700; color: var(--ink); }
+.chv-on { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 10px 10px 16px; border-radius: 16px; background: var(--sf); }
+.chv-on p { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700; }
+/* 「주빛의 생일을 축하해요」처럼 조사로 이어지면 이름에 붙여 한 줄로 흐르게 */
+.cm.cm-big.glued { flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 0; }
+.cm.cm-big.glued .cm-line { font-size: 18px; }

@@ -490,7 +490,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
       {trimOpen && cur && <TrimSheet t={cur} player={player} onClose={closeTrim} />}
       {levelOpen && cur && <LevelSheet t={cur} player={player} onClose={closeLevel} />}
       {pracOpen && cur && <PracticeSheet t={cur} player={player} onClose={closePrac} />}
-      {chOpen && <ChurchPage onClose={closeCh} />}
+      {chOpen && <ChurchPage onClose={closeCh} start="current" />}
       {lyOpen && cur && <LyricsPage t={cur} player={player} onClose={closeLy} start={lyOpen === 'view' ? undefined : lyOpen} />}
       {queueOpen && <QueuePage player={player} tracks={tracks} lists={lists} onClose={closeQueue} />}
     </div>
