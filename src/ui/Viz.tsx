@@ -122,10 +122,12 @@ export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind
 
     const drawMeter = () => {
       panel()
-      const L = 30, Rr = W - 52, gw = (Rr - L) / SEG, rowH = Math.max(14, Math.min(26, (H - 64) / 2))
+      const small = H < 110 // 지금 화면: 파형과 비슷한 높이
+      const L = 30, Rr = W - 52, gw = (Rr - L) / SEG
+      const rowH = small ? 13 : Math.max(16, Math.min(26, (H - 70) / 2)), gap = small ? 5 : 10, y0 = small ? 8 : 12
       x.textBaseline = 'middle'
       for (let ch = 0; ch < 2; ch++) {
-        const y = 12 + ch * (rowH + 10)
+        const y = y0 + ch * (rowH + gap)
         x.font = `700 13px ${FONT}`; x.fillStyle = TXT; x.fillText(ch ? 'R' : 'L', 12, y + rowH / 2)
         const lit = iec(m.rms[ch]), pk = Math.min(SEG - 1, Math.floor(iec(m.hold[ch]) * SEG))
         for (let k = 0; k < SEG; k++) {
@@ -138,30 +140,33 @@ export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind
         x.shadowBlur = 0
         const clip = m.clip[ch] > 0
         x.fillStyle = clip ? rgb(RED) : rgb(RED, 0.12); x.fillRect(Rr + 8, y, 36, rowH)
-        x.fillStyle = clip ? '#1a0000' : rgb(RED, 0.5); x.font = `800 12px ${FONT}`; x.textAlign = 'center'; x.fillText('CLIP', Rr + 26, y + rowH / 2); x.textAlign = 'left'
+        x.fillStyle = clip ? '#1a0000' : rgb(RED, 0.5); x.font = `800 ${small ? 11 : 12}px ${FONT}`; x.textAlign = 'center'; x.fillText('CLIP', Rr + 26, y + rowH / 2 + 0.5); x.textAlign = 'left'
       }
-      // 눈금
-      x.font = `600 13px ${FONT}`; x.fillStyle = TXT
-      const sy = 12 + 2 * (rowH + 10) + 6
+      // 눈금: 막대 바로 아래
+      const sy = y0 + 2 * rowH + gap + (small ? 10 : 14)
+      x.font = `600 ${small ? 12 : 13}px ${FONT}`; x.fillStyle = TXT
       for (const d of [-50, -30, -20, -10, -5, 0]) {
-        const px = L + iec(d) * (Rr - L), s = String(d), tw = x.measureText(s).width
-        x.fillText(s, Math.min(Rr - tw, Math.max(L, px - tw / 2)), sy)
+        const px = L + iec(d) * (Rr - L), s0 = String(d), tw = x.measureText(s0).width
+        x.fillText(s0, Math.min(Rr - tw, Math.max(L, px - tw / 2)), sy)
       }
-      // 숫자
+      // 숫자: 맨 아래 한 줄(오른쪽 끝은 「콘솔 보기」 단추 자리)
       const pk = Math.max(m.hold[0], m.hold[1]), rms = Math.max(m.rms[0], m.rms[1])
-      x.font = `700 14px ui-monospace, Menlo, monospace`; x.fillStyle = HI
-      x.fillText(`PEAK ${pk < -69 ? '-inf' : (pk > 0 ? '+' : '') + pk.toFixed(1)} dB`, 12, H - 14)
+      const ny = H - (small ? 11 : 16)
+      x.font = `700 ${small ? 13 : 15}px ui-monospace, Menlo, monospace`; x.fillStyle = HI
+      const ptxt = `PEAK ${pk < -69 ? '-inf' : (pk > 0 ? '+' : '') + pk.toFixed(1)} dB`
+      x.fillText(ptxt, 12, ny)
       x.font = `600 13px ${FONT}`; x.fillStyle = TXT
-      x.fillText(`RMS ${rms < -69 ? '-inf' : rms.toFixed(1)}`, Math.min(W - 90, 172), H - 14)
+      x.fillText(`RMS ${rms < -69 ? '-inf' : rms.toFixed(1)}`, 12 + x.measureText(ptxt).width * 1.15 + 18, ny)
     }
 
     const drawSpec = () => {
       panel()
-      const n = 31, L = 34, top = 12, bot = H - 26, cw = (W - L - 10) / n
+      const small = H < 110
+      const n = 31, L = 34, top = small ? 8 : 12, bot = H - (small ? 20 : 26), cw = (W - L - 10) / n
       const rows = Math.max(12, Math.min(30, Math.floor((bot - top) / 5))), rh = (bot - top) / rows
       const FLOOR = -72 // 맨 아래 칸
       x.font = `600 12px ${FONT}`; x.fillStyle = TXT; x.textBaseline = 'middle'
-      for (const d of [0, -18, -36, -54]) {
+      for (const d of small ? [0, -36] : [0, -18, -36, -54]) {
         const y = top + (d / FLOOR) * (bot - top)
         x.fillText(String(d), 4, y)
         x.strokeStyle = 'rgba(255,255,255,.05)'; x.beginPath(); x.moveTo(L, y); x.lineTo(W - 10, y); x.stroke()
@@ -179,19 +184,21 @@ export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind
         x.shadowBlur = 0
       }
       x.fillStyle = TXT; x.textAlign = 'center'; x.font = `600 13px ${FONT}`
-      for (const [i, l] of [[5, '63'], [11, '250'], [17, '1k'], [23, '4k'], [29, '16k']] as const) x.fillText(l, L + i * cw + cw / 2, H - 12)
+      for (const [i, l] of [[5, '63'], [11, '250'], [17, '1k'], [23, '4k'], [29, '16k']] as const) x.fillText(l, L + i * cw + cw / 2, H - (small ? 9 : 12))
       x.textAlign = 'left'
     }
 
     const drawPhase = (on: boolean) => {
+      const small = H < 110
       // 잔상이 남게 조금씩만 지운다
       x.fillStyle = 'rgba(7,8,10,.35)'; x.fillRect(0, 0, W, H)
-      const cy = (H - 24) / 2 + 2, cx = W / 2, r = Math.min(cx - 14, cy - 10)
+      const cy = small ? H / 2 : (H - 24) / 2 + 2, cx = small ? Math.min(W * 0.3, 70) + 10 : W / 2
+      const r = small ? H / 2 - 8 : Math.min(cx - 14, cy - 10)
       x.strokeStyle = 'rgba(255,255,255,.07)'; x.lineWidth = 1; x.beginPath()
       x.moveTo(cx - r, cy); x.lineTo(cx + r, cy); x.moveTo(cx, cy - r); x.lineTo(cx, cy + r)
       x.moveTo(cx - r * 0.7, cy - r * 0.7); x.lineTo(cx + r * 0.7, cy + r * 0.7); x.moveTo(cx + r * 0.7, cy - r * 0.7); x.lineTo(cx - r * 0.7, cy + r * 0.7); x.stroke()
-      x.fillStyle = TXT; x.font = `700 13px ${FONT}`; x.textAlign = 'center'; x.textBaseline = 'middle'
-      x.fillText('L', cx - r * 0.74 - 8, cy - r * 0.74); x.fillText('R', cx + r * 0.74 + 8, cy - r * 0.74)
+      x.fillStyle = TXT; x.font = `700 ${small ? 12 : 13}px ${FONT}`; x.textAlign = 'center'; x.textBaseline = 'middle'
+      x.fillText('L', cx - r * 0.74 - 7, cy - r * 0.74); x.fillText('R', cx + r * 0.74 + 7, cy - r * 0.74)
       x.textAlign = 'left'
       if (on && tdL && tdR) {
         let sl = 0, sr = 0, slr = 0
@@ -204,21 +211,30 @@ export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind
         m.gain += (want - m.gain) * 0.08
         x.globalCompositeOperation = 'lighter'
         x.fillStyle = 'rgba(80,230,150,.22)'
-        const k = r * m.gain * 0.7071
+        const k = r * m.gain * 0.7071, maxY = small ? H - 2 : H - 26, maxX = small ? cx + r + 6 : W - 2
         for (let i = 0; i < tdL.length; i += 2) {
           const px = cx + (tdL[i] - tdR[i]) * k, py = cy - (tdL[i] + tdR[i]) * k
-          if (px > 2 && px < W - 2 && py > 2 && py < H - 26) x.fillRect(px, py, 1.6, 1.6)
+          if (px > 2 && px < maxX && py > 2 && py < maxY) x.fillRect(px, py, 1.6, 1.6)
         }
         x.globalCompositeOperation = 'source-over'
       }
-      // 상관 막대
-      x.fillStyle = BG; x.fillRect(0, H - 24, W, 24)
-      const bx = 34, bw = W - 68, y = H - 15
-      x.fillStyle = 'rgba(255,255,255,.08)'; x.fillRect(bx, y, bw, 6)
-      const mid = bx + bw / 2, cp = bx + (bw * (m.corr + 1)) / 2
-      x.fillStyle = m.corr >= 0 ? rgb(GREEN) : rgb(RED); x.fillRect(Math.min(mid, cp), y, Math.abs(cp - mid), 6)
-      x.fillStyle = 'rgba(255,255,255,.35)'; x.fillRect(mid - 0.5, y - 3, 1, 12)
-      x.fillStyle = TXT; x.font = `600 13px ${FONT}`; x.fillText('−1', 6, y + 3); x.fillText('+1', W - 26, y + 3)
+      // 상관 막대(작을 때는 오른쪽, 클 때는 아래)
+      const mid0 = (bx: number, bw: number, y: number) => {
+        x.fillStyle = 'rgba(255,255,255,.08)'; x.fillRect(bx, y, bw, 6)
+        const mid = bx + bw / 2, cp = bx + (bw * (m.corr + 1)) / 2
+        x.fillStyle = m.corr >= 0 ? rgb(GREEN) : rgb(RED); x.fillRect(Math.min(mid, cp), y, Math.abs(cp - mid), 6)
+        x.fillStyle = 'rgba(255,255,255,.35)'; x.fillRect(mid - 0.5, y - 3, 1, 12)
+        x.fillStyle = TXT; x.font = `600 ${small ? 12 : 13}px ${FONT}`; x.fillText('−1', bx - 22, y + 3); x.fillText('+1', bx + bw + 6, y + 3)
+      }
+      if (small) {
+        const bx = cx + r + 40, bw = Math.max(40, W - bx - 30 - 48)
+        x.fillStyle = BG; x.fillRect(cx + r + 8, 0, W - cx - r - 9, H)
+        x.fillStyle = TXT; x.font = `600 12px ${FONT}`; x.fillText(tx("좌우 닮음"), bx, H / 2 - 16)
+        mid0(bx, bw, H / 2)
+      } else {
+        x.fillStyle = BG; x.fillRect(0, H - 24, W, 24)
+        mid0(34, W - 68, H - 15)
+      }
       x.strokeStyle = FRAME; x.strokeRect(0.5, 0.5, W - 1, H - 1)
     }
 
