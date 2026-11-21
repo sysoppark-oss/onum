@@ -10,11 +10,12 @@ import { classify, loadOverrides } from '../lib/kind'
 import { Icon, nf } from './common'
 import { LANGS, lang, setLang, tx } from "../lib/i18n";
 import { Page } from './Sheets'
-import { lineOf, useChurch } from '../lib/church'
+import { appLink, lineOf, link, useChurch } from '../lib/church'
 import { CardMark } from './Church'
 import { AI_MB, aiAsked, aiOn, downloadAi, refreshAi, setAiAsked } from '../lib/ai'
 
 // 마우스를 쓰는 넓은 화면이면 PC로 본다
+const APK = 'https://github.com/sysoppark-oss/onum/releases/download/test-build/onum-test.apk'
 export const isPC = !isNative && window.matchMedia('(pointer: fine) and (min-width: 700px)').matches
 
 function NameLine() {
@@ -52,6 +53,7 @@ export function FirstScreen({ onDone }: { onDone: (r: ScanResult, hidden: string
   const [error, setError] = useState('')
   const [found, setFound] = useState<ScanResult | null>(null)
   const [offer, setOffer] = useState(false)
+  const church = useChurch()
   const [hidden, setHidden] = useState<string[]>(() => load('hiddenFolders', []))
 
   async function findOnDevice(auto = false) {
@@ -108,9 +110,9 @@ export function FirstScreen({ onDone }: { onDone: (r: ScanResult, hidden: string
     if (yes) downloadAi()
     if (found) onDone(found, hidden)
   }
-  const pickers = (more: boolean) => (
+  const pickers = (more: boolean, second = false) => (
     <>
-      <label className={more ? 'morefolder pick' : 'go pick'}>
+      <label className={more ? 'morefolder pick' : second ? 'ghost pick' : 'go pick'}>
         {more && <Icon n="plus" s={18} />}{more ? tx("다른 폴더 고르기") : tx("음악 폴더 고르기")}
         <input type="file" className="sr" multiple
           // @ts-expect-error 폴더 고르기는 표준 속성이 아님
@@ -178,6 +180,40 @@ export function FirstScreen({ onDone }: { onDone: (r: ScanResult, hidden: string
         <div className="first-end">
           <button className="go" disabled={!count} onClick={start}>{tx("듣기 시작")}</button>
           <NameLine />
+        </div>
+      </div>
+    )
+  }
+
+  // 카드 링크로 들어온 분: 안내 페이지 대신 빈 플레이어에서 바로 시작
+  if (church) {
+    const kakao = !isNative && /KAKAOTALK/i.test(navigator.userAgent)
+    const android = !isNative && /Android/i.test(navigator.userAgent)
+    return (
+      <div className="page first wp">
+        <div className="wp-top"><CardMark c={{ ...church, line: lineOf(church) }} size="bar" /></div>
+        <div className="wp-art" aria-hidden="true"><Icon n="note" s={56} /></div>
+        <h1 className="wp-t">{tx("음악을 불러오면 바로 들을 수 있어요")}</h1>
+        <p className="wp-s">{isNative ? tx("휴대폰 속 음악을 찾아 담아 둘게요. 음악 파일은 휴대폰 밖으로 나가지 않아요.") : tx("광고도, 회원 가입도 없어요. 음악 파일은 이 기기 밖으로 나가지 않아요.")}</p>
+        {found && <p className="ferr" role="alert">{tx("음악 파일을 찾지 못했어요. ")}{isNative ? tx("휴대폰에 음악 파일이 있는지 확인해 주세요.") : tx("다른 폴더를 골라 보세요.")}</p>}
+        {error && <p className="ferr" role="alert">{error}</p>}
+        <div className="first-end">
+          {isNative
+            ? <button className="go" onClick={() => findOnDevice()}>{tx("음악 불러오기")}</button>
+            : android
+              ? <>
+                  <a className="go" href={`intent://c/${appLink(church).slice(9)}#Intent;scheme=onum;package=org.onum.player;S.browser_fallback_url=${encodeURIComponent(APK)};end`}>{tx("온음 앱 받기 · 열기")}</a>
+                  <p className="wp-note">{tx("앱은 휴대폰 속 음악을 저절로 찾아요. 앱을 설치한 뒤 이 버튼을 한 번 더 누르면 카드와 함께 열려요.")}</p>
+                  {kakao
+                    ? <a className="ghost" href={'kakaotalk://web/openExternal?url=' + encodeURIComponent(link(church))}>{tx("크롬에서 열어 웹으로 듣기")}</a>
+                    : pickers(false, true)}
+                </>
+              : <div className="stack">{pickers(false)}</div>}
+          <div className="wp-lang">
+            <div className="langpick" role="radiogroup" aria-label="Language · 언어 · 言語">
+              {LANGS.map((l) => <button key={l.id} role="radio" lang={l.id} aria-checked={lang === l.id} className={lang === l.id ? 'on' : undefined} onClick={() => lang !== l.id && setLang(l.id)}>{l.name}</button>)}
+            </div>
+          </div>
         </div>
       </div>
     )

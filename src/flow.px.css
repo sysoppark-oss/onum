@@ -987,3 +987,14 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .chf-kinds button svg { color: var(--tg-pink); fill: currentColor; }
 .chf-prev { display: flex; flex-direction: column; gap: 6px; padding: 14px 16px; border-radius: 16px; box-shadow: inset 0 0 0 1px var(--line); }
 .chf-prev-k { font-size: 13px; font-weight: 700; color: var(--ink2); }
+
+/* 카드 링크로 들어온 분: 빈 플레이어에서 시작 */
+.wp-top { display: flex; align-items: center; min-height: 44px; }
+.wp-art { display: flex; align-items: center; justify-content: center; width: 100%; max-width: 280px; aspect-ratio: 1; margin: 28px auto 0; border-radius: 28px; background: var(--sf); color: var(--ink3); }
+.wp-t { margin-top: 28px; font-size: 24px; font-weight: 800; line-height: 1.35; letter-spacing: -0.03em; text-wrap: balance; }
+.wp-s { margin-top: 8px; font-size: 15px; line-height: 1.55; color: var(--ink2); }
+.wp-note { margin-top: -6px; font-size: 13px; line-height: 1.5; color: var(--ink2); }
+.wp .go, .wp .ghost { text-decoration: none; }
+.wp-lang { display: flex; justify-content: center; margin-top: 4px; }
+.wp a.go { color: var(--on-ink); }
+.wp a.ghost { color: var(--ink); }
