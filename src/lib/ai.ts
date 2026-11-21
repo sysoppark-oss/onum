@@ -82,13 +82,13 @@ export async function autoSync(t: Track): Promise<boolean> {
     })
     set({ job: { id: t.id, stage: 'align', f: 1 } })
     const lines = linesOf(ly.text)
-    const times = alignLines(lines, toks, t.duration || 0)
-    const found = times.filter((x) => x != null).length
+    const { t: times, e: ends } = alignLines(lines, toks, t.duration || 0)
+    const found = ends.filter((x) => x != null).length
     if (!found) throw new Error('nomatch')
     // 그 사이 사용자가 가사를 고쳤으면 고친 글 그대로, 시각만 새로
     const now = getLyrics(t) ?? ly
     if (now.text !== ly.text) throw new Error('changed')
-    setLyrics(t, { ...now, t: times, off: 0 })
+    setLyrics(t, { ...now, t: times, e: ends, off: 0 })
     set({ job: null, done: t.id })
     return true
   } catch (e) {

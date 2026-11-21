@@ -4,7 +4,7 @@ import { rt } from './rich'
 import { useEffect, useRef, useState } from 'react'
 import type { Track } from '../lib/library'
 import type { Player } from '../lib/usePlayer'
-import { findLyrics, fromPasted, lineAt, linesOf, setLyrics, synced, toLrc, useLyrics, type Lyrics } from '../lib/lyrics'
+import { findLyrics, fromPasted, linesOf, stateAt, type LyState, setLyrics, synced, toLrc, useLyrics, type Lyrics } from '../lib/lyrics'
 import { isNative } from '../lib/native'
 import { Share } from '@capacitor/share'
 import { fmt } from '../lib/library'
@@ -82,7 +82,9 @@ function SyncLyrics({ t, ly, player, onDone }: { t: Track; ly: Lyrics; player: P
   const lines = linesOf(ly.text)
   const real = lines.map((l, i) => (l ? i : -1)).filter((i) => i >= 0)
   const [k, setK] = useState(0) // real 안의 다음 줄
+  const [resting, setResting] = useState(false) // 「간주」를 눌러 노래가 쉬는 중
   const times = useRef<(number | null)[]>(lines.map(() => null))
+  const ends = useRef<(number | null)[]>(lines.map(() => null))
   const isCur = !!player.current && (player.current.src ?? player.current.id) === (t.src ?? t.id)
   // 처음부터 들려준다
   useEffect(() => {
@@ -91,19 +93,30 @@ function SyncLyrics({ t, ly, player, onDone }: { t: Track; ly: Lyrics; player: P
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   const save = (done: boolean) => {
     const tt = lines.map((_, i) => times.current[i] ?? (done ? null : ly.t[i] ?? null))
-    setLyrics(t, { ...ly, t: tt, off: 0 })
+    const ee = lines.map((_, i) => ends.current[i] ?? (done ? null : ly.e?.[i] ?? null))
+    setLyrics(t, { ...ly, t: tt, e: ee.some((v) => v != null) ? ee : undefined, off: 0 })
   }
+  const now = () => Math.max(0, player.time - 0.15) // 누르는 데 걸리는 짧은 시간만큼 앞당긴다
   const tap = () => {
     const i = real[k]
     if (i == null) return
-    times.current[i] = Math.max(0, player.time - 0.15) // 누르는 데 걸리는 짧은 시간만큼 앞당긴다
+    times.current[i] = now()
+    setResting(false)
     if (k + 1 >= real.length) { save(true); onDone() } else setK(k + 1)
   }
+  /** 노래가 멈추고 간주가 시작될 때: 앞 줄이 여기서 끝났다고 적는다 */
+  const rest = () => {
+    if (k === 0) return
+    ends.current[real[k - 1]] = now()
+    setResting(true)
+  }
   const back = () => {
+    if (resting) { ends.current[real[k - 1]] = null; setResting(false); return }
     if (k === 0) return
     const i = real[k - 1]
     const at = times.current[i]
     times.current[i] = null
+    if (k >= 2) ends.current[real[k - 2]] = null
     setK(k - 1)
     player.seek(Math.max(0, (at ?? player.time) - 3))
   }
@@ -114,30 +127,34 @@ function SyncLyrics({ t, ly, player, onDone }: { t: Track; ly: Lyrics; player: P
     <div className="ly-sync">
       <p className="hint num">{k + 1} / {real.length}{tx("줄 · ")}<span>{fmt(player.time)}</span></p>
       <div className="ly-cards" aria-live="polite">
-        <p className="ly-prev">{prev || ' '}</p>
-        <p className="ly-cur">{cur}</p>
+        <p className="ly-prev">{prev ? <><span className="ly-lab">{resting ? tx("여기서 멈춤") : tx("부르는 중")}</span>{prev}</> : ' '}</p>
+        {resting && <p className="ly-rest"><Icon n="note" s={16} />{tx("간주 중 · 노래가 다시 시작되면 아래 줄에서 누르세요")}</p>}
+        <p className="ly-cur"><span className="ly-lab">{k === 0 ? tx("첫 줄") : resting ? tx("간주 뒤 첫 줄") : tx("다음 줄")}</span>{cur}</p>
         <p className="ly-after">{after || ' '}</p>
       </div>
       <button className="ly-tap" onClick={tap}>{tx("이 줄이 시작될 때 누르기")}</button>
+      <button className="ly-restbtn" onClick={rest} disabled={k === 0 || resting}><Icon n="note" s={18} />{resting ? tx("간주로 표시했어요") : tx("노래가 멈추면 · 간주")}</button>
       <div className="nb">
-        <button className="ghost" onClick={back} disabled={k === 0}>{tx("한 줄 되돌리기")}</button>
+        <button className="ghost" onClick={back} disabled={k === 0 && !resting}>{resting ? tx("간주 표시 취소") : tx("한 줄 되돌리기")}</button>
         <button className="ghost" onClick={() => { save(false); onDone() }}>{tx("여기까지 저장")}</button>
       </div>
-      <p className="hint">{tx("노래를 들으며 줄이 시작되는 순간 큰 버튼을 누르세요. 틀리면 되돌리면 돼요.")}</p>
+      <p className="hint">{tx("줄이 시작되는 순간 큰 버튼을 누르세요. 간주가 나오면 「간주」를 누르고, 노래가 다시 시작될 때 큰 버튼을 누르면 돼요.")}</p>
     </div>
   )
 }
 
 function ViewLyrics({ t, ly, player, isCur, found, onEdit, onSync }: { t: Track; ly: Lyrics; player: Player; isCur: boolean; found: boolean; onEdit: () => void; onSync: () => void }) {
   const lines = linesOf(ly.text)
-  const on = isCur && synced(ly) ? lineAt(ly, player.time) : -1
+  const st: LyState = isCur && synced(ly) ? stateAt(ly, player.time) : { on: -1, next: -1, gap: null, len: 0 }
+  const on = st.gap != null ? -1 : st.on
+  const focus = st.gap != null ? st.next : st.on // 간주 중에는 다음에 부를 줄을 가운데로
   const list = useRef<HTMLOListElement>(null)
   const touched = useRef(0)
   useEffect(() => {
-    if (on < 0 || Date.now() - touched.current < 4000) return
-    const el = list.current?.children[on] as HTMLElement | undefined
+    if (focus < 0 || Date.now() - touched.current < 4000) return
+    const el = list.current?.querySelector(`[data-i="${focus}"]`) as HTMLElement | null
     el?.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
-  }, [on])
+  }, [focus])
   const exportLrc = () => {
     const x = info(t)
     const text = toLrc(ly, x.song, x.singer || t.artist)
@@ -159,16 +176,18 @@ function ViewLyrics({ t, ly, player, isCur, found, onEdit, onSync }: { t: Track;
         </div>
       )}
       <ol className="ly-lines" ref={list}>
-        {lines.map((l, i) => {
+        {lines.flatMap((l, i) => {
           const at = ly.t[i]
-          const cls = 'ly-l' + (!l ? ' gap' : '') + (i === on ? ' on' : on >= 0 && i < on ? ' past' : '')
-          return (
-            <li key={i} className={cls} aria-current={i === on ? 'true' : undefined}>
+          const done = st.gap != null ? st.on >= 0 && i <= st.on : on >= 0 && i < on
+          const cls = 'ly-l' + (!l ? ' gap' : '') + (i === on ? ' on' : i === st.next && st.gap != null ? ' up' : done ? ' past' : '')
+          const row = (
+            <li key={i} data-i={i} className={cls} aria-current={i === on ? 'true' : undefined}>
               {at != null && isCur
                 ? <button onClick={() => player.seek(Math.max(0, at - ly.off))} aria-label={tx("{0}, 여기부터 듣기", l)}>{l}</button>
                 : <span>{l || ' '}</span>}
             </li>
           )
+          return st.gap != null && i === st.next ? [<GapRow key="gap" st={st} />, row] : [row]
         })}
       </ol>
       <div className="ly-foot">
@@ -226,22 +245,28 @@ export function LyricsInline({ t, player, onOpen }: { t: Track; player: Player; 
   }
   const lines = linesOf(ly.text)
   const sync = synced(ly)
-  const on = sync ? lineAt(ly, player.time) : -1
-  // 지금 줄을 가운데 두고 앞 1줄, 뒤 3줄(빈 줄은 건너뜀)
+  const st: LyState = sync ? stateAt(ly, player.time) : { on: -1, next: -1, gap: null, len: 0 }
+  const on = st.gap != null ? -1 : st.on
+  // 지금 줄(간주 중이면 다음 줄)을 가운데 두고 앞 1줄, 뒤 3줄(빈 줄은 건너뜀)
+  const focus = st.gap != null ? st.next : st.on
   const idx = lines.map((l, i) => (l ? i : -1)).filter((i) => i >= 0)
-  const at = Math.max(0, idx.findIndex((i) => i >= Math.max(on, 0)))
+  const at = Math.max(0, idx.findIndex((i) => i >= Math.max(focus, 0)))
   const from = Math.max(0, at - 1)
-  const show = idx.slice(from, from + 5)
+  const show = idx.slice(from, from + (st.gap != null ? 4 : 5))
   return (
     <div className="lyi">
       <ol className="lyi-lines">
-        {show.map((i) => (
-          <li key={i} className={i === on ? 'on' : on >= 0 && i < on ? 'past' : undefined} aria-current={i === on ? 'true' : undefined}>
-            {sync && ly.t[i] != null
-              ? <button onClick={() => player.seek(Math.max(0, ly.t[i]! - ly.off))}>{lines[i]}</button>
-              : <span>{lines[i]}</span>}
-          </li>
-        ))}
+        {show.flatMap((i) => {
+          const done = st.gap != null ? st.on >= 0 && i <= st.on : on >= 0 && i < on
+          const row = (
+            <li key={i} className={i === on ? 'on' : i === st.next && st.gap != null ? 'up' : done ? 'past' : undefined} aria-current={i === on ? 'true' : undefined}>
+              {sync && ly.t[i] != null
+                ? <button onClick={() => player.seek(Math.max(0, ly.t[i]! - ly.off))}>{lines[i]}</button>
+                : <span>{lines[i]}</span>}
+            </li>
+          )
+          return st.gap != null && i === st.next ? [<GapRow key="gap" st={st} />, row] : [row]
+        })}
       </ol>
       <AutoSync t={t} synced={sync} />
       <div className="lyi-foot">
@@ -308,5 +333,17 @@ export function AutoSync({ t, synced: sync }: { t: Track; synced: boolean }) {
         <span className="ais-gt"><b>{tx("저절로 맞추기")}</b><span>{ai.job ? tx("다른 곡을 맞추는 중이에요") : tx("노래를 듣고 줄마다 시각을 찾아요")}</span></span>
       </button>
     </div>
+  )
+}
+
+/** 간주(전주) 줄: 다음 줄까지 남은 시간과 줄어드는 막대 — 간주가 끝나면 어디서 다시 부르는지 보여 준다 */
+function GapRow({ st }: { st: LyState }) {
+  const left = st.gap ?? 0
+  const f = st.len > 0 ? Math.max(0, Math.min(1, left / st.len)) : 0
+  return (
+    <li className="lygap">
+      <span className="lygap-t"><Icon n="note" s={16} />{st.on < 0 ? tx("전주") : tx("간주")}<span className="num">{tx("다음 줄까지 {0}초", Math.ceil(left))}</span></span>
+      <span className="lygap-bar" aria-hidden="true"><i style={{ transform: `scaleX(${f})` }} /></span>
+    </li>
   )
 }

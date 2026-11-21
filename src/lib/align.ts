@@ -8,7 +8,7 @@ const keep = /[\p{L}\p{N}]/u
 const chars = (s: string) => Array.from(s.normalize('NFC').toLowerCase()).filter((c) => keep.test(c))
 
 /** 줄마다 시작 시각(초). 빈 줄·찾지 못한 줄은 앞뒤 줄로 미루어 채우고, 빈 줄은 null */
-export function alignLines(lines: string[], toks: Tok[], duration: number): (number | null)[] {
+export function alignLines(lines: string[], toks: Tok[], duration: number): { t: (number | null)[]; e: (number | null)[] } {
   // 가사 글자: 어느 줄의 몇 번째 글자인지
   const L: { c: string; line: number }[] = []
   lines.forEach((ln, i) => chars(ln).forEach((c) => L.push({ c, line: i })))
@@ -23,7 +23,8 @@ export function alignLines(lines: string[], toks: Tok[], duration: number): (num
   })
   const n = L.length, m = A.length
   const out: (number | null)[] = lines.map(() => null)
-  if (!n || !m) return fill(lines, out, duration)
+  const ends: (number | null)[] = lines.map(() => null)
+  if (!n || !m) return { t: fill(lines, out, duration), e: ends }
 
   // 짝짓기(가사 앞뒤의 받아쓰기 군더더기는 공짜로 건너뜀)
   const MATCH = 3, MIS = -2, GAP_L = -2, GAP_A = -1
@@ -61,14 +62,38 @@ export function alignLines(lines: string[], toks: Tok[], duration: number): (num
     const total = chars(ln).length
     const ts = per.get(k)
     if (!total || !ts || ts.length < Math.max(2, total * 0.3)) return
-    // 첫 글자가 잘못 붙는 일을 막으려고 맞은 글자 앞쪽 셋의 가운데 값
-    const head = ts.slice(0, 3).sort((a, b) => a - b)
-    out[k] = head[Math.floor(head.length / 2)]
+    // 첫 글자 시각. 다만 첫 글자만 멀리 떨어져 붙었으면(잘못 짝지어짐) 둘째 글자
+    out[k] = ts.length > 1 && ts[1] - ts[0] > 1.5 ? ts[1] : ts[0]
+    // 끝: 맞은 글자 가운데 마지막 쪽(받아쓰기 군더더기 하나에 끌려가지 않게 뒤에서 두 번째)
+    const tail = ts.slice(-2).sort((a, b) => a - b)
+    ends[k] = tail[0] + 0.5
   })
   // 거꾸로 가는 시각은 버린다
   let last = -1
-  out.forEach((v, k) => { if (v == null) return; if (v <= last) out[k] = null; else last = v })
-  return fill(lines, out, duration)
+  out.forEach((v, k) => { if (v == null) return; if (v <= last) { out[k] = null; ends[k] = null } else last = v })
+  // 못 찾은 줄은 「노래가 들리는 시간」 안에서만 나눠 채운다 — 간주에 가사가 걸리지 않게
+  const clk = voiceClock(toks.filter((k) => chars(k.s).length).map((k) => k.t))
+  const filled = fill(lines, out.map((x) => (x == null ? null : clk.to(x))), clk.to(duration)).map((x) => (x == null ? null : clk.from(x)))
+  return { t: filled, e: ends.map((v, k) => (v != null && out[k] != null && v > out[k]! ? v : null)) }
+}
+
+/** 받아쓴 낱말 사이가 1.2초보다 길면(간주·전주) 그만큼 접은 시계: to(실제→목소리 시각), from(거꾸로) */
+function voiceClock(times: number[]) {
+  const w = [0], v = [0]
+  for (const x of [...times].sort((a, b) => a - b)) {
+    const pw = w[w.length - 1]
+    if (x <= pw) continue
+    w.push(x); v.push(v[v.length - 1] + Math.min(x - pw, 1.2))
+  }
+  const map = (a: number[], b: number[], x: number) => {
+    if (a.length < 2) return x
+    if (x >= a[a.length - 1]) return b[b.length - 1] + (x - a[a.length - 1])
+    let i = 1
+    while (a[i] < x) i++
+    const f = a[i] === a[i - 1] ? 0 : (x - a[i - 1]) / (a[i] - a[i - 1])
+    return b[i - 1] + f * (b[i] - b[i - 1])
+  }
+  return { to: (x: number) => map(w, v, Math.max(0, x)), from: (y: number) => map(v, w, Math.max(0, y)) }
 }
 
 /** 찾지 못한 줄은 앞뒤 찾은 줄 사이를 글자 수 비율로 나눠 채운다 */
