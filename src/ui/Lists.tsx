@@ -169,8 +169,12 @@ function ListDetail({ pl, items, tracks, lists, player, play, onClose, resume }:
         {resume && <button className="go grow" onClick={() => play(items, resume.t.id, resume.pos, true, src)}><Icon n="play" s={18} /><span className="one">{tx("이어서 · ")}{info(resume.t).song} <span className="num">{fmt(resume.pos)}</span></span></button>}
         {items.length > 0 && <button className={resume ? 'pillbtn' : 'go grow'} onClick={() => play(items, items[0].id, undefined, true, src)}><Icon n="play" s={18} />{tx("처음부터 듣기")}</button>}
         <button className="pillbtn" onClick={() => setAdding(true)}><Icon n="plus" s={18} />{tx("곡 추가")}</button>
-        {items.length > 0 && <button className="pillbtn" onClick={() => setCue(true)} aria-description={tx("누를 때만 다음 곡 · 행사·예배 진행용")} title={tx("누를 때만 다음 곡 · 행사·예배 진행용")}><Icon n="cue" s={18} />{tx("큐 모드")}</button>}
       </div>
+      {items.length > 0 && (
+        <button className="cue-btn" onClick={() => setCue(true)}>
+          <Icon n="cue" s={20} /><b>{tx("큐 모드")}</b><span>{tx("누를 때만 다음 곡 · 행사·예배 진행용")}</span><Icon n="chev" s={18} />
+        </button>
+      )}
       {items.length > 1 && !Object.keys(tags).length && <p className="hint">{tx("곡을 길게 누르면 색으로 표시해 둘 수 있어요.")}</p>}
       {items.length === 0 && <p className="empty">{tx("아직 담은 곡이 없어요. \"곡 추가\"를 눌러 담아 보세요.")}</p>}
       <EditRows tracks={items} currentId={player.current?.id}

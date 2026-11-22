@@ -7,6 +7,7 @@
   --on-ink: #ffffff; --dim: rgba(0, 0, 0, .45);
   --tg-green: #1f8a4c; --tg-orange: #b26a00; --tg-purple: #7b4ee0; --tg-pink: #c2417e; /* 목록 안 곡 색 */
   --brand: #8c5a1e; /* 카드 이름: 따뜻한 청동색(파랑은 지금 자리 전용) */
+  --cue: #6439c9; /* 큐 모드 단추 */
   color-scheme: light;
 }
 /* 밤: 같은 구조, 빛만 낮춘다 */
@@ -17,6 +18,7 @@
   --on-ink: #0e0f11; --dim: rgba(0, 0, 0, .6);
   --tg-green: #4cc27a; --tg-orange: #f0b030; --tg-purple: #b49cff; --tg-pink: #f07fb3;
   --brand: #e2b06a;
+  --cue: #c3b0ff;
   color-scheme: dark;
 }
 :root {
@@ -1178,3 +1180,9 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .cue-help li::before { content: counter(h); position: absolute; left: 0; top: 10px; width: 26px; height: 26px; border-radius: 13px; background: var(--sf); font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
 .cue-help b { display: block; font-size: 16px; font-weight: 800; }
 .cue-help span { display: block; margin-top: 3px; font-size: 15px; line-height: 1.5; color: var(--ink2); }
+/* 목록 화면의 「큐 모드」 단추: 눈에 띄게(보라, 굵게). 파랑은 지금 자리 전용 */
+.cue-btn { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 52px; margin-top: 10px; padding: 0 14px 0 16px; border-radius: 18px; background: color-mix(in srgb, var(--cue) 14%, var(--bg)); color: var(--cue); text-align: left; }
+.cue-btn b { font-size: 16px; font-weight: 800; flex-shrink: 0; }
+.cue-btn span { flex: 1; min-width: 0; font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cue-btn svg { flex-shrink: 0; color: var(--cue); }
+.cue-btn:active { transform: scale(.98); }
