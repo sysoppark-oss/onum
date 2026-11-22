@@ -1170,3 +1170,11 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .cue-opt { margin-top: 14px; }
 .cue-ol { display: block; margin-bottom: 8px; font-size: 15px; font-weight: 700; }
 .cue-note { margin-top: 6px; font-size: 14px; line-height: 1.5; color: var(--ink2); }
+.cue-subrow { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -2px 0 12px; }
+.cue-sub { font-size: 14px; color: var(--ink2); min-width: 0; }
+.cue-help { counter-reset: h; margin: 8px 0 16px; }
+.cue-help li { counter-increment: h; position: relative; padding: 10px 0 10px 38px; border-bottom: 1px solid var(--line); }
+.cue-help li:last-child { border-bottom: 0; }
+.cue-help li::before { content: counter(h); position: absolute; left: 0; top: 10px; width: 26px; height: 26px; border-radius: 13px; background: var(--sf); font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.cue-help b { display: block; font-size: 16px; font-weight: 800; }
+.cue-help span { display: block; margin-top: 3px; font-size: 15px; line-height: 1.5; color: var(--ink2); }

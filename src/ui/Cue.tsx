@@ -1,4 +1,4 @@
-// 진행 모드(큐 리스트): 예배·행사 진행자가 쓰는 화면.
+// 큐 모드(큐 리스트): 예배·행사 진행자가 쓰는 화면.
 // 곡이 저절로 넘어가지 않고, 다음 곡이 대기하다가 「다음」을 누를 때만 나온다.
 // 곡마다: 끝나면 멈춤/다음 곡 이어서, 들어올 때 서서히(초), 끝에서 서서히(초). 「모두 멈춤」은 2초에 줄이고 멈춘다.
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -21,6 +21,11 @@ export function CuePage({ listId, name, items, player, onClose }: { listId: stri
   const [locked, setLocked] = useState(false)
   const [edit, setEdit] = useState<number | null>(null)
   const [tip, setTip] = useState(() => isNative && !load('cueTip', false))
+  // 처음 열 때 한 번은 사용법을 보여 준다
+  // (큐 모드 화면이 먼저 뜬 뒤에 열어야 사용법 창이 그 위에 온다)
+  const [help, setHelp] = useState(false)
+  useEffect(() => { if (!load('cueHelp', false)) { const h = window.setTimeout(() => setHelp(true), 60); return () => window.clearTimeout(h) } }, [])
+  const closeHelp = useCallback(() => { setHelp(false); save('cueHelp', true) }, [])
   const cur = player.cueOn && player.current && items.some((t) => t.id === player.current!.id) ? player.current : null
   const curIdx = cur ? items.findIndex((t) => t.id === cur.id) : -1
 
@@ -87,13 +92,17 @@ export function CuePage({ listId, name, items, player, onClose }: { listId: stri
   const ratio = cur && player.duration > 0 ? player.time / player.duration : 0
 
   return (
-    <Page label={tx("진행 모드 · {0}", name)} onClose={onClose}
+    <Page label={tx("큐 모드 · {0}", name)} onClose={onClose}
       actions={<button className={'cue-lock' + (locked ? ' on' : '') + (holding ? ' hold' : '')} aria-pressed={locked}
         aria-label={locked ? tx("잠금 풀기(길게 누르기)") : tx("잠그기")}
         onPointerDown={lockDown} onPointerUp={lockUp} onPointerLeave={lockUp} onPointerCancel={lockUp}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLocked(!locked) } }}>
         <Icon n={locked ? 'lock' : 'unlock'} s={20} /><span>{locked ? tx("잠김") : tx("잠그기")}</span>
       </button>}>
+      <div className="cue-subrow">
+        <p className="cue-sub">{tx("누를 때만 다음 곡 · 행사·예배 진행용")}</p>
+        <button className="textlink" onClick={() => setHelp(true)}>{tx("사용법")}</button>
+      </div>
       {tip && (
         <div className="cue-tip" role="note">
           <span>{tx("진행 중 전화·알림 소리가 나지 않게 휴대폰의 「방해 금지」를 켜 두세요.")}</span>
@@ -139,6 +148,7 @@ export function CuePage({ listId, name, items, player, onClose }: { listId: stri
           </li>
         ))}
       </ol>
+      {help && <CueHelp onClose={closeHelp} />}
       {edit != null && items[edit] && <CueSetSheet t={items[edit]} v={setOf(items[edit])} onChange={(v) => put(items[edit], v)} onClose={() => setEdit(null)} />}
     </Page>
   )
@@ -157,7 +167,7 @@ function CueSetSheet({ t, v, onChange, onClose }: { t: Track; v: CueSet; onChang
     <Sheet label={tx("{0} 진행 방식", info(t).song)} onClose={onClose}>
       <div>
         <h2 className="q">{info(t).song}</h2>
-        <p className="cue-note">{tx("이 목록의 진행 모드에서만 쓰여요.")}</p>
+        <p className="cue-note">{tx("이 목록의 큐 모드에서만 쓰여요.")}</p>
       </div>
       <div className="cue-opt">
         <span className="cue-ol">{tx("이 곡이 끝나면")}</span>
@@ -170,6 +180,29 @@ function CueSetSheet({ t, v, onChange, onClose }: { t: Track; v: CueSet; onChang
       {row(tx("끝에서 서서히 줄이기"), FOUT, v.fout || 0, (n) => onChange({ fout: n }))}
       <p className="cue-note">{tx("끝 지점은 곡의 「시작·끝 지점 정하기」를 따라요. 곡 중간에서 끝내려면 거기서 끝 지점을 정해 두세요.")}</p>
       <button className="go" onClick={onClose}>{tx("다 됐어요")}</button>
+    </Sheet>
+  )
+}
+
+const HELP: [string, string][] = [
+  ["준비", "예배·행사 순서대로 목록을 만들어 곡을 담아요. 목록 화면에서 위아래로 옮겨 순서를 맞춰요."],
+  ["곡마다 정하기", "⋯를 눌러 끝나면 「멈추고 기다리기」인지 「다음 곡 이어서」인지, 들어올 때·끝에서 서서히 바꿀지 정해요."],
+  ["필요한 부분만", "곡 중간에서 끝내려면 음악 탭에서 그 곡의 ⋯ › 「시작·끝 지점 정하기」로 끝 지점을 정해 두세요."],
+  ["진행", "「다음」을 누르면 대기 곡이 나와요. 끝나면 멈추고, 그다음 곡이 대기해요. 듣던 곡이 있을 때 누르면 짧게 줄이고 넘어가요."],
+  ["순서 바꾸기", "진행 순서에서 곡을 누르면 그 곡이 다음 곡이 돼요."],
+  ["급할 때", "「모두 멈춤」은 2초 동안 소리를 줄이며 멈춰요."],
+  ["실수 막기", "「잠그기」를 누르면 「다음」과 「모두 멈춤」만 돼요. 풀 때는 길게 눌러요."],
+  ["PC에서", "스페이스 키는 「다음」, Esc 키는 「모두 멈춤」이에요."],
+  ["미리 챙길 것", "휴대폰은 방해 금지를 켜고 충전기를 꽂아 두세요. 블루투스보다 선으로 연결하면 소리가 늦게 나오지 않아요."],
+]
+function CueHelp({ onClose }: { onClose: () => void }) {
+  return (
+    <Sheet label={tx("큐 모드 사용법")} onClose={onClose} tall>
+      <h2 className="q">{tx("큐 모드 사용법")}</h2>
+      <ol className="cue-help">
+        {HELP.map(([h, d]) => <li key={h}><b>{tx(h)}</b><span>{tx(d)}</span></li>)}
+      </ol>
+      <button className="go" onClick={onClose}>{tx("알겠어요")}</button>
     </Sheet>
   )
 }
