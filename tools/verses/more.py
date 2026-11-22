@@ -1,11 +1,12 @@
-# 러시아어 시노달(1876, 저작권 없음)·힌디어 IRV(2019, CC BY-SA 4.0) 본문 표를 만든다.
+# 러시아어 시노달(1876, 저작권 없음)·중국어 和合本(1919, 저작권 없음; 번체 원문을 간체로) 본문 표를 만든다.
+# (힌디어 IRV는 원본에 해설이 섞여 있어 쓰지 않는다)
 # 원문: thiagobodruk/bible json/ru_synod.json, json/hi_irvhin.json  (KJV와 장 길이를 대조한다)
 # 사용: python3 tools/verses/more.py ru > src/lib/versesRu.ts ; python3 tools/verses/more.py hi > src/lib/versesHi.ts
 import re, sys, os, json, subprocess
 sys.path.insert(0, os.path.dirname(__file__))
 from books import BOOKS
 L = sys.argv[1]
-SRC = {'ru': 'ru_synod', 'hi': 'hi_irvhin'}[L]
+SRC = {'ru': 'ru_synod', 'hi': 'hi_irvhin', 'zh': None}[L]
 os.makedirs('/tmp/bib', exist_ok=True)
 def get(n):
     p = f'/tmp/bib/{n}.json'
@@ -13,7 +14,7 @@ def get(n):
         subprocess.run(['curl', '-sS', '-o', p, f'https://raw.githubusercontent.com/thiagobodruk/bible/master/json/{n}.json'], check=True)
     return json.load(open(p, encoding='utf-8-sig'))
 kjv = get('en_kjv')
-src = get(SRC)
+src = get(SRC) if SRC else None
 RU = "Бытие|Исход|Левит|Числа|Второзаконие|Иисус Навин|Судьи|Руфь|1 Царств|2 Царств|3 Царств|4 Царств|1 Паралипоменон|2 Паралипоменон|Ездра|Неемия|Есфирь|Иов|Псалом|Притчи|Екклесиаст|Песнь песней|Исаия|Иеремия|Плач Иеремии|Иезекииль|Даниил|Осия|Иоиль|Амос|Авдий|Иона|Михей|Наум|Аввакум|Софония|Аггей|Захария|Малахия|Матфея|Марка|Луки|Иоанна|Деяния|Римлянам|1 Коринфянам|2 Коринфянам|Галатам|Ефесянам|Филиппийцам|Колоссянам|1 Фессалоникийцам|2 Фессалоникийцам|1 Тимофею|2 Тимофею|Титу|Филимону|Евреям|Иакова|1 Петра|2 Петра|1 Иоанна|2 Иоанна|3 Иоанна|Иуды|Откровение".split('|')
 assert len(RU) == 66
 if L == 'ru':
@@ -25,6 +26,17 @@ if L == 'ru':
         if i in missing: continue
         books[i] = src[j]; j += 1
     NAME = RU
+elif L == 'zh':
+    # scrollmapper/bible_databases sources/zh-hant/ChiUn (Public Domain) → 간체(OpenCC t2s)
+    import opencc
+    cc = opencc.OpenCC('t2s')
+    p = '/tmp/bib/ChiUn.json'
+    if not os.path.exists(p):
+        subprocess.run(['curl', '-sS', '-o', p, 'https://raw.githubusercontent.com/scrollmapper/bible_databases/master/formats/json/ChiUn.json'], check=True)
+    raw = json.load(open(p))['books']
+    books = {i: {'chapters': [[v['text'] for v in ch['verses']] for ch in raw[i]['chapters']]} for i in range(66)}
+    NAME = "创世记|出埃及记|利未记|民数记|申命记|约书亚记|士师记|路得记|撒母耳记上|撒母耳记下|列王纪上|列王纪下|历代志上|历代志下|以斯拉记|尼希米记|以斯帖记|约伯记|诗篇|箴言|传道书|雅歌|以赛亚书|耶利米书|耶利米哀歌|以西结书|但以理书|何西阿书|约珥书|阿摩司书|俄巴底亚书|约拿书|弥迦书|那鸿书|哈巴谷书|西番雅书|哈该书|撒迦利亚书|玛拉基书|马太福音|马可福音|路加福音|约翰福音|使徒行传|罗马书|哥林多前书|哥林多后书|加拉太书|以弗所书|腓立比书|歌罗西书|帖撒罗尼迦前书|帖撒罗尼迦后书|提摩太前书|提摩太后书|提多书|腓利门书|希伯来书|雅各书|彼得前书|彼得后书|约翰一书|约翰二书|约翰三书|犹大书|启示录".split('|')
+    assert len(NAME) == 66
 else:
     books = {i: src[i] for i in range(66)}
     NAME = [b['name'] for b in src]
@@ -70,6 +82,10 @@ def clean(t):
     t = re.sub(r'\s+([,।;!?])', r'\1', t)
     t = re.sub(r'([,।])\1+', r'\1', t)
     t = re.sub(r'[\[\]{}]', '', t)
+    if L == 'zh':
+        t = cc.convert(re.sub(r'(?<=[^\x00-\x7f])\s+|\s+(?=[^\x00-\x7f])', '', t))
+        t = re.sub(r'^（[^）]*）', '', t)  # 시편 표제 (大卫的诗。)
+        t = re.sub(r'（[^）]*(或译|原文|古卷|或无|细拉|：)[^）]*）', '', t)  # 번역 각주
     return re.sub(r'\s+', ' ', t).strip()
 
 text = ''.join(open(f).read() for f in ['src/lib/verses365.ts', 'src/lib/verses.ts', 'src/lib/version.ts', 'src/ui/Rest.tsx'])
@@ -86,7 +102,11 @@ for r in refs:
         parts.append(clean(t)); pos.append(p)
     if len(parts) != v2 - v1 + 1: miss.append(r); continue
     (sc, sv1), (_, sv2) = pos[0], pos[-1]
-    out[r] = [' '.join(parts), f'{NAME[i]} {sc}:{sv1}' + (f'-{sv2}' if sv2 != sv1 else '')]
-VER = {'ru': 'Синодальный перевод (1876)', 'hi': 'IRV हिंदी (2019, CC BY-SA 4.0, Bridge Connectivity Solutions)'}[L]
+    body = ('' if L == 'zh' else ' ').join(parts)
+    if L == 'zh':
+        for a, b in ('「」', '『』'):
+            if body.count(a) != body.count(b): body = body.replace(a, '').replace(b, '')
+    out[r] = [body, f'{NAME[i]} {sc}:{sv1}' + (f'-{sv2}' if sv2 != sv1 else '')]
+VER = {'ru': 'Синодальный перевод (1876)', 'zh': '和合本(1919, 번체 원문을 간체로 바꿈)', 'hi': 'IRV हिंदी (2019, CC BY-SA 4.0, Bridge Connectivity Solutions)'}[L]
 print(f'// 만들어진 파일: tools/verses/more.py {L}. 손으로 고치지 않는다.\n// {VER}\nexport const {L.upper()}: Record<string, [string, string]> = ' + json.dumps(out, ensure_ascii=False, indent=0))
 print(f'// refs {len(refs)} ok {len(out)} miss {len(miss)} {miss[:40]}', file=sys.stderr)
