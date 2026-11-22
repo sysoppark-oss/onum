@@ -24,7 +24,7 @@ import { EFFECTIVE, PRIVACY } from '../lib/privacy'
 import { kindOf, useCards, useChurch } from '../lib/church'
 import { live, setViz, useViz, VIZ } from '../lib/viz'
 import { ChurchCard, ChurchPage, NaverBtn } from './Church'
-import { GLYPHS, GlyphIcon, setGlyph, useGlyph } from '../lib/glyph'
+import { GLYPHS, GlyphChip, setGlyph, useGlyph } from '../lib/glyph'
 
 const REPO = 'https://github.com/sysoppark-oss/onum'
 const MAIL = 'sysoppark@gmail.com'
@@ -93,6 +93,7 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
   const norm = player.normOn, setNorm = player.setNorm
   const kjv = useKjv()
   const notesOn = useFlag('notes', true)
+  const seasonOn = useFlag('season', true)
   const glyph = useGlyph()
   const updOn = useFlag('updateCheck', true)
   const upd = useUpd()
@@ -147,15 +148,21 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
             <div className="glyphpick" role="radiogroup" aria-label={tx("떠오르는 모양")}>
               {GLYPHS.map((o) => (
                 <button key={o.id} role="radio" aria-checked={glyph === o.id} className={glyph === o.id ? 'on' : undefined} onClick={() => setGlyph(o.id)}>
-                  {o.id === 'mix'
-                    ? <span className="gp-mix"><GlyphIcon k="heart" s={12} /><GlyphIcon k="star" s={12} /><GlyphIcon k="note" s={12} /></span>
-                    : <GlyphIcon k={o.id} s={20} />}
+                  <GlyphChip id={o.id} />
                   <span>{tx(o.name)}</span>
                 </button>
               ))}
             </div>
           )}
         </li>
+        {notesOn && (
+          <li>
+            <div className="lrow">
+              <span className="x"><span className="x1" id="ss-l">{tx("절기 모양 섞기")}</span><span className="x2">{tx("12월 눈송이 · 부활절 백합 · 11월 잎사귀")}</span></span>
+              <button className="sw" role="switch" aria-checked={seasonOn} aria-labelledby="ss-l" onClick={() => setFlag('season', !seasonOn)} />
+            </div>
+          </li>
+        )}
         {isNative && (
           <li>
             <div className="lrow">

@@ -3,6 +3,7 @@ import { appReady, applyPending, checkUpdate, hasPending, useUpd, type Remote } 
 import { UpdateSheet } from './ui/Update'
 import type { Hide } from './ui/Dupes'
 import { useFlag } from './lib/flag'
+import { setGlyph, setSeasonOn } from './lib/glyph'
 import { partTracks, useEdits } from './lib/edits'
 import { NOTES } from './lib/version'
 import { WhatsNew } from './ui/WhatsNew'
@@ -13,7 +14,7 @@ import { classify, loadOverrides, saveOverrides, type KindOverrides } from './li
 import { usePlayer, type Player } from './lib/usePlayer'
 import { usePlaylists } from './lib/playlists'
 import { getFontScale, isNative } from './lib/native'
-import { receiveUrl } from './lib/church'
+import { cardKey, receiveUrl, useCards } from './lib/church'
 import { IncomingSheet } from './ui/Church'
 import { load, save } from './lib/store'
 import { useDayNight } from './lib/theme'
@@ -106,6 +107,17 @@ export default function App() {
   }, [tracks.length > 0]) // eslint-disable-line react-hooks/exhaustive-deps
   const output = useOutput(player)
   // 새 판: 화면 부분은 받아 두었다가 음악이 멈춰 있을 때 바꿔 끼우고, 휴대폰 쪽이 바뀐 판은 알린다
+  setSeasonOn(useFlag('season', true))
+  // 카드에 담긴 떠오르는 모양: 카드를 쓰기 시작하거나 만든 분이 고쳤을 때 한 번 적용(그 뒤 바꾸는 건 자유)
+  const cards = useCards()
+  const onCard = cards.list.find((e) => cardKey(e.c) === cards.on)?.c
+  useEffect(() => {
+    if (!onCard?.g) return
+    const k = cardKey(onCard) + ':' + onCard.ts
+    if (load<string>('glyphCard', '') === k) return
+    save('glyphCard', k)
+    setGlyph(onCard.g)
+  }, [onCard])
   const updOn = useFlag('updateCheck', true)
   const [apk, setApk] = useState<Remote | null>(null)
   const upd = useUpd() // 새 판이 있으면 설정 탭에 점

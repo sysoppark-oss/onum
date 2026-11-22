@@ -1,6 +1,7 @@
 // 카드: 교회 이름(「맑은물속교회에서 드리는 온음」)·선물·축하·커플(「강빛 ♥ 주빛」)
 // 보기(네이버에서 교회 보기·QR 나누기) · 만들기 · 고치기(처음 만든 분의 비밀번호) · 받은 카드 넣기
 import { useEffect, useRef, useState } from 'react'
+import { GLYPHS, GlyphChip, type Glyph } from '../lib/glyph'
 import QRCode from 'qrcode'
 import { Share } from '@capacitor/share'
 import { addCard, answer, appLink, bad, cardKey, cardText, code, create, edit, joint, kindOf, LIMIT, lineOf, link, markMine, naverUrl, pickCard, removeCard, unlock, useCards, type Entry, useChurch, useIncoming, type CardInput, type Church, type Kind } from '../lib/church'
@@ -163,12 +164,12 @@ function ChurchView({ e, on, onEdit, onList }: { e: Entry; on: boolean; onEdit: 
 }
 
 // 고르는 모양: 종류마다 이어지는 말을 미리 채워 둔다(고쳐 쓸 수 있음)
-const PRESETS: { id: string; label: string; kind: Kind; name: string; line: string; q?: string }[] = [
-  { id: 'church', label: "교회", kind: 'church', name: "예) 맑은물속교회", line: "에서 드리는 온음", q: "예) 맑은물속교회 평창" },
-  { id: 'gift', label: "선물", kind: 'gift', name: "예) 주빛", line: "에게 보내는 선물" },
-  { id: 'heart', label: "마음", kind: 'gift', name: "예) 강빛이가", line: "주빛을 사랑하며" },
-  { id: 'cheer', label: "축하", kind: 'gift', name: "예) 주빛", line: "의 생일을 축하해요" },
-  { id: 'couple', label: "커플", kind: 'couple', name: "예) 강빛", line: "함께 듣는 온음", q: "예) 주빛" },
+const PRESETS: { id: string; label: string; kind: Kind; name: string; line: string; q?: string; g: Glyph }[] = [
+  { id: 'church', label: "교회", kind: 'church', name: "예) 맑은물속교회", line: "에서 드리는 온음", q: "예) 맑은물속교회 평창", g: 'note' },
+  { id: 'gift', label: "선물", kind: 'gift', name: "예) 주빛", line: "에게 보내는 선물", g: 'star' },
+  { id: 'heart', label: "마음", kind: 'gift', name: "예) 강빛이가", line: "주빛을 사랑하며", g: 'heart' },
+  { id: 'cheer', label: "축하", kind: 'gift', name: "예) 주빛", line: "의 생일을 축하해요", g: 'spark' },
+  { id: 'couple', label: "커플", kind: 'couple', name: "예) 강빛", line: "함께 듣는 온음", q: "예) 주빛", g: 'heart' },
 ]
 type Preset = typeof PRESETS[number]
 const presetOf = (c?: Church): Preset => {
@@ -180,7 +181,8 @@ const sample = (s?: string) => (s ? tx(s).replace(/^예\)\s*|^e\.g\.\s*|^例\)\s
 
 function ChurchForm({ init, onDone }: { init?: Church; onDone: (v: CardInput, pw?: string) => Promise<void> }) {
   const [pre, setPre] = useState<Preset>(presetOf(init))
-  const [v, setV] = useState<CardInput>({ kind: init ? kindOf(init) : 'church', name: init?.name ?? '', line: init ? lineOf(init) : tx(PRESETS[0].line), q: init?.q ?? '' })
+  const [v, setV] = useState<CardInput>({ kind: init ? kindOf(init) : 'church', name: init?.name ?? '', line: init ? lineOf(init) : tx(PRESETS[0].line), q: init?.q ?? '', g: init?.g ?? presetOf(init).g })
+  const gTouched = useRef(!!init?.g)
   const [pw, setPw] = useState(''), [pw2, setPw2] = useState('')
   const [err, setErr] = useState<'' | 'name' | 'q' | 'lure' | 'pw' | 'pw2'>('')
   const [busy, setBusy] = useState(false)
@@ -189,7 +191,7 @@ function ChurchForm({ init, onDone }: { init?: Church; onDone: (v: CardInput, pw
     // 이어지는 말을 손대지 않았으면 새 종류의 말로 바꾼다
     const touched = v.line.trim() && !PRESETS.some((x) => tx(x.line) === v.line)
     setPre(p)
-    setV({ ...v, kind: p.kind, line: touched ? v.line : tx(p.line), q: p.kind === v.kind ? v.q : '' })
+    setV({ ...v, kind: p.kind, line: touched ? v.line : tx(p.line), q: p.kind === v.kind ? v.q : '', g: gTouched.current ? v.g : p.g })
     setErr('')
   }
   const submit = async (e: React.FormEvent) => {
@@ -242,6 +244,15 @@ function ChurchForm({ init, onDone }: { init?: Church; onDone: (v: CardInput, pw
         <input id="ch-q" className="field" value={v.q} maxLength={LIMIT.q} autoComplete="off" enterKeyHint={init ? 'done' : 'next'} placeholder={tx(pre.q!)} onChange={f('q')} />
         <p className="chf-note">{tx("「네이버에서 교회 보기」를 누르면 이 말로 바로 검색해요. 같은 이름의 교회가 많으면 지역을 함께 넣어 주세요.")}</p>
       </>}
+      <span className="flabel" id="ch-g">{tx("떠오르는 모양")}</span>
+      <div className="glyphpick" role="radiogroup" aria-labelledby="ch-g">
+        {GLYPHS.map((o) => (
+          <button key={o.id} type="button" role="radio" aria-checked={v.g === o.id} className={v.g === o.id ? 'on' : undefined} onClick={() => { gTouched.current = true; setV({ ...v, g: o.id }) }}>
+            <GlyphChip id={o.id} /><span>{tx(o.name)}</span>
+          </button>
+        ))}
+      </div>
+      <p className="chf-note">{tx("카드를 받은 분의 화면에도 이 모양이 소리 따라 떠올라요.")}</p>
       {err === 'lure' && <p className="ferr" role="alert">{tx("전화번호·인터넷 주소·메신저는 넣을 수 없어요.")}</p>}
 
       {!init && (

@@ -12,12 +12,18 @@ import { Icon } from './common'
 import { Page } from './Sheets'
 import { Floaters } from './Floaters'
 import { getGlyph } from '../lib/glyph'
+import { cardName } from '../lib/church'
 import { useFlag } from '../lib/flag'
 
 const BANDS = [20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630, 800, 1000, 1250, 1600, 2000, 2500, 3150, 4000, 5000, 6300, 8000, 10000, 12500, 16000, 20000]
 const BG = '#07080a', FRAME = '#1c2026', TXT = '#8b939d', HI = '#e6edf3'
 type RGB = [number, number, number]
 const GREEN: RGB = [52, 211, 120], AMBER: RGB = [245, 196, 66], RED: RGB = [255, 82, 82]
+/** 카드 이름 색: 화면의 청동색(낮)·금빛(밤)을 그대로 */
+const brandRGB = (): RGB => {
+  const h = getComputedStyle(document.documentElement).getPropertyValue('--brand').trim().replace('#', '')
+  return h.length === 6 ? [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)] : AMBER
+}
 const zone = (db: number): RGB => (db < -18 ? GREEN : db < -6 ? AMBER : RED)
 const rgb = ([r, g, b]: RGB, a = 1) => (a === 1 ? `rgb(${r},${g},${b})` : `rgba(${r},${g},${b},${a})`)
 const FONT = 'Pretendard, system-ui, sans-serif'
@@ -79,7 +85,7 @@ export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind
     const ro = new ResizeObserver(() => { fit(); fx?.fit(); idle = 0; start() })
     ro.observe(c)
     // 박자 찾기: 짧은 순간의 세기가 최근 평균보다 확 커지면
-    const bt = { fast: 0, slow: 0, last: -9, clock: 0, gaps: [] as number[], bright: 0.4, ip: [-90, -90], e: 0, d: 0, prev: new Float32Array(31).fill(-90), side: 0, ended: false }
+    const bt = { fast: 0, slow: 0, last: -9, clock: 0, gaps: [] as number[], bright: 0.4, ip: [-90, -90], e: 0, d: 0, prev: new Float32Array(31).fill(-90), side: 0, ended: false, name: -99 }
     const m: Meter = fresh()
     let tdL: Float32Array<ArrayBuffer> | null = null, tdR: Float32Array<ArrayBuffer> | null = null
     let fq: Float32Array<ArrayBuffer> | null = null
@@ -294,6 +300,9 @@ export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind
         side = -bt.side // 왼쪽 소리면 왼쪽으로
         ox = cx + side * r * 0.6; oy = cy - r * 0.35; col = m.corr < 0 ? RED : GREEN
       }
+      // 아주 가끔, 가장 큰 순간에 카드 이름이 은은하게 떠오른다
+      const nm = cardName()
+      if (nm && power > 0.8 && bt.clock - bt.name > 45 && Math.random() < 0.3) { bt.name = bt.clock; fx.emitText(nm, ox, oy - 6, brandRGB()); return }
       fx.emit({ x: ox, y: oy, col, power, side, bright: bt.bright, tempo }, getGlyph())
     }
 

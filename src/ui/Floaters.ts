@@ -8,7 +8,7 @@ type RGB = [number, number, number]
 export interface Burst { x: number; y: number; col: RGB; power: number; side: number; bright: number; tempo: number }
 interface P {
   k: string; x: number; y: number; vx: number; vy: number; s: number; rot: number; vr: number; col: RGB
-  age: number; life: number; sway: number; w: number; ph: number; kind: 'fly' | 'keep' | 'bit'; tx: number; ty: number
+  age: number; life: number; sway: number; w: number; ph: number; kind: 'fly' | 'keep' | 'bit' | 'text'; tx: number; ty: number; t?: string
 }
 const paths = new Map<string, Path2D>()
 const pathOf = (k: string) => { let p = paths.get(k); if (!p) { p = new Path2D(PATH[k]); paths.set(k, p) } return p }
@@ -47,13 +47,20 @@ export class Floaters {
       const s = base + b.power * (this.small ? 9 : 15) + heavy * 3 + Math.random() * 2
       const t = b.tempo
       this.ps.push({
-        k: shapeFor(g, this.n++), x: b.x + (Math.random() - 0.5) * 8, y: b.y + this.up, s, col: b.col,
+        k: shapeFor(g, this.n++, b), x: b.x + (Math.random() - 0.5) * 8, y: b.y + this.up, s, col: b.col,
         vx: b.side * 14 + (Math.random() - 0.5) * 12, vy: -(24 + 26 * b.power + 18 * heavy) * t,
         rot: (Math.random() - 0.5) * 0.5, vr: this.reduce ? 0 : (Math.random() - 0.5) * (0.6 + b.bright * 2.4),
         age: 0, life: (2.6 + Math.random() * 0.9) / Math.sqrt(t), sway: this.reduce ? 0 : 3 + b.bright * 14,
         w: 1.6 + b.bright * 2.6, ph: Math.random() * 6.28, kind: 'fly', tx: 0, ty: 0,
       })
     }
+  }
+
+  /** 카드 이름이 은은하게 떠오른다(아주 가끔) */
+  emitText(t: string, x: number, y: number, col: RGB) {
+    if (this.ps.some((p) => p.kind === 'text')) return
+    const w = Math.min(this.W - 24, t.length * (this.small ? 14 : 17))
+    this.ps.push({ k: '', t, x: Math.max(12 + w / 2, Math.min(this.W - 12 - w / 2, x)), y: y + this.up, vx: 0, vy: this.reduce ? -6 : -14, s: this.small ? 14 : 17, rot: 0, vr: 0, col, age: 0, life: 4.2, sway: 0, w: 0, ph: 0, kind: 'text', tx: 0, ty: 0 })
   }
 
   /** 곡 끝: 맴돌던 것들이 한꺼번에 흩어진다 */
@@ -79,7 +86,7 @@ export class Floaters {
     if (px < -20 || py < -20 || px > r.width + 20 || py > r.height + 20) return false
     let best = -1, bd = 1e9
     this.ps.forEach((p, i) => {
-      if (p.kind === 'bit') return
+      if (p.kind === 'bit' || p.kind === 'text') return
       const d = Math.hypot(p.x - px, p.y - py), reach = Math.max(22, p.s * 0.9) // 손가락 크기만큼 넉넉히
       if (d < reach && d < bd) { bd = d; best = i }
     })
@@ -107,6 +114,9 @@ export class Floaters {
           }
           continue
         }
+      } else if (p.kind === 'text') {
+        p.y += p.vy * dt
+        if (p.age >= p.life) continue
       } else if (p.kind === 'keep') {
         p.x += (p.tx - p.x) * Math.min(1, dt * 1.5); p.y += (p.ty - p.y) * Math.min(1, dt * 1.5); p.rot *= Math.exp(-dt)
       } else {
@@ -117,6 +127,17 @@ export class Floaters {
       const t = p.age / p.life
       let a = p.kind === 'keep' ? Math.min(0.5, p.age * 1.5) : t < 0.12 ? t / 0.12 : t > 0.6 ? Math.max(0, (1 - t) / 0.4) : 1
       if (p.kind === 'bit') a = 1 - t
+      if (p.kind === 'text') {
+        const ta = t < 0.2 ? t / 0.2 : t > 0.7 ? Math.max(0, (1 - t) / 0.3) : 1
+        x.save(); x.globalAlpha = ta * 0.85
+        const [r, g, b] = p.col
+        x.font = `800 ${p.s}px 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif`
+        x.textAlign = 'center'; x.textBaseline = 'middle'
+        x.shadowColor = `rgba(${r},${g},${b},.7)`; x.shadowBlur = 12
+        x.fillStyle = `rgb(${r},${g},${b})`; x.fillText(p.t!, p.x, p.y)
+        x.restore()
+        continue
+      }
       const sx = p.kind === 'keep' ? Math.sin(p.ph + p.age * 1.2) * 3 : Math.sin(p.ph + p.age * p.w) * p.sway * Math.min(1, p.age * 3)
       const sy = p.kind === 'keep' ? Math.cos(p.ph + p.age * 0.9) * 2 : 0
       const grow = p.kind === 'fly' ? 0.5 + 0.5 * Math.min(1, p.age / 0.18) : 1

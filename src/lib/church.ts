@@ -1,6 +1,7 @@
 // 카드: 교회 이름(「맑은물속교회에서 드리는 온음」)이나 선물·축하의 말(「주빛에게 보내는 선물」)을 앱에 넣어 나눈다.
 // 서버가 없으므로 카드에 디지털 서명을 붙인다. 서명 열쇠는 처음 만든 분의 비밀번호에서 그때그때 만들어 쓰고
 // 어디에도 저장하지 않는다. 같은 열쇠로 서명한 카드만 「고친 카드」로 받아들인다.
+import { isGlyph, type Glyph } from './glyph'
 import { useSyncExternalStore } from 'react'
 import { ed25519 } from '@noble/curves/ed25519.js'
 import { load, save } from './store'
@@ -13,6 +14,7 @@ export interface Church {
   name: string // 크게 보일 이름
   line?: string // 이어지는 말: 「에서 드리는 온음」「에게 보내는 선물」…
   q?: string // 교회: 네이버 검색어 · 커플: 짝의 이름
+  g?: Glyph // 받은 분 화면에도 떠오를 모양(서명 안에 든다)
   addr?: string
   tel?: string
   ts: number // 고친 때(초)
@@ -39,7 +41,7 @@ const b64 = (u: Uint8Array) => btoa(String.fromCharCode(...u)).replace(/\+/g, '-
 const unb64 = (s: string) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), (c) => c.charCodeAt(0))
 const enc = new TextEncoder()
 const body = (c: Omit<Church, 'sig'>) => enc.encode(JSON.stringify(c.v === 2
-  ? [2, c.id, c.kind, c.name, c.line, c.q, c.ts, c.pub]
+  ? (c.g ? [2, c.id, c.kind, c.name, c.line, c.q, c.ts, c.pub, c.g] : [2, c.id, c.kind, c.name, c.line, c.q, c.ts, c.pub])
   : [1, c.id, c.name, c.addr ?? '', c.tel ?? '', c.ts, c.pub]))
 
 /** 비밀번호 → 서명 열쇠(PBKDF2 20만 번). 같은 비밀번호·같은 카드 번호면 늘 같은 열쇠 */
@@ -64,12 +66,13 @@ const LURE = [
 ]
 export const bad = (s: string) => LURE.some((r) => r.test(s))
 
-export interface CardInput { kind: Kind; name: string; line: string; q: string }
+export interface CardInput { kind: Kind; name: string; line: string; q: string; g?: Glyph }
 const clean = (v: CardInput) => ({
   kind: v.kind,
   name: v.name.trim().replace(/\s+/g, ' ').slice(0, LIMIT.name),
   line: v.line.replace(/\s+/g, ' ').trimEnd().slice(0, LIMIT.line),
   q: v.kind === 'gift' ? '' : v.q.trim().replace(/\s+/g, ' ').slice(0, v.kind === 'couple' ? LIMIT.name : LIMIT.q),
+  ...(isGlyph(v.g) ? { g: v.g } : {}),
 })
 
 /** 새로 만들기 */
@@ -100,7 +103,7 @@ export function code(c: Church): string {
 
 // 링크: 카드는 # 뒤에 실어 서버(GitHub)로도 보내지지 않는다
 const pack = (c: Church) => b64(enc.encode(JSON.stringify(c.v === 2
-  ? [2, c.id, c.kind, c.name, c.line, c.q, c.ts, c.pub, c.sig]
+  ? (c.g ? [2, c.id, c.kind, c.name, c.line, c.q, c.ts, c.pub, c.sig, c.g] : [2, c.id, c.kind, c.name, c.line, c.q, c.ts, c.pub, c.sig])
   : [1, c.id, c.name, c.addr ?? '', c.tel ?? '', c.ts, c.pub, c.sig])))
 export const link = (c: Church) => WEB + '#c=' + pack(c)
 export const appLink = (c: Church) => 'onum://c/' + pack(c)
@@ -112,7 +115,7 @@ export function fromLink(url: string): Church | null {
     const a = JSON.parse(new TextDecoder().decode(unb64(m[1])))
     if (!Array.isArray(a)) return null
     const c: Church | null = a[0] === 2
-      ? { v: 2, id: a[1], kind: a[2] === 'gift' || a[2] === 'couple' ? a[2] : 'church', name: a[3], line: String(a[4] ?? ''), q: String(a[5] ?? ''), ts: a[6], pub: a[7], sig: a[8] }
+      ? { v: 2, id: a[1], kind: a[2] === 'gift' || a[2] === 'couple' ? a[2] : 'church', name: a[3], line: String(a[4] ?? ''), q: String(a[5] ?? ''), ts: a[6], pub: a[7], sig: a[8], ...(isGlyph(a[9]) ? { g: a[9] } : {}) }
       : a[0] === 1 ? { id: a[1], name: a[2], addr: a[3], tel: a[4], ts: a[5], pub: a[6], sig: a[7] } : null
     if (!c) return null
     if (typeof c.name !== 'string' || !c.name || !verify(c)) return null
@@ -142,6 +145,8 @@ export const useChurch = () => useSyncExternalStore(sub, () => cur)
 export const useCards = () => useSyncExternalStore(sub, () => st)
 export const useIncoming = () => useSyncExternalStore(sub, () => incoming)
 export const getChurch = () => cur
+/** 떠오르는 이름: 커플이면 두 이름 */
+export const cardName = () => (cur ? (kindOf(cur) === 'couple' && cur.q ? `${cur.name} ♥ ${cur.q}` : cur.name) : '')
 export const cardKey = keyOf
 
 /** 카드를 모아 두기(같은 카드면 새것으로 바꾼다). use면 지금 쓰는 카드로 */
