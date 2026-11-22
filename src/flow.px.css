@@ -1125,3 +1125,48 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .vz-flash { position: absolute; left: 50%; top: 50%; z-index: 4; transform: translate(-50%, -50%); padding: 6px 14px; border-radius: 16px; background: color-mix(in srgb, var(--ink) 86%, transparent); color: var(--on-ink); font-size: 15px; font-weight: 700; white-space: nowrap; pointer-events: none; animation: vz-flash 1300ms var(--ease) both; }
 @keyframes vz-flash { 0% { opacity: 0; transform: translate(-50%, -40%); } 12%, 75% { opacity: 1; transform: translate(-50%, -50%); } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .vz-flash { animation-duration: 1300ms; animation-timing-function: steps(1); } }
+
+/* ───────── 진행 모드(큐) ───────── */
+.cue-lock { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 22px; background: var(--sf); font-size: 14px; font-weight: 700; color: var(--ink2); margin-left: auto; flex-shrink: 0; touch-action: none; }
+.cue-lock.on { background: var(--ink); color: var(--on-ink); }
+.cue-lock.hold { box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 30%, transparent); }
+.cue-tip { display: flex; align-items: center; gap: 12px; margin: 4px 0 12px; padding: 12px 14px; border-radius: 14px; background: var(--sf); font-size: 14px; line-height: 1.45; color: var(--ink2); }
+.cue-tip span { flex: 1; min-width: 0; }
+.cue-tag { display: block; font-size: 13px; font-weight: 700; color: var(--ink2); letter-spacing: .02em; }
+.cue-title { display: flex; align-items: baseline; gap: 10px; margin-top: 4px; font-size: 22px; font-weight: 800; line-height: 1.3; letter-spacing: -0.02em; min-width: 0; overflow-wrap: anywhere; }
+.cue-title .cue-dim, .cue-title.cue-dim { color: var(--ink3); font-weight: 700; font-size: 17px; }
+.cue-no { flex-shrink: 0; min-width: 1.6em; font-size: 15px; font-weight: 800; color: var(--ink2); }
+.cue-now { padding: 16px 18px; border-radius: 20px; background: var(--sf); }
+.cue-bar { height: 6px; margin-top: 14px; border-radius: 3px; background: color-mix(in srgb, var(--ink) 12%, transparent); overflow: hidden; }
+.cue-bar i { display: block; height: 100%; background: var(--now); border-radius: 3px; transition: width 300ms linear; }
+.cue-times { display: flex; justify-content: space-between; margin-top: 6px; font-size: 15px; color: var(--ink2); }
+.cue-times b { font-size: 22px; font-weight: 800; color: var(--ink); }
+.cue-after { display: block; margin-top: 6px; font-size: 13px; color: var(--ink2); }
+.cue-next { margin-top: 10px; padding: 12px 18px; border-radius: 16px; border: 1.5px dashed var(--line); }
+.cue-next .cue-title { font-size: 18px; }
+.cue-acts { display: grid; grid-template-columns: 3fr 2fr; gap: 10px; margin-top: 14px; }
+.cue-acts button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 72px; border-radius: 20px; font-size: 20px; font-weight: 800; }
+.cue-acts button:active:not(:disabled) { transform: scale(.97); }
+.cue-acts button:disabled { opacity: .4; }
+.cue-go { background: var(--ink); color: var(--on-ink); }
+.cue-stop { background: color-mix(in srgb, var(--warn) 14%, var(--bg)); color: var(--warn); font-size: 16px !important; }
+.cue-acts span { white-space: nowrap; }
+.cue-acts kbd { display: none; white-space: nowrap; font: inherit; font-size: 12px; font-weight: 700; padding: 2px 6px; border-radius: 6px; border: 1px solid currentColor; opacity: .6; }
+@media (hover: hover) and (pointer: fine) { .cue-acts kbd { display: inline-block; } }
+.cue-pause { margin-top: 10px; }
+.cue-h { margin-top: 26px; font-size: 17px; font-weight: 800; }
+.cue-list { margin-top: 6px; }
+.cue-list li { display: flex; align-items: center; border-bottom: 1px solid var(--line); }
+.cue-list li:last-child { border-bottom: 0; }
+.cue-row { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 60px; padding: 8px 4px; text-align: left; }
+.cue-row:disabled, .cue-more:disabled { opacity: .55; }
+.cue-x { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cue-x b { font-size: 16px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cue-x small { margin-top: 2px; font-size: 13px; color: var(--ink2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cue-row em { flex-shrink: 0; font-style: normal; font-size: 13px; font-weight: 800; color: var(--now); }
+.cue-row em.st { color: var(--ink); padding: 3px 8px; border-radius: 10px; border: 1.5px solid var(--ink); }
+.cue-list li.now .cue-no, .cue-list li.now .cue-x b { color: var(--now); }
+.cue-more { width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: var(--ink2); }
+.cue-opt { margin-top: 14px; }
+.cue-ol { display: block; margin-bottom: 8px; font-size: 15px; font-weight: 700; }
+.cue-note { margin-top: 6px; font-size: 14px; line-height: 1.5; color: var(--ink2); }

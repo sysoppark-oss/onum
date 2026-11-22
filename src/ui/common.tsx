@@ -287,10 +287,14 @@ const STROKE: Record<string, React.ReactNode> = {
   note: <><path d="M9 18V6l10-2v12" /><circle cx="6.5" cy="18" r="2.5" /><circle cx="16.5" cy="16" r="2.5" /></>,
   lyric: <><line x1="4" y1="6" x2="14" y2="6" /><line x1="4" y1="11" x2="14" y2="11" /><line x1="4" y1="16" x2="10" y2="16" /><path d="M18 18V8l3-1" /><circle cx="16" cy="18" r="2" /></>,
   dots: <><circle cx="5" cy="12" r="1.2" /><circle cx="12" cy="12" r="1.2" /><circle cx="19" cy="12" r="1.2" /></>,
+  lock: <><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></>,
+  unlock: <><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 7.5-2" /></>,
+  cue: <><path d="M4 6h10M4 12h10M4 18h7" /><polygon points="17 13 22 16 17 19" fill="currentColor" stroke="none" /></>,
 }
 const FILLED: Record<string, React.ReactNode> = {
   play: <polygon points="7 4 20 12 7 20" />,
   pause: <><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></>,
+  stop: <rect x="6" y="6" width="12" height="12" rx="2" />,
   prev: <><polygon points="19 5 9 12 19 19" /><rect x="5" y="5" width="2.6" height="14" rx="1" /></>,
   next: <><polygon points="5 5 15 12 5 19" /><rect x="16.4" y="5" width="2.6" height="14" rx="1" /></>,
   spark: <><path d="M12 3l1.9 5.6L19.5 10.5l-5.6 1.9L12 18l-1.9-5.6L4.5 10.5l5.6-1.9z" /><path d="M19 3v4M17 5h4" /></>,

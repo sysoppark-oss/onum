@@ -21,6 +21,9 @@ export interface Repeat {
   minutes: number
 }
 export interface Sleep { until: number; endOfTrack: boolean; fade: boolean }
+/** 진행 모드(큐): 곡마다 끝나면 멈출지 이어 갈지, 들어올 때·끝에서 서서히(초) */
+export type CueAfter = 'stop' | 'next'
+export interface CueSet { after?: CueAfter; fin?: number; fout?: number }
 export interface Goodnight { at: number; title: string }
 /** 구간 반복: a부터 b까지(초). b가 없으면 끝 지점을 고르는 중 */
 export interface AB { a: number; b: number | null; n: number }
@@ -165,6 +168,8 @@ export function usePlayer(tracks: Track[]) {
   const byId = useRef(new Map<string, Track>())
   byId.current = new Map(tracks.map((t) => [t.id, t]))
 
+  const cueRef = useRef<{ sets: Record<string, CueSet> } | null>(null)
+  if (import.meta.env.DEV) (window as unknown as { __onumAudio: () => HTMLAudioElement }).__onumAudio = () => audio.current // 시험용
   const queueRef = useRef(queue)
   queueRef.current = queue
   const indexRef = useRef(index)
@@ -268,6 +273,13 @@ export function usePlayer(tracks: Track[]) {
     const stop = () => { audio.current.pause(); setPlaying(false) }
     if (sleepRef.current?.endOfTrack) { finishSleep(); return } // "이 곡까지" 잠들기
     const cur = byId.current.get(queueRef.current[indexRef.current])
+    // 진행 모드: 곡마다 정한 대로 멈추거나 다음 곡으로(반복·섞기는 쓰지 않는다)
+    const cue = cueRef.current
+    if (cue) {
+      if ((cur && cue.sets[cur.id]?.after) === 'next') go(1, false)
+      else stop()
+      return
+    }
     if (cur?.talk) {
       setTalkDone((old) => { const n = { ...old, [cur.id]: true }; save('talkDone', n); return n })
       setTalkPos((old) => { const n = { ...old }; delete n[cur.id]; save('talkPos', n); return n })
@@ -312,6 +324,7 @@ export function usePlayer(tracks: Track[]) {
     const r = repeatRef.current, q = queueRef.current, i = indexRef.current
     const cur = byId.current.get(q[i])
     if (!cur || cur.talk || !q.length) return null
+    if (cueRef.current) { const cs = cueRef.current.sets[cur.id]; if (cs?.after !== 'next' || cs.fout) return null }
     if (r.scope === 'one' || (r.limit === 'timed' && left.current <= 0)) return null
     if (sleepRef.current?.endOfTrack || abRef.current) return null
     const tm = timesRef.current
@@ -416,6 +429,51 @@ export function usePlayer(tracks: Track[]) {
       }, 25)
     }).catch(() => { a.volume = target(); setPlaying(false) })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── 진행 모드(큐) ──
+  const [cueOn, setCueOn] = useState(false)
+  const cueRamp = useRef({ inT0: 0, inDur: 0, stopT0: 0, stopDur: 0 })
+  const setCue = useCallback((sets: Record<string, CueSet> | null) => {
+    cueRef.current = sets ? { sets } : null
+    setCueOn(!!sets)
+    if (!sets) { cueRamp.current = { inT0: 0, inDur: 0, stopT0: 0, stopDur: 0 }; audio.current.volume = vol() }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  /** 「다음」: 그 곡을 틀기(들어올 때 서서히 fin초) */
+  const cueStart = useCallback((list: Track[], id: string, fin = 0) => {
+    cueRamp.current = { inT0: performance.now(), inDur: fin * 1000, stopT0: 0, stopDur: 0 }
+    if (fin > 0) audio.current.volume = 0
+    playFrom(list, id, undefined, true, 'cue')
+  }, [playFrom])
+  /** 「모두 멈춤」: sec초 동안 줄이고 멈춘다 */
+  const cueStopAll = useCallback((sec = 2) => {
+    const a = audio.current
+    if (a.paused) return
+    if (sec <= 0) { a.pause(); setPlaying(false); a.volume = vol(); return }
+    cueRamp.current = { ...cueRamp.current, stopT0: performance.now(), stopDur: sec * 1000 }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!cueOn) return
+    const h = window.setInterval(() => {
+      const a = audio.current, r = cueRamp.current
+      if (a.paused || xfading.current || fadingOut.current) return
+      const now = performance.now()
+      let f = 1
+      if (r.inDur > 0) f *= Math.min(1, (now - r.inT0) / r.inDur)
+      const cur = byId.current.get(queueRef.current[indexRef.current])
+      const cs = cur ? cueRef.current?.sets[cur.id] : undefined
+      if (cur && cs?.fout && a.duration) {
+        const left = bounds(cur, a.duration).to - a.currentTime
+        if (left < cs.fout) f *= Math.max(0, left / cs.fout)
+      }
+      if (r.stopDur > 0) {
+        const g = 1 - (now - r.stopT0) / r.stopDur
+        if (g <= 0) { a.pause(); setPlaying(false); cueRamp.current = { inT0: 0, inDur: 0, stopT0: 0, stopDur: 0 }; a.volume = vol(); return }
+        f *= g
+      }
+      a.volume = vol() * f
+    }, 40)
+    return () => window.clearInterval(h)
+  }, [cueOn, bounds]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = useCallback(() => {
     const a = audio.current
@@ -856,6 +914,7 @@ export function usePlayer(tracks: Track[]) {
     ab, abStart, abEnd, abSet, abClear, abSpan, bookmark, setBookmark, backToMark, play, normOn, setNorm,
     bounds, trims, setTrim, skipSilence, setSkipSilence, xfade, setXfade, listPos,
     levels, setLevel, headroom, times, setTimes,
+    cueOn, setCue, cueStart, cueStopAll,
   }
 }
 

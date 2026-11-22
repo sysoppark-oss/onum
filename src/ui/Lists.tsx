@@ -1,4 +1,5 @@
 // 「내 목록」: 만든 목록 + 저절로 모이는 목록
+import { CuePage } from './Cue'
 import { useCallback, useMemo, useState } from 'react'
 import { fmt, type Track } from '../lib/library'
 import type { Player } from '../lib/usePlayer'
@@ -145,6 +146,8 @@ function ListDetail({ pl, items, tracks, lists, player, play, onClose, resume }:
   const [memo, setMemo] = useState(false)
   const [rename, setRename] = useState(false)
   const [tagAt, setTagAt] = useState<number | null>(null)
+  const [cue, setCue] = useState(false)
+  const closeCue = useCallback(() => setCue(false), [])
   const closeAdding = useCallback(() => setAdding(false), [])
   const closeMemo = useCallback(() => setMemo(false), [])
   const closeRename = useCallback(() => setRename(false), [])
@@ -166,6 +169,7 @@ function ListDetail({ pl, items, tracks, lists, player, play, onClose, resume }:
         {resume && <button className="go grow" onClick={() => play(items, resume.t.id, resume.pos, true, src)}><Icon n="play" s={18} /><span className="one">{tx("이어서 · ")}{info(resume.t).song} <span className="num">{fmt(resume.pos)}</span></span></button>}
         {items.length > 0 && <button className={resume ? 'pillbtn' : 'go grow'} onClick={() => play(items, items[0].id, undefined, true, src)}><Icon n="play" s={18} />{tx("처음부터 듣기")}</button>}
         <button className="pillbtn" onClick={() => setAdding(true)}><Icon n="plus" s={18} />{tx("곡 추가")}</button>
+        {items.length > 0 && <button className="pillbtn" onClick={() => setCue(true)}><Icon n="cue" s={18} />{tx("진행 모드")}</button>}
       </div>
       {items.length > 1 && !Object.keys(tags).length && <p className="hint">{tx("곡을 길게 누르면 색으로 표시해 둘 수 있어요.")}</p>}
       {items.length === 0 && <p className="empty">{tx("아직 담은 곡이 없어요. \"곡 추가\"를 눌러 담아 보세요.")}</p>}
@@ -192,6 +196,7 @@ function ListDetail({ pl, items, tracks, lists, player, play, onClose, resume }:
       {rename && <NameSheet title={tx("목록 이름 바꾸기")} initial={pl.name} done={tx("바꾸기")} onDone={(n) => lists.rename(pl.id, n)} onClose={closeRename} />}
       {tagT && <TagSheet t={tagT} tag={tags[tagT.id]} onPick={(k) => lists.setTag(pl.id, tagT.id, k)} onClose={closeTag} />}
       {adding && <AddSongs tracks={tracks} has={(id) => pl.ids.includes(id)} onAdd={(t) => lists.add(pl.id, [t.id])} onClose={closeAdding} />}
+      {cue && <CuePage listId={pl.id} name={pl.name} items={items} player={player} onClose={closeCue} />}
     </Page>
   )
 }
