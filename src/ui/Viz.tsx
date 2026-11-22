@@ -299,7 +299,12 @@ export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind
 
     // 누르면 톡: 모양이 있는 자리만 가로챈다(그 밑의 단추·진행 줄은 그대로)
     let swallow = false
-    const down = (e: PointerEvent) => { if (fx && notesRef.current && fx.hit(e.clientX, e.clientY)) { e.preventDefault(); e.stopPropagation(); swallow = true; idle = 0; start() } }
+    const down = (e: PointerEvent) => {
+      if (!(fx && notesRef.current && fx.hit(e.clientX, e.clientY))) return
+      idle = 0; start()
+      // 밑에 단추·진행 줄이 있을 때만 가로챈다(그림 위 쓸어 넘기기는 그대로 되게)
+      if ((e.target as Element | null)?.closest?.('button, input, a, [role=button]')) { e.preventDefault(); e.stopPropagation(); swallow = true }
+    }
     const click = (e: MouseEvent) => { if (swallow) { swallow = false; e.preventDefault(); e.stopPropagation() } }
     document.addEventListener('pointerdown', down, true)
     document.addEventListener('click', click, true)

@@ -1,6 +1,6 @@
 // 「지금」: 곡 · 소리 모양 · 조작 · 음량 · 흐름(앞으로 무엇이 언제) · 오늘의 한 구절
 import { rt } from './rich'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { fmt, type Track } from '../lib/library'
 import type { AB, Player } from '../lib/usePlayer'
 import { byLecture, lectureOf } from '../lib/kind'
@@ -15,14 +15,27 @@ import { NoteFloat } from './Notes'
 import { ChooseEditSheet } from './Edits'
 import type { Edits } from '../lib/edits'
 import { lineOf, useChurch } from '../lib/church'
-import { live, useViz, type Viz } from '../lib/viz'
+import { VIZ, live, setViz, useViz, type Viz } from '../lib/viz'
 import { ConsoleOpen, ConsolePage, ConsoleViz, type ConsoleKind } from './Viz'
 import { CardMark, ChurchPage } from './Church'
 import { tx } from "../lib/i18n";
 import { useFlag } from '../lib/flag'
 
 /* ── 소리 모양 ── */
-export function ShapeBar({ t, time, duration, onSeek, ab, mark, viz = 'shape', el, playing = false, onConsole }: { t: Track; time: number; duration: number; onSeek?: (s: number) => void; ab?: AB | null; mark?: number | null; viz?: Viz; el?: () => HTMLAudioElement | null; playing?: boolean; onConsole?: () => void }) {
+export function ShapeBar({ t, time, duration, onSeek, ab, mark, viz = 'shape', el, playing = false, onConsole, onSwipe, flash }: { t: Track; time: number; duration: number; onSeek?: (s: number) => void; ab?: AB | null; mark?: number | null; viz?: Viz; el?: () => HTMLAudioElement | null; playing?: boolean; onConsole?: () => void; onSwipe?: (d: 1 | -1) => void; flash?: string }) {
+  // 콘솔식 그림 위를 옆으로 쓸면 소리 모양이 바뀐다(진행 줄은 그림 맨 아래에서만 끈다)
+  const sw = useRef<{ x: number; y: number; id: number } | null>(null)
+  const down = (e: React.PointerEvent) => {
+    if (!onSwipe || !live(viz) || (e.target as HTMLElement).closest('.scrub, .cv-open')) return
+    sw.current = { x: e.clientX, y: e.clientY, id: e.pointerId }
+  }
+  const up = (e: React.PointerEvent) => {
+    const s0 = sw.current
+    sw.current = null
+    if (!s0 || s0.id !== e.pointerId || !onSwipe) return
+    const dx = e.clientX - s0.x, dy = e.clientY - s0.y
+    if (Math.abs(dx) > 48 && Math.abs(dx) > Math.abs(dy) * 1.5) onSwipe(dx < 0 ? 1 : -1)
+  }
   const [shape, setShape] = useState<Shape | null | undefined>(() => cachedShape(t))
   useEffect(() => {
     let alive = true
@@ -35,7 +48,8 @@ export function ShapeBar({ t, time, duration, onSeek, ab, mark, viz = 'shape', e
   const bars = shape?.bars ?? null
   const hook = shape?.hook ?? null
   return (
-    <div className={'shape' + (bars || viz !== 'shape' ? '' : ' wait') + (viz !== 'shape' ? ' v-' + viz : '')}>
+    <div className={'shape' + (bars || viz !== 'shape' ? '' : ' wait') + (viz !== 'shape' ? ' v-' + viz : '')} onPointerDown={down} onPointerUp={up} onPointerCancel={() => { sw.current = null }}>
+      {flash && <span key={flash} className="vz-flash" aria-hidden="true">{flash}</span>}
       {viz === 'shape' && Array.from({ length: BARS }, (_, i) => (
         <i key={`${t.id}-${bars ? 1 : 0}-${i}`} className={(i / BARS < ratio ? 'done' : '') + (bars ? ' in' : '')}
           style={{ height: `${(bars ? bars[i] : 0.14) * 100}%`, ['--i' as string]: i }} />
@@ -316,6 +330,16 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
   const notesOn = useFlag('notes', true)
   const church = useChurch()
   const viz = useViz()
+  // 지금 화면에서 소리 모양 바꾸기: 이름을 잠깐 띄운다
+  const [vizFlash, setVizFlash] = useState<string | undefined>()
+  const flashT = useRef(0)
+  const pickViz = (v: Viz) => {
+    if (v === viz) return
+    setViz(v)
+    setVizFlash(tx(VIZ.find((o) => o.id === v)!.name))
+    window.clearTimeout(flashT.current)
+    flashT.current = window.setTimeout(() => setVizFlash(undefined), 1300)
+  }
   const [consoleOpen, setConsole] = useState(false)
   const closeConsole = useCallback(() => setConsole(false), [])
   const [chOpen, setChOpen] = useState(false)
@@ -396,21 +420,27 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
         <>
           <ShapeBar t={shown} time={cur ? player.time : player.resumePos} duration={cur ? player.duration : shown.duration}
             onSeek={cur ? player.seek : undefined} ab={cur ? (player.ab ?? (cur.clip ? { a: cur.clip.s, b: cur.clip.e, n: 1 } : null)) : null} mark={cur ? player.bookmark : null}
-            viz={cur && !cur.talk ? viz : 'shape'} el={player.el} playing={!!cur && player.playing} onConsole={() => setConsole(true)} />
-          <div className="times num" aria-hidden="true">
+            viz={cur && !cur.talk ? viz : 'shape'} el={player.el} playing={!!cur && player.playing} onConsole={() => setConsole(true)}
+            onSwipe={cur && !cur.talk ? (d) => pickViz(VIZ[(VIZ.findIndex((o) => o.id === viz) + d + VIZ.length) % VIZ.length].id) : undefined} flash={vizFlash} />
+          <div className="times num">
             {notesOn && cur && !cur.talk && viz === 'shape' && <NoteFloat playing={player.playing} ratio={player.duration > 0 ? player.time / player.duration : 0} bars={cachedShape(cur)?.bars ?? null} />}
             {cur?.clip ? (
               <>
-                <span>{fmt(Math.max(0, player.time - cur.clip.s))}</span>
-                <span>−{fmt(Math.max(0, cur.clip.e - player.time))}</span>
+                <span aria-hidden="true">{fmt(Math.max(0, player.time - cur.clip.s))}</span>
+                <span aria-hidden="true">−{fmt(Math.max(0, cur.clip.e - player.time))}</span>
               </>
             ) : (
               <>
-                <span>{fmt(cur ? player.time : player.resumePos)}</span>
+                <span aria-hidden="true">{fmt(cur ? player.time : player.resumePos)}</span>
+                {cur && !cur.talk && (
+                  <span className="vdots" role="radiogroup" aria-label={tx("소리 모양")}>
+                    {VIZ.map((o) => <button key={o.id} role="radio" aria-checked={viz === o.id} aria-label={tx(o.name)} className={viz === o.id ? 'on' : undefined} onClick={() => pickViz(o.id)}><i /></button>)}
+                  </span>
+                )}
                 {cur?.talk && player.quietOn && player.quietReady && (
                   <span className="qsave">{player.quietSaved >= 60 ? tx("쉼을 줄여 {0} 아꼈어요", minutesText(Math.floor(player.quietSaved / 60))) : tx("말 사이 쉼을 줄이는 중")}</span>
                 )}
-                <span>−{fmt(Math.max(0, (cur ? player.duration : shown.duration) - (cur ? player.time : player.resumePos)))}</span>
+                <span aria-hidden="true">−{fmt(Math.max(0, (cur ? player.duration : shown.duration) - (cur ? player.time : player.resumePos)))}</span>
               </>
             )}
           </div>
