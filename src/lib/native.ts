@@ -15,6 +15,7 @@ export interface Output { kind: 'speaker' | 'wired' | 'bluetooth'; name?: string
 export interface Volume { value: number; max: number }
 
 interface MusicScanPlugin {
+  saveLrc(opts: { name: string; text: string; path?: string }): Promise<{ saved: boolean }>
   scan(opts: { minMs: number }): Promise<{ tracks: NativeTrack[]; skippedFolder: number }>
   art(opts: { id: number; albumId: number; size: number }): Promise<{ dataUrl?: string }>
   nowPlaying(opts: { playing: boolean; stop?: boolean; title?: string; artist?: string; brand?: string; pos?: number; dur?: number; rate?: number }): Promise<void>
@@ -171,4 +172,9 @@ export function openDownload(url: string): Promise<boolean> {
 export function openWeb(url: string): void {
   if (isNative) MusicScan.openUrl({ url }).catch(() => window.open(url, '_blank', 'noopener'))
   else window.open(url, '_blank', 'noopener')
+}
+
+/** 가사를 곡 옆에 .lrc로: 저장 위치 창을 곡 폴더에서 연다. 저장했으면 true */
+export async function saveLrcNative(name: string, text: string, path?: string): Promise<boolean> {
+  try { return (await MusicScan.saveLrc({ name, text, path })).saved } catch { return false }
 }

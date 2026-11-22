@@ -15,6 +15,7 @@ import android.media.AudioDeviceInfo;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
@@ -29,12 +30,15 @@ import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
+import com.getcapacitor.annotation.ActivityCallback;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import androidx.activity.result.ActivityResult;
 import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 
 /** 휴대폰 안의 음악을 MediaStore에서 찾아 온다. 파일은 기기 밖으로 보내지 않는다. */
 @CapacitorPlugin(
@@ -263,6 +267,41 @@ public class MusicScanPlugin extends Plugin {
             getContext().startActivity(i);
         } catch (Exception ignored) {}
         call.resolve();
+    }
+
+    /**
+     * 가사를 .lrc 파일로 곡 옆에 저장: 휴대폰의 「저장 위치 고르기」 창을 곡이 있는 폴더에서 연다.
+     * 사용자가 「저장」을 누른 자리에만 쓴다(앱이 저장소 전체를 쓸 권한은 없다).
+     */
+    @PluginMethod
+    public void saveLrc(PluginCall call) {
+        String name = call.getString("name", "lyrics.lrc");
+        String path = call.getString("path");
+        Intent i = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        i.addCategory(Intent.CATEGORY_OPENABLE);
+        i.setType("application/octet-stream"); // text/plain이면 .txt가 붙는 폰이 있다
+        i.putExtra(Intent.EXTRA_TITLE, name);
+        if (Build.VERSION.SDK_INT >= 26 && path != null) {
+            String root = Environment.getExternalStorageDirectory().getAbsolutePath() + "/";
+            int cut = path.lastIndexOf('/');
+            if (path.startsWith(root) && cut > root.length()) {
+                String rel = path.substring(root.length(), cut);
+                i.putExtra(android.provider.DocumentsContract.EXTRA_INITIAL_URI,
+                    android.provider.DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", "primary:" + rel));
+            }
+        }
+        try { startActivityForResult(call, i, "lrcSaved"); } catch (Exception e) { call.reject("no_picker"); }
+    }
+
+    @ActivityCallback
+    private void lrcSaved(PluginCall call, ActivityResult result) {
+        if (call == null) return;
+        Uri u = result.getData() == null ? null : result.getData().getData();
+        if (result.getResultCode() != android.app.Activity.RESULT_OK || u == null) { JSObject o = new JSObject(); o.put("saved", false); call.resolve(o); return; }
+        try (OutputStream out = getContext().getContentResolver().openOutputStream(u, "wt")) {
+            out.write(call.getString("text", "").getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            JSObject o = new JSObject(); o.put("saved", true); call.resolve(o);
+        } catch (Exception e) { call.reject("write_failed"); }
     }
 
     /** 새 시험판 내려받기 주소를 브라우저로 연다(앱이 직접 설치하지 않는다: Play 프로텍트가 설치 권한 앱을 막기 때문) */

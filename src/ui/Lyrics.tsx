@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Track } from '../lib/library'
 import type { Player } from '../lib/usePlayer'
 import { findLyrics, fromPasted, linesOf, stateAt, type LyState, setLyrics, synced, toLrc, useLyrics, type Lyrics } from '../lib/lyrics'
-import { isNative } from '../lib/native'
+import { isNative, saveLrcNative } from '../lib/native'
 import { Share } from '@capacitor/share'
 import { tx } from "../lib/i18n";
 import { Icon, info } from './common'
@@ -83,13 +83,30 @@ function ViewLyrics({ t, ly, player, isCur, found, onEdit }: { t: Track; ly: Lyr
     const el = list.current?.querySelector(`[data-i="${focus}"]`) as HTMLElement | null
     el?.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
   }, [focus])
-  const exportLrc = () => {
-    const x = info(t)
-    const text = toLrc(ly, x.song, x.singer || t.artist)
-    if (isNative) { Share.share({ title: tx("{0} 가사", x.song), text }).catch(() => {}); return }
+  // 파일 이름은 음악 파일과 같게(다른 음악 앱도 곡 옆 .lrc를 알아본다)
+  const fileName = () => {
+    const base = (t.path ? t.path.split('/').pop()! : t.id.split('|')[0]).replace(/\.[^.]+$/, '') || info(t).song
+    return base + '.lrc'
+  }
+  const lrcText = () => { const x = info(t); return toLrc(ly, x.song, x.singer || t.artist) }
+  const shareLrc = () => { const x = info(t); Share.share({ title: tx("{0} 가사", x.song), text: lrcText() }).catch(() => {}) }
+  const [saved, setSaved] = useState(false)
+  const saveLrc = async () => {
+    const text = lrcText()
+    if (isNative) { if (await saveLrcNative(fileName(), text, t.path)) setSaved(true); return }
+    // PC: 고를 수 있으면 저장 위치 창(곡이 있는 폴더를 고르면 다음에 불러올 때 저절로 가사가 붙는다)
+    const w = window as Window & { showSaveFilePicker?: (o: object) => Promise<{ createWritable: () => Promise<{ write: (b: Blob) => Promise<void>; close: () => Promise<void> }> }> }
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' })
+    if (w.showSaveFilePicker) {
+      try {
+        const h = await w.showSaveFilePicker({ suggestedName: fileName(), startIn: 'music', types: [{ description: tx("가사 파일"), accept: { 'text/plain': ['.lrc'] } }] })
+        const ws = await h.createWritable(); await ws.write(blob); await ws.close(); setSaved(true)
+      } catch { /* 닫음 */ }
+      return
+    }
     const a = document.createElement('a')
-    a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }))
-    a.download = `${x.song}.lrc`
+    a.href = URL.createObjectURL(blob)
+    a.download = fileName()
     a.click()
     setTimeout(() => URL.revokeObjectURL(a.href), 2000)
   }
@@ -120,11 +137,13 @@ function ViewLyrics({ t, ly, player, isCur, found, onEdit }: { t: Track; ly: Lyr
             <button onClick={() => nudge(0.3)}>{tx("가사가 늦어요")}</button>
           </div>
         )}
+        {saved && <p className="ly-note" role="status">{isNative ? tx("곡 옆에 저장했어요. 다른 음악 앱에서도 이 가사를 볼 수 있어요.") : tx("저장했어요. 곡과 같은 폴더에 두면 다음에 불러올 때 가사가 저절로 붙어요.")}</p>}
         <div className="ly-acts">
           {isCur && <button className="mini-play" onClick={player.toggle} aria-label={player.playing ? tx("일시 정지") : tx("재생")}><Icon n={player.playing ? 'pause' : 'play'} s={22} /></button>}
           <div className="pz-tools">
             <button onClick={onEdit}><Icon n="edit" s={22} /><span>{tx("고치기")}</span></button>
-            <button onClick={exportLrc}><Icon n="share" s={22} /><span>{isNative ? tx("보내기") : tx("파일로 저장")}</span></button>
+            <button onClick={saveLrc}><Icon n="folder" s={22} /><span>{tx("곡 옆에 저장")}</span></button>
+            {isNative && <button onClick={shareLrc}><Icon n="share" s={22} /><span>{tx("보내기")}</span></button>}
           </div>
         </div>
       </div>
