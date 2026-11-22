@@ -1,6 +1,7 @@
 // 카드: 교회 이름(「맑은물속교회에서 드리는 온음」)·선물·축하·커플(「강빛 ♥ 주빛」)
 // 보기(네이버에서 교회 보기·QR 나누기) · 만들기 · 고치기(처음 만든 분의 비밀번호) · 받은 카드 넣기
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { load, save } from '../lib/store'
 import { GLYPHS, GlyphChip, type Glyph } from '../lib/glyph'
 import QRCode from 'qrcode'
 import { Share } from '@capacitor/share'
@@ -64,6 +65,10 @@ function CardHome({ onOpen, onMake }: { onOpen: (k: string) => void; onMake: () 
   const st = useCards()
   const cur = st.list.find((e) => cardKey(e.c) === st.on)
   const mine = st.list.filter((e) => e.mine), got = st.list.filter((e) => !e.mine)
+  // 사용법: 처음 열 때 한 번 저절로(Page와 같은 렌더에 열면 눌리지 않아 조금 뒤에)
+  const [help, setHelp] = useState(false)
+  useEffect(() => { if (!load('cardHelp', false)) { const h = window.setTimeout(() => setHelp(true), 60); return () => window.clearTimeout(h) } }, [])
+  const closeHelp = useCallback(() => { setHelp(false); save('cardHelp', true) }, [])
   const row = (e: Entry) => {
     const k = cardKey(e.c), on = k === st.on
     return (
@@ -80,6 +85,10 @@ function CardHome({ onOpen, onMake }: { onOpen: (k: string) => void; onMake: () 
   }
   return (
     <div className="chm">
+      <div className="cue-subrow chm-top">
+        <span className="cue-sub">{tx("화면 맨 위에 교회·선물·축하 이름을 띄워요")}</span>
+        <button className="textlink" onClick={() => setHelp(true)}>{tx("사용법")}</button>
+      </div>
       <h2 className="sub">{tx("지금 쓰는 카드")}</h2>
       {cur
         ? <button className="chbtn" onClick={() => onOpen(cardKey(cur.c))} aria-label={tx("카드 열기: {0}", cur.c.name)}><ChurchCard c={cur.c} /></button>
@@ -93,7 +102,32 @@ function CardHome({ onOpen, onMake }: { onOpen: (k: string) => void; onMake: () 
       <p className="chm-note">{tx("내가 만든 카드예요. 눌러서 QR·링크로 보내요.")}</p>
       {mine.length ? <ul className="pl">{mine.map(row)}</ul> : <p className="chm-empty">{tx("아직 만든 카드가 없어요.")}</p>}
       <button className="go chm-make" onClick={onMake}><Icon n="plus" s={20} />{tx("새 카드 만들기")}</button>
+      {help && <CardHelp onClose={closeHelp} />}
     </div>
+  )
+}
+
+const CARD_HELP: [string, string][] = [
+  ["카드가 뭐예요", "교회 이름, 선물·축하 말, 커플 이름을 온음 화면 맨 위에 크게 띄워 주는 카드예요. 소리 따라 고른 모양이 떠올라요."],
+  ["만들기", "「새 카드 만들기」에서 카드 종류를 고르고, 크게 보일 이름과 이어지는 말을 적어요. 떠오르는 모양도 골라요."],
+  ["비밀번호", "만들 때 정한 비밀번호가 있어야 나중에 고칠 수 있어요. 잊으면 아무도 고칠 수 없으니 꼭 적어 두세요."],
+  ["보내기", "보낸 카드에서 카드를 열고 QR을 보여 주거나 「링크 보내기」를 눌러요. 휴대폰 카메라로 QR을 찍어도 열려요."],
+  ["받기", "받은 링크나 QR을 열면 「지금 쓰기」나 「받은 카드에 담아 두기」를 골라요. 보낸 분을 아실 때만 넣어 주세요."],
+  ["바꿔 쓰기", "목록에서 카드를 눌러 「이 카드 쓰기」를 눌러요. 쓰던 카드는 목록에 그대로 남아요. 「쓰지 않기」를 누르면 맨 위가 비어요."],
+  ["고치기", "내가 만든 카드를 열고 「카드 고치기」 › 비밀번호. 고친 뒤 새 QR이나 링크를 다시 보내야 받은 분 카드도 바뀌어요."],
+  ["확인 번호", "같은 카드는 확인 번호가 같아요. 받은 카드가 진짜 우리 교회 카드인지 만든 분과 번호를 맞춰 보세요."],
+  ["빼기", "카드를 열고 「목록에서 빼기」를 눌러요. 다시 넣으려면 링크를 또 받아야 해요."],
+  ["넣을 수 없는 것", "전화번호·인터넷 주소·메신저는 카드에 넣을 수 없어요."],
+]
+function CardHelp({ onClose }: { onClose: () => void }) {
+  return (
+    <Sheet label={tx("카드 사용법")} onClose={onClose} tall>
+      <h2 className="q">{tx("카드 사용법")}</h2>
+      <ol className="cue-help">
+        {CARD_HELP.map(([h, d]) => <li key={h}><b>{tx(h)}</b><span>{tx(d)}</span></li>)}
+      </ol>
+      <button className="go" onClick={onClose}>{tx("알겠어요")}</button>
+    </Sheet>
   )
 }
 

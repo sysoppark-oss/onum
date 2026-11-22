@@ -289,6 +289,7 @@ const STROKE: Record<string, React.ReactNode> = {
   dots: <><circle cx="5" cy="12" r="1.2" /><circle cx="12" cy="12" r="1.2" /><circle cx="19" cy="12" r="1.2" /></>,
   lock: <><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></>,
   unlock: <><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 7.5-2" /></>,
+  cards: <><rect x="3" y="7" width="15" height="12" rx="2.5" /><path d="M7 4h11.5A2.5 2.5 0 0 1 21 6.5V15" /></>,
   cue: <><path d="M4 6h10M4 12h10M4 18h7" /><polygon points="17 13 22 16 17 19" fill="currentColor" stroke="none" /></>,
 }
 const FILLED: Record<string, React.ReactNode> = {

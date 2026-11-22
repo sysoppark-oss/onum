@@ -70,8 +70,8 @@ export function MeditatePage({ player, music, onClose }: { player: Player; music
       <div ref={box} tabIndex={-1} className="layer med" role="dialog" aria-modal="true" aria-label={tx("묵상")}>
         <div className="med-top">
           <button className="back" onClick={onClose} aria-label={tx("묵상 마치기")}><Icon n="back" s={26} /></button>
-          <button className="med-chip" onClick={() => setPicking(true)} aria-haspopup="dialog">{moodLabel}</button>
-          <button className="med-chip num" onClick={nextGap} aria-label={tx("{0}초마다 바뀌어요. 눌러서 바꾸기", gap)}>{gap}{tx("초마다")}</button>
+          <button className="med-chip" onClick={() => setPicking(true)} aria-haspopup="dialog"><span className="med-chip-t">{moodLabel}</span><Icon n="down" s={16} /></button>
+          <button className="med-chip num" onClick={nextGap} aria-label={tx("{0}초마다 바뀌어요. 눌러서 바꾸기", gap)}><Icon n="clock" s={16} />{gap}{tx("초마다")}</button>
         </div>
 
         <figure className="med-v" key={`${mood}-${i}`} lang={v.lang}

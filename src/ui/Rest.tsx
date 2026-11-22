@@ -62,12 +62,11 @@ export function RestScreen({ player, music }: { player: Player; music: Track[] }
       {/* 카드: 한 구절 바로 아래, 쉼을 열면 함께 보이게 */}
       <h2 className="sub">{tx("교회 · 선물 카드")}</h2>
       {church && <div className="chtop"><ChurchCard c={church} foot={kindOf(church) === 'church' ? <NaverBtn c={church} /> : undefined} /></div>}
-      <ul className="pl">
-        <li><button className="lrow" onClick={() => setChOpen(true)}><span className="x">
-          <span className="x1">{tx("카드 관리")}</span>
-          <span className="x2">{cards.list.length ? tx("받은 카드 {0} · 보낸 카드 {1}", cards.list.filter((e) => !e.mine).length, cards.list.filter((e) => e.mine).length) : tx("교회 이름, 선물·축하, 커플 이름을 화면 맨 위에")}</span>
-        </span><Icon n="chev" s={20} /></button></li>
-      </ul>
+      <button className="card-btn" onClick={() => setChOpen(true)}>
+        <Icon n="cards" s={22} />
+        <span className="x"><b>{tx("카드 관리")}</b><span>{cards.list.length ? tx("받은 카드 {0} · 보낸 카드 {1}", cards.list.filter((e) => !e.mine).length, cards.list.filter((e) => e.mine).length) : tx("교회 이름, 선물·축하, 커플 이름을 화면 맨 위에")}</span></span>
+        <Icon n="chev" s={18} />
+      </button>
 
       <h2 className="sub">{tx("찬송가 반주 ")}<span>{tx("· 무료 · 가사 없이 곡조만")}</span></h2>
       <p className="soon">{tx("연주와 녹음을 준비하고 있어요. 다 되면 여기서 무료로 받을 수 있어요.")}</p>
