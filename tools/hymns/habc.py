@@ -82,9 +82,11 @@ def parse(text):
         for p in parts:
             mm=re.match(r'\[V:\s*([^\]\s]+)',p)
             if mm: cur=mm.group(1); continue
+            if not p.strip(): continue
             streams.setdefault(cur,[]).append(p)
     res={}; marks={}
-    for vid,segs in streams.items():
+    hdr=[v for v in order if v in streams]+[v for v in streams if v not in order]
+    for vid,segs in ((v,streams[v]) for v in hdr):
         s=' '.join(segs)
         t=F(0); notes=[]; meas={}; ties={}; brk=None; fer=False; ferms=[]
         rep_start=0; rep_start_t=F(0); 
