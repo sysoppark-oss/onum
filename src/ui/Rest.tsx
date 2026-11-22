@@ -1,4 +1,4 @@
-// 「쉼」: 오늘의 한 구절, 카드, 말씀 천천히 보기, 찬송가 반주(준비 중), 이 앱 알려 주기
+// 「쉼」: 오늘의 한 구절, 카드, 말씀 천천히 보기, 찬송가 반주, 이 앱 알려 주기
 // 「설정」: 화면·소리·휴대폰, 온음에 대하여(새 판 확인 포함)
 import { rt } from './rich'
 import { CURRENT } from '../lib/version'
@@ -13,6 +13,7 @@ import { setFlag, useFlag } from '../lib/flag'
 import { Icon, nf } from './common'
 import { EqPage, eqLabel } from './Eq'
 import { MeditatePage } from './Meditate'
+import { HymnsPage } from './Hymns'
 import type { Track } from '../lib/library'
 import { useEq } from '../lib/eq'
 import { Page, XfadeChips } from './Sheets'
@@ -44,6 +45,8 @@ export function RestScreen({ player, music }: { player: Player; music: Track[] }
   const closeReading = useCallback(() => setReading(false), [])
   const v = shown(YEAR[dayIndex()], kjv)
   const [mood, setMood] = useState(false)
+  const [hy, setHy] = useState(false)
+  const closeHy = useCallback(() => setHy(false), [])
   const closeMood = useCallback(() => setMood(false), [])
   return (
     <div className="page rest-page">
@@ -69,7 +72,11 @@ export function RestScreen({ player, music }: { player: Player; music: Track[] }
       </button>
 
       <h2 className="sub">{tx("찬송가 반주 ")}<span>{tx("· 무료 · 가사 없이 곡조만")}</span></h2>
-      <p className="soon">{tx("연주와 녹음을 준비하고 있어요. 다 되면 여기서 무료로 받을 수 있어요.")}</p>
+      <button className="card-btn hy-open" onClick={() => setHy(true)}>
+        <Icon n="note" s={22} />
+        <span className="x"><b>{tx("찬송가 반주")}</b><span>{tx("{0}곡 · 조·빠르기·절 수를 골라 연주", 36)}</span></span>
+        <Icon n="chev" s={18} />
+      </button>
 
 
       <button className="sharebtn" onClick={async () => setShared(await shareApp())}><Icon n="heart" s={20} />{tx("이 앱 알려 주기")}</button>
@@ -81,6 +88,7 @@ export function RestScreen({ player, music }: { player: Player; music: Track[] }
       {chOpen && <ChurchPage onClose={closeCh} />}
       {reading && <ReadPage onClose={closeReading} />}
       {mood && <MoodPage onClose={closeMood} />}
+      {hy && <HymnsPage player={player} onClose={closeHy} />}
     </div>
   )
 }
