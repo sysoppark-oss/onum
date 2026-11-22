@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="w_name">Onum · अभी बज रहा गीत</string>
+    <string name="w_desc">बज रहा गीत देखें और बजाना, पिछला, अगला नियंत्रित करें</string>
+    <string name="w_idle">Onum</string>
+    <string name="w_idle2">संगीत सुनने के लिए दबाएँ</string>
+    <string name="w_prev">पिछला गीत</string>
+    <string name="w_play">बजाएँ</string>
+    <string name="w_pause">रोकें</string>
+    <string name="w_next">अगला गीत</string>
+    <string name="n_channel">अभी बज रहा</string>
+</resources>

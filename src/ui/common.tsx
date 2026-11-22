@@ -23,7 +23,8 @@ export function clock(ms: number, withAmPm = true): string {
   const hm = `${hh}:${String(m).padStart(2, '0')}`
   if (!withAmPm) return hm
   if (lang === 'en') return `${hm} ${h < 12 ? 'AM' : 'PM'}`
-  return `${h < 12 ? tx("오전") : tx("오후")}${lang === 'ja' ? '' : ' '}${hm}`
+  if (lang === 'ru') return `${h}:${String(m).padStart(2, '0')}` // 러시아는 24시간제가 보통
+  return `${h < 12 ? tx("오전") : tx("오후")}${lang === 'ja' || lang === 'zh' ? '' : ' '}${hm}`
 }
 
 /* ── 곡 정보: 제목 풀이는 곡마다 한 번만 ── */
@@ -244,6 +245,7 @@ export function VirtualList<T>({ items, render, rowRem = 4, className = 'list' }
 
 /* ── 아이콘: 선 굵기·끝 처리 통일 ── */
 const STROKE: Record<string, React.ReactNode> = {
+  globe: <><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z" /></>,
   gear: <><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></>,
   expand: <><polyline points="15 3 21 3 21 9" /><polyline points="9 21 3 21 3 15" /><line x1="21" y1="3" x2="14" y2="10" /><line x1="3" y1="21" x2="10" y2="14" /></>,
   plus: <><line x1="5" y1="12" x2="19" y2="12" /><line x1="12" y1="5" x2="12" y2="19" /></>,

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="w_name">Onum · Сейчас играет</string>
+    <string name="w_desc">Показывает текущую песню; играть, предыдущая, следующая</string>
+    <string name="w_idle">Onum</string>
+    <string name="w_idle2">Нажмите, чтобы слушать музыку</string>
+    <string name="w_prev">Предыдущая песня</string>
+    <string name="w_play">Играть</string>
+    <string name="w_pause">Пауза</string>
+    <string name="w_next">Следующая песня</string>
+    <string name="n_channel">Сейчас играет</string>
+</resources>

@@ -174,14 +174,14 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
         )}
         <li className="setrow">
           <span className="x"><span className="x1" id="lang-l">{tx("화면 언어")}</span><span className="x2">{tx("바꾸면 앱을 다시 열어요")}</span></span>
-          <div className="seg2 ver three" role="radiogroup" aria-labelledby="lang-l">
+          <div className="seg2 three" role="radiogroup" aria-labelledby="lang-l">
             {LANGS.map((l) => <button key={l.id} role="radio" aria-checked={lang === l.id} className={lang === l.id ? 'on' : undefined} lang={l.id} onClick={() => lang !== l.id && setLang(l.id)}>{l.name}</button>)}
           </div>
         </li>
         <li className="setrow">
           <span className="x"><span className="x1" id="kjv-l">{tx("말씀 역본")}</span><span className="x2">{tx("저작권이 끝난 역본만 넣었어요")}</span></span>
-          <div className="seg2 ver three" role="radiogroup" aria-labelledby="kjv-l">
-            {VERS.map((v) => <button key={v.id} role="radio" aria-checked={kjv === v.id} className={kjv === v.id ? 'on' : undefined} lang={v.id === 'kjv' ? 'en' : v.id === 'jkg' ? 'ja' : 'ko'} onClick={() => setVer(v.id)}>{v.name}</button>)}
+          <div className="seg2 ver" role="radiogroup" aria-labelledby="kjv-l">
+            {VERS.map((v) => <button key={v.id} role="radio" aria-checked={kjv === v.id} className={kjv === v.id ? 'on' : undefined} lang={v.lang} onClick={() => setVer(v.id)}>{v.name}</button>)}
           </div>
         </li>
         <li>

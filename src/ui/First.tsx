@@ -8,7 +8,7 @@ import { NAME } from '../lib/verses'
 import { shown, useKjv } from '../lib/kjv'
 import { classify, loadOverrides } from '../lib/kind'
 import { Icon, nf } from './common'
-import { LANGS, lang, setLang, tx } from "../lib/i18n";
+import { LANGS, lang, setLang, tx, type Lang } from "../lib/i18n";
 import { Page } from './Sheets'
 import { appLink, lineOf, link, useChurch } from '../lib/church'
 import { CardMark } from './Church'
@@ -179,9 +179,7 @@ export function FirstScreen({ onDone }: { onDone: (r: ScanResult, hidden: string
                 </>
               : <div className="stack">{pickers(false)}</div>}
           <div className="wp-lang">
-            <div className="langpick" role="radiogroup" aria-label="Language · 언어 · 言語">
-              {LANGS.map((l) => <button key={l.id} role="radio" lang={l.id} aria-checked={lang === l.id} className={lang === l.id ? 'on' : undefined} onClick={() => lang !== l.id && setLang(l.id)}>{l.name}</button>)}
-            </div>
+            <LangSelect />
           </div>
         </div>
       </div>
@@ -192,9 +190,7 @@ export function FirstScreen({ onDone }: { onDone: (r: ScanResult, hidden: string
     <div className="page first">
       <div className="first-top">
         <Mark />
-        <div className="langpick" role="radiogroup" aria-label="Language · 언어 · 言語">
-          {LANGS.map((l) => <button key={l.id} role="radio" lang={l.id} aria-checked={lang === l.id} className={lang === l.id ? 'on' : undefined} onClick={() => lang !== l.id && setLang(l.id)}>{l.name}</button>)}
-        </div>
+        <LangSelect />
       </div>
       <div className="found-big">
         <h1 className="fb-h">{isNative ? rt("휴대폰 속 음악을\n찾아 올게요") : rt(isPC ? "이 컴퓨터의 음악을\n불러올게요" : "이 기기의 음악을\n불러올게요")}</h1>
@@ -234,4 +230,17 @@ function Mark() {
   return ch
     ? <p className="gift"><CardMark c={{ ...ch, line: lineOf(ch) }} /></p>
     : <p className="mark">{tx("온음")}</p>
+}
+
+/** 처음 화면의 언어 고르기: 여섯 말이라 한 줄 단추 대신 고르기 상자 */
+function LangSelect() {
+  return (
+    <label className="langsel">
+      <span className="sr">Language · 언어 · 言語 · 语言 · भाषा · Язык</span>
+      <Icon n="globe" s={16} />
+      <select value={lang} onChange={(e) => setLang(e.target.value as Lang)}>
+        {LANGS.map((l) => <option key={l.id} value={l.id} lang={l.id}>{l.name}</option>)}
+      </select>
+    </label>
+  )
 }
