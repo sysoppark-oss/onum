@@ -10,6 +10,7 @@ import { TAGS, tagName, type Playlists, type Tag } from '../lib/playlists'
 import { matches } from '../lib/hangul'
 import { josa, parseTitle } from '../lib/title'
 import { load, save } from '../lib/store'
+import { canRescan, rescan } from '../lib/rescan'
 import { getShape } from '../lib/shape'
 import { NIGHT } from '../lib/verses'
 import { shown, useKjv } from '../lib/kjv'
@@ -335,10 +336,24 @@ export function QueuePage({ player, tracks, lists, onClose }: { player: Player; 
 export function AddSongs({ tracks, has, onAdd, onClose }: { tracks: Track[]; has: (id: string) => boolean; onAdd: (t: Track) => void; onClose: () => void }) {
   const [q, setQ] = useState('')
   const [, bump] = useState(0)
-  const found = useMemo(() => tracks.filter((t) => {
-    const x = info(t)
-    return matches(x.song, q) || matches(x.singer, q) || matches(x.original, q) || matches(t.title, q)
-  }), [tracks, q])
+  // 휴대폰에 새로 받은 곡이 있으면 열 때 바로 찾아 온다
+  const [look, setLook] = useState<'idle' | 'busy' | number>('idle')
+  const find = useCallback(async (force: boolean) => { setLook('busy'); setLook(await rescan(force)) }, [])
+  useEffect(() => { if (canRescan()) find(false) }, [find])
+  // 최근 이레 안에 받은 곡을 맨 위에 따로(찾는 글자가 없을 때)
+  const fresh = useMemo(() => {
+    const since = Date.now() - 7 * 864e5
+    return new Set(tracks.filter((t) => t.added > since).sort((a, b) => b.added - a.added).slice(0, 12).map((t) => t.id))
+  }, [tracks])
+  const found = useMemo(() => {
+    const f = tracks.filter((t) => {
+      const x = info(t)
+      return matches(x.song, q) || matches(x.singer, q) || matches(x.original, q) || matches(t.title, q)
+    })
+    // 찾는 글자가 없으면 최근 받은 곡을 맨 위로
+    if (q || !fresh.size) return f
+    return [...f.filter((t) => fresh.has(t.id)).sort((a, b) => b.added - a.added), ...f.filter((t) => !fresh.has(t.id))]
+  }, [tracks, q, fresh])
   return (
     <Sheet label={tx("곡 추가")} onClose={onClose} tall>
       <div className="sh-row">
@@ -350,7 +365,14 @@ export function AddSongs({ tracks, has, onAdd, onClose }: { tracks: Track[]; has
         <span className="sr">{tx("곡, 부른 사람 찾기")}</span>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tx("곡·부른 사람 (초성도 돼요)")} autoComplete="off" enterKeyHint="search" />
       </label>
+      {canRescan() && (
+        <div className="rescan">
+          <span aria-live="polite">{look === 'busy' ? tx("새로 받은 곡을 찾는 중…") : typeof look === 'number' && look > 0 ? tx("새로 받은 곡 {0}곡을 찾았어요", look) : tx("휴대폰에 새로 받은 곡도 여기 나와요")}</span>
+          <button className="textlink" onClick={() => find(true)} disabled={look === 'busy'}>{tx("다시 찾기")}</button>
+        </div>
+      )}
       {found.length === 0 && <p className="empty">{tx("맞는 곡이 없어요.")}</p>}
+      {found.length === 0 && canRescan() && <p className="hint-s">{tx("방금 받은 곡이 안 보이면 「다시 찾기」를 눌러 보세요. 30초보다 짧은 곡과 「가져올 폴더」에서 뺀 폴더의 곡은 나오지 않아요.")}</p>}
       <div className="sheet-list">
         <VirtualList items={found} className="list" render={(t) => {
           const x = info(t)
@@ -358,7 +380,7 @@ export function AddSongs({ tracks, has, onAdd, onClose }: { tracks: Track[]; has
           return (
             <li key={t.id}>
               <button className="lrow" disabled={got} onClick={() => { onAdd(t); bump((n) => n + 1) }}>
-                <span className="x"><span className="x1">{x.song}</span><span className="x2">{whoLine(x) || ' '}</span></span>
+                <span className="x"><span className="x1">{!q && fresh.has(t.id) && <b className="newb">{tx("새 곡")}</b>}{x.song}</span><span className="x2">{whoLine(x) || ' '}</span></span>
                 <span className={'tag' + (got ? ' got' : '')}>{got ? tx("담김") : tx("담기")}</span>
               </button>
             </li>

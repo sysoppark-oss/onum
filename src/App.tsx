@@ -13,7 +13,7 @@ import type { ScanResult, Track } from './lib/library'
 import { classify, loadOverrides, saveOverrides, type KindOverrides } from './lib/kind'
 import { usePlayer, type Player } from './lib/usePlayer'
 import { usePlaylists } from './lib/playlists'
-import { getFontScale, isNative } from './lib/native'
+import { getFontScale, isNative, scanDevice } from './lib/native'
 import { cardKey, receiveUrl, useCards } from './lib/church'
 import { IncomingSheet } from './ui/Church'
 import { load, save } from './lib/store'
@@ -24,6 +24,7 @@ import { MusicScreen } from './ui/Music'
 import { ListsScreen } from './ui/Lists'
 import { RestScreen, SettingsScreen } from './ui/Rest'
 import { FirstScreen, FoldersPage } from './ui/First'
+import { rescan, setRescanner } from './lib/rescan'
 import { EasyScreen } from './ui/Easy'
 import { BatteryPage, useBattery } from './ui/Battery'
 import { VerseStrip, type VerseSpeed } from './ui/VerseStrip'
@@ -37,6 +38,8 @@ const TABS: [Tab, string, string][] = [['now', tx("지금"), 'clock'], ['music',
 export default function App() {
   useDayNight()
   const [raw, setRaw] = useState<ScanResult | null>(null)
+  const rawRef = useRef(raw)
+  rawRef.current = raw
   const [hidden, setHidden] = useState<string[]>(() => load('hiddenFolders', []))
   // 같은 곡 정리로 빼 둔 곡(파일은 그대로), 같은 곡이 아니라고 한 묶음
   const [hiddenIds, setHiddenIds] = useState<string[]>(() => load('hiddenIds', []))
@@ -47,6 +50,22 @@ export default function App() {
     showAll: () => { setHiddenIds([]); save('hiddenIds', []) },
     notSame: (k) => setNotSame((o) => { const n = [...o, k]; save('notSame', n); return n }),
   }), [hiddenIds])
+  // 앱을 다시 볼 때·곡 추가 창을 열 때 휴대폰에 새로 받은 곡을 다시 찾는다(이미 있던 곡은 그대로 둔다)
+  useEffect(() => {
+    if (!isNative || !raw) return
+    setRescanner(async () => {
+      const r = await scanDevice().catch(() => null)
+      if (!r) return 0
+      const old = rawRef.current
+      if (!old) return 0
+      const had = new Map(old.tracks.map((t) => [t.id, t]))
+      const added = r.tracks.filter((t) => !had.has(t.id)).length
+      if (added || r.tracks.length !== old.tracks.length) setRaw({ ...r, tracks: r.tracks.map((t) => had.get(t.id) ?? t) })
+      return added
+    })
+    const h = CapApp.addListener('resume', () => { rescan() })
+    return () => { setRescanner(null); h.then((x) => x.remove()) }
+  }, [!!raw]) // eslint-disable-line react-hooks/exhaustive-deps
   const scan = useMemo<ScanResult | null>(() => {
     if (!raw) return null
     const ids = new Set(hiddenIds)

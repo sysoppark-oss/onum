@@ -1231,3 +1231,9 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .hy-pm b { min-width: 3.25rem; text-align: center; font-size: 1.0625rem; font-weight: 800; }
 .hy-reset { align-self: flex-start; }
 .hy-set li.setrow { height: auto; min-height: 4.25rem; }
+
+/* 곡 추가: 새로 받은 곡 다시 찾기 */
+.rescan { display: flex; align-items: center; gap: 0.5rem; margin: 2px 0 0.375rem; font-size: 0.8125rem; color: var(--ink2); }
+.rescan span { flex: 1; min-width: 0; }
+.newb { display: inline-block; margin-right: 0.375rem; padding: 1px 0.375rem; border-radius: 0.375rem; background: var(--ink); color: var(--on-ink); font-size: 0.8125rem; font-weight: 800; vertical-align: 1px; }
+.hint-s { margin-top: 0.375rem; font-size: 0.8125rem; line-height: 1.5; color: var(--ink2); }
