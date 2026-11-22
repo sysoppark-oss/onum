@@ -8,7 +8,9 @@ import { shown, useKjv } from '../lib/kjv'
 
 const SPEED = 36 // 1초에 움직이는 거리(px). 어르신이 따라 읽을 수 있는 빠르기
 
-export function VerseStrip({ moving, onOpen }: { moving: boolean; onOpen: () => void }) {
+export type VerseSpeed = 'slow' | 'mid' | 'fast'
+export const VERSE_SPEEDS: { id: VerseSpeed; name: string; k: number }[] = [{ id: 'slow', name: '느리게', k: 0.6 }, { id: 'mid', name: '보통', k: 1 }, { id: 'fast', name: '빠르게', k: 1.6 }]
+export function VerseStrip({ moving, speed = 'mid', onOpen }: { moving: boolean; speed?: VerseSpeed; onOpen: () => void }) {
   const v = shown(today(), useKjv())
   const one = useRef<HTMLSpanElement>(null)
   const [dur, setDur] = useState(30)
@@ -20,12 +22,13 @@ export function VerseStrip({ moving, onOpen }: { moving: boolean; onOpen: () => 
   // 글 한 벌의 길이에 맞춰 한 바퀴 시간을 정한다(글자 크기가 바뀌어도 같은 빠르기)
   useEffect(() => {
     if (!run || !one.current) return
-    const measure = () => { if (one.current) setDur(Math.max(8, one.current.offsetWidth / SPEED)) }
+    const k = VERSE_SPEEDS.find((x) => x.id === speed)?.k ?? 1
+    const measure = () => { if (one.current) setDur(Math.max(6, one.current.offsetWidth / (SPEED * k))) }
     measure()
     const ro = new ResizeObserver(measure)
     ro.observe(one.current)
     return () => ro.disconnect()
-  }, [run, v.ref])
+  }, [run, v.ref, speed])
 
   const piece = (
     <>

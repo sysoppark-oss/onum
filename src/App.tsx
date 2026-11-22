@@ -26,7 +26,7 @@ import { RestScreen, SettingsScreen } from './ui/Rest'
 import { FirstScreen, FoldersPage } from './ui/First'
 import { EasyScreen } from './ui/Easy'
 import { BatteryPage, useBattery } from './ui/Battery'
-import { VerseStrip } from './ui/VerseStrip'
+import { VerseStrip, type VerseSpeed } from './ui/VerseStrip'
 import { ReadPage } from './ui/Rest'
 import { tx } from "./lib/i18n";
 import { GoodnightScreen, SleepSheet } from './ui/Sheets'
@@ -79,8 +79,6 @@ export default function App() {
   const openSleep = useCallback(() => setSleeping(true), [])
   const closeSleep = useCallback(() => setSleeping(false), [])
   const closeFolders = useCallback(() => setFolders(false), [])
-  const [verseMove, setVerseMoveState] = useState<boolean>(() => load('verseMove', true))
-  const setVerseMove = (v: boolean) => { setVerseMoveState(v); save('verseMove', v) }
   const [reading, setReading] = useState(false)
   const closeReading = useCallback(() => setReading(false), [])
   const [battery] = useBattery()
@@ -105,6 +103,9 @@ export default function App() {
     if (Object.keys(player.plays).length) setNews(true)
     else save('notesSeen', NOTES.id)
   }, [tracks.length > 0]) // eslint-disable-line react-hooks/exhaustive-deps
+  // 아래 말씀은 늘 흐르고, 빠르기만 고른다
+  const [verseSpeed, setVerseSpeedState] = useState<VerseSpeed>(() => load<VerseSpeed>('verseSpeed', 'mid'))
+  const setVerseSpeed = (v: VerseSpeed) => { setVerseSpeedState(v); save('verseSpeed', v) }
   const output = useOutput(player)
   // 새 판: 화면 부분은 받아 두었다가 음악이 멈춰 있을 때 바꿔 끼우고, 휴대폰 쪽이 바뀐 판은 알린다
   setSeasonOn(useFlag('season', true))
@@ -188,11 +189,11 @@ export default function App() {
             {tab === 'music' && <MusicScreen tracks={tracks} scan={scan} player={player} lists={lists} onPlayed={() => setTab('now')} onKind={moveKind} />}
             {tab === 'lists' && <ListsScreen tracks={tracks} music={music} player={player} lists={lists} edits={edits} onPlayed={() => setTab('now')} hide={hide} notSame={notSame} />}
             {tab === 'rest' && <RestScreen player={player} music={music} />}
-            {tab === 'set' && <SettingsScreen easy={easy} setEasy={setEasy} onFolders={() => setFolders(true)} battery={battery} onBattery={() => setBatteryOpen(true)} verseMove={verseMove} setVerseMove={setVerseMove} player={player} onNews={() => setNews(true)} onCheck={runCheck} />}
+            {tab === 'set' && <SettingsScreen easy={easy} setEasy={setEasy} onFolders={() => setFolders(true)} battery={battery} onBattery={() => setBatteryOpen(true)} verseSpeed={verseSpeed} setVerseSpeed={setVerseSpeed} player={player} onNews={() => setNews(true)} onCheck={runCheck} />}
           </>
         )}
       </main>
-      {!easy && tab === 'now' && <VerseStrip moving={verseMove} onOpen={() => setReading(true)} />}
+      {!easy && tab === 'now' && <VerseStrip moving speed={verseSpeed} onOpen={() => setReading(true)} />}
       {reading && <ReadPage onClose={closeReading} />}
       {!easy && player.current && tab !== 'now' && <Mini player={player} />}
       {!easy && (

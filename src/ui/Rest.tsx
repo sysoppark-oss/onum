@@ -24,6 +24,7 @@ import { EFFECTIVE, PRIVACY } from '../lib/privacy'
 import { kindOf, useCards, useChurch } from '../lib/church'
 import { live, setViz, useViz, VIZ } from '../lib/viz'
 import { ChurchCard, ChurchPage, NaverBtn } from './Church'
+import { VERSE_SPEEDS, type VerseSpeed } from './VerseStrip'
 import { GLYPHS, GlyphChip, setGlyph, useGlyph } from '../lib/glyph'
 
 const REPO = 'https://github.com/sysoppark-oss/onum'
@@ -86,9 +87,9 @@ export function RestScreen({ player, music }: { player: Player; music: Track[] }
 }
 
 /** 「설정」 탭: 보기·소리·휴대폰·온음. 새 판이 있으면 맨 위에 알린다 */
-export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, verseMove, setVerseMove, player, onNews, onCheck }: {
+export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, verseSpeed, setVerseSpeed, player, onNews, onCheck }: {
   easy: boolean; setEasy: (v: boolean) => void; onFolders?: () => void; battery: Battery; onBattery: () => void
-  verseMove: boolean; setVerseMove: (v: boolean) => void; player: Player; onNews: () => void; onCheck: (force?: boolean) => Promise<Check | null>
+  verseSpeed: VerseSpeed; setVerseSpeed: (v: VerseSpeed) => void; player: Player; onNews: () => void; onCheck: (force?: boolean) => Promise<Check | null>
 }) {
   const norm = player.normOn, setNorm = player.setNorm
   const kjv = useKjv()
@@ -127,10 +128,10 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
             <button className="sw" role="switch" aria-checked={easy} aria-labelledby="easy-l" onClick={() => setEasy(!easy)} />
           </div>
         </li>
-        <li>
-          <div className="lrow">
-            <span className="x"><span className="x1" id="vm-l">{tx("아래 말씀 흘려 보내기")}</span><span className="x2">{tx("끄면 「지금」 아래 말씀이 멈춘 채로 보여요")}</span></span>
-            <button className="sw" role="switch" aria-checked={verseMove} aria-labelledby="vm-l" onClick={() => setVerseMove(!verseMove)} />
+        <li className="setrow">
+          <span className="x"><span className="x1" id="vs-l">{tx("아래 말씀 흐르는 빠르기")}</span><span className="x2">{tx("「지금」 아래 말씀이 흐르는 빠르기예요. 누르고 있으면 멈춰요")}</span></span>
+          <div className="vizpick" role="radiogroup" aria-labelledby="vs-l">
+            {VERSE_SPEEDS.map((o) => <button key={o.id} role="radio" aria-checked={verseSpeed === o.id} className={verseSpeed === o.id ? 'on' : undefined} onClick={() => setVerseSpeed(o.id)}>{tx(o.name)}</button>)}
           </div>
         </li>
         <li className="setrow">
