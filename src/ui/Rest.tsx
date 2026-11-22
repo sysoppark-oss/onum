@@ -135,7 +135,7 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
           </div>
         </li>
         <li className="setrow">
-          <span className="x"><span className="x1" id="viz-l">{tx("소리 모양")}</span><span className="x2">{live(viz) ? tx("지금 나오는 소리를 콘솔처럼 실시간으로 재요") : viz === 'calm' ? tx("진행 줄만 조용히 보여요") : tx("곡 전체의 소리 크기를 미리 그려 보여요")}</span></span>
+          <span className="x"><span className="x1" id="viz-l">{tx("소리 모양")}</span><span className="x2">{live(viz) ? tx("지금 나오는 소리를 콘솔처럼 실시간으로 재요") : tx("곡 전체의 소리 크기를 미리 그려 보여요")}</span></span>
           <div className="vizpick" role="radiogroup" aria-labelledby="viz-l">
             {VIZ.map((o) => <button key={o.id} role="radio" aria-checked={viz === o.id} className={viz === o.id ? 'on' : undefined} onClick={() => setViz(o.id)}>{tx(o.name)}</button>)}
           </div>

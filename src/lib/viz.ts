@@ -1,11 +1,11 @@
-// 소리 모양: 파형(곡 전체를 미리 그린 것) · 콘솔식 실시간(레벨 미터·스펙트럼·스테레오 위상) · 고요(줄만)
+// 소리 모양: 파형(곡 전체를 미리 그린 것) · 콘솔식 실시간(레벨 미터·스펙트럼·스테레오 위상)
 import { useSyncExternalStore } from 'react'
 import { load, save } from './store'
 
-export type Viz = 'shape' | 'meter' | 'spec' | 'phase' | 'calm'
+export type Viz = 'shape' | 'meter' | 'spec' | 'phase'
 export const VIZ: { id: Viz; name: string }[] = [
   { id: 'shape', name: '파형' }, { id: 'meter', name: '레벨 미터' }, { id: 'spec', name: '스펙트럼' },
-  { id: 'phase', name: '스테레오 위상' }, { id: 'calm', name: '고요' },
+  { id: 'phase', name: '스테레오 위상' },
 ]
 /** 콘솔식(실시간)인지: 이때만 소리가 분석 길을 지난다 */
 export const live = (v: Viz) => v === 'meter' || v === 'spec' || v === 'phase'

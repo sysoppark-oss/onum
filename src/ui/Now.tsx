@@ -58,7 +58,6 @@ export function ShapeBar({ t, time, duration, onSeek, ab, mark, viz = 'shape', e
         <ConsoleViz kind={viz as ConsoleKind} el={el} playing={playing} />
         <span className="cv-prog" aria-hidden="true"><b style={{ width: `${ratio * 100}%` }} /></span>
       </>}
-      {viz === 'calm' && <span className="calm" aria-hidden="true"><b style={{ width: `${ratio * 100}%` }} /></span>}
       {ab && duration > 0 && (
         <>
           <span className={'band' + (ab.b == null ? ' open' : '')} aria-hidden="true"
@@ -420,8 +419,8 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
         <>
           <ShapeBar t={shown} time={cur ? player.time : player.resumePos} duration={cur ? player.duration : shown.duration}
             onSeek={cur ? player.seek : undefined} ab={cur ? (player.ab ?? (cur.clip ? { a: cur.clip.s, b: cur.clip.e, n: 1 } : null)) : null} mark={cur ? player.bookmark : null}
-            viz={cur && !cur.talk ? viz : 'shape'} el={player.el} playing={!!cur && player.playing} onConsole={() => setConsole(true)}
-            onSwipe={cur && !cur.talk ? (d) => pickViz(VIZ[(VIZ.findIndex((o) => o.id === viz) + d + VIZ.length) % VIZ.length].id) : undefined} flash={vizFlash} />
+            viz={!shown.talk ? viz : 'shape'} el={player.el} playing={!!cur && player.playing} onConsole={() => setConsole(true)}
+            onSwipe={!shown.talk ? (d) => pickViz(VIZ[(VIZ.findIndex((o) => o.id === viz) + d + VIZ.length) % VIZ.length].id) : undefined} flash={vizFlash} />
           <div className="times num">
             {notesOn && cur && !cur.talk && viz === 'shape' && <NoteFloat playing={player.playing} ratio={player.duration > 0 ? player.time / player.duration : 0} bars={cachedShape(cur)?.bars ?? null} />}
             {cur?.clip ? (
@@ -432,7 +431,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
             ) : (
               <>
                 <span aria-hidden="true">{fmt(cur ? player.time : player.resumePos)}</span>
-                {cur && !cur.talk && (
+                {!shown.talk && (
                   <span className="vdots" role="radiogroup" aria-label={tx("소리 모양")}>
                     {VIZ.map((o) => <button key={o.id} role="radio" aria-checked={viz === o.id} aria-label={tx(o.name)} className={viz === o.id ? 'on' : undefined} onClick={() => pickViz(o.id)}><i /></button>)}
                   </span>

@@ -52,7 +52,7 @@ interface Meter {
 const fresh = (): Meter => ({ rms: [-90, -90], pk: [-90, -90], hold: [-90, -90], ht: [0, 0], clip: [0, 0], band: new Float32Array(31).fill(-90), bpk: new Float32Array(31).fill(-90), bht: new Float32Array(31), corr: 1, gain: 1 })
 
 type Get = () => HTMLAudioElement | null
-export type ConsoleKind = Exclude<Viz, 'shape' | 'calm'>
+export type ConsoleKind = Exclude<Viz, 'shape'>
 
 /** 한 캔버스에 한 가지 */
 export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind; el: Get; playing: boolean; className?: string }) {
