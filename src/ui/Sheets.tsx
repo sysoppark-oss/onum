@@ -1,7 +1,7 @@
 // 반복 · 잠들기 · 밤 인사 · 재생 목록 · 곡 추가 · 목록 이름 · 목록 고르기
 import { rt } from './rich'
 import { setFlag } from '../lib/flag'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { Track } from '../lib/library'
 import { LEVELS, PRACTICE_RATES, RATES, TIMES, XFADES, type Goodnight, type Player, type Repeat } from '../lib/usePlayer'
 import { fmt } from '../lib/library'
@@ -106,9 +106,9 @@ export function RepeatSheet({ player, onClose, count, onApply }: {
     onClose()
   }
   const opt = (k: Kind, title: string, side?: string) => (
-    <button className={'opt' + (kind === k ? ' on' : '')} role="radio" aria-checked={kind === k} onClick={() => setKind(k)}>
-      <span className="r" aria-hidden="true" />{title}{side && <span className="side">{side}</span>}
-    </button>
+    <FitOpt className={'opt' + (kind === k ? ' on' : '')} role="radio" aria-checked={kind === k} onClick={() => setKind(k)}>
+      <span className="r" aria-hidden="true" /><span className="ot">{title}</span>{side && <span className="side">{side}</span>}
+    </FitOpt>
   )
   return (
     <Sheet label={tx("반복")} onClose={onClose}>
@@ -223,8 +223,8 @@ export function SleepSheet({ player, onClose }: { player: Player; onClose: () =>
         <button className="dbtn" onClick={() => set(m + 5)} disabled={m >= MAX_MIN} aria-label={tx("5분 늘리기")}><Icon n="plus" s={22} w={2.6} /></button>
       </div>
       <Chips label={tx("자주 쓰는 시간")} value={track ? -1 : m} custom={custom && !track} onPick={(v) => { set(v); setCustom(false) }} onCustom={() => { setCustom(true); setTrack(false) }} />
-      <button className={'opt' + (track ? ' on' : '')} aria-pressed={track} onClick={() => setTrack(!track)} disabled={!player.current}>
-        <span className="r" aria-hidden="true" />{tx("시간 말고, 이 곡이 끝나면 멈추기")}</button>
+      <FitOpt className={'opt' + (track ? ' on' : '')} aria-pressed={track} onClick={() => setTrack(!track)} disabled={!player.current}>
+        <span className="r" aria-hidden="true" /><span className="ot">{tx("시간 말고, 이 곡이 끝나면 멈추기")}</span></FitOpt>
       <div className="fade">
         <span id="fade-l">{tx("끝날 때 30초 동안 소리를 서서히 줄이기")}</span>
         <button className="sw" role="switch" aria-checked={fade} aria-labelledby="fade-l" onClick={() => setFade(!fade)} />
@@ -291,13 +291,42 @@ export function EditRows({ tracks, currentId, lockCurrent, onTap, onMove, onRemo
 }
 
 /** 겹쳐 뜨는 전체 화면 */
+/** 고르기 줄: 한 줄에 들어가면 그대로, 넘치면(다른 언어 등) 설명을 제목 아래로 내리고 제목도 줄을 바꾼다 */
+function FitOpt(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  const ref = useRef<HTMLButtonElement>(null)
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const check = () => {
+      el.classList.remove('stack')
+      const over = el.scrollWidth > el.clientWidth + 1 || [...el.querySelectorAll<HTMLElement>('.ot,.side')].some((c) => c.scrollWidth > c.clientWidth + 1)
+      el.classList.toggle('stack', over)
+    }
+    check()
+    const ro = new ResizeObserver(() => { if (el.clientWidth) check() })
+    ro.observe(el.parentElement ?? el)
+    return () => ro.disconnect()
+  }, [])
+  return <button ref={ref} {...props} />
+}
+
 export function Page({ label, onClose, children, actions }: { label: string; onClose: () => void; children: React.ReactNode; actions?: React.ReactNode }) {
   const box = useDialog(onClose)
   useSwipeClose(box, onClose)
+  // 제목이 두 줄로도 다 안 들어가면 오른쪽 단추를 아이콘만 남겨 자리를 내준다
+  const lh = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const el = lh.current, h = el?.querySelector('h2')
+    if (!el || !h || !actions) return
+    const check = () => { el.classList.remove('tight'); el.classList.toggle('tight', h.scrollHeight > h.clientHeight + 1) }
+    check()
+    const ro = new ResizeObserver(check); ro.observe(el)
+    return () => ro.disconnect()
+  }, [label, !!actions]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <Layer>
     <div ref={box} tabIndex={-1} className="layer" role="dialog" aria-modal="true" aria-label={label}>
-      <div className="lh">
+      <div className="lh" ref={lh}>
         <button className="back" onClick={onClose} aria-label={tx("닫기")}><Icon n="back" s={26} /></button>
         <h2>{label}</h2>
         {actions}
