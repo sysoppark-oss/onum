@@ -20,6 +20,7 @@ import { Page, XfadeChips } from './Sheets'
 import type { Player } from '../lib/usePlayer'
 import { Share } from '@capacitor/share'
 import { isNative } from '../lib/native'
+import { STORE, getUrl } from '../lib/channel'
 import type { Battery } from './Battery'
 import { EFFECTIVE, PRIVACY } from '../lib/privacy'
 import { kindOf, useCards, useChurch } from '../lib/church'
@@ -118,7 +119,7 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
   return (
     <div className="page set-page">
       <div className="ph"><h1>{tx("설정")}</h1></div>
-      {(isNative || import.meta.env.DEV) && upd !== 'none' && (
+      {(isNative || import.meta.env.DEV) && !STORE && upd !== 'none' && (
         <div className="upd-banner" role="status">
           <span className="upd-dot" aria-hidden="true" />
           <span className="upd-t"><b>{tx("새 판이 있어요")}</b><span>{upd === 'web' ? tx("누르면 음악을 멈추고 바로 바뀌어요") : tx("휴대폰 쪽이 바뀐 판이라 새로 설치해야 해요")}</span></span>
@@ -171,7 +172,7 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
             </div>
           </li>
         )}
-        {isNative && (
+        {isNative && !STORE && (
           <li>
             <div className="lrow">
               <span className="x"><span className="x1" id="up-l">{tx("새 판 알림")}</span><span className="x2">{tx("새 판이 나오면 받아 두거나 알려 드려요(GitHub에 확인)")}</span></span>
@@ -242,7 +243,7 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
             <Icon n="chev" s={20} />
           </button>
         </li>
-        {isNative && (
+        {isNative && !STORE && (
           <li>
             <div className="lrow">
               <span className="x"><span className="x1">{tx("새 판 확인")}</span><span className="x2" role="status">{chk === '…' ? tx("확인하는 중…") : chk || tx("새 판이 있는지 지금 알아봐요")}</span></span>
@@ -377,7 +378,7 @@ function PrivacyPage({ onClose }: { onClose: () => void }) {
   )
 }
 
-const SHARE_TEXT = tx("광고 없는 무료 음악 플레이어 「온음」을 써 보세요.\n휴대폰(안드로이드): https://github.com/sysoppark-oss/onum/releases/download/test-build/onum-test.apk\n컴퓨터: https://sysoppark-oss.github.io/onum/")
+const SHARE_TEXT = getUrl(tx("광고 없는 무료 음악 플레이어 「온음」을 써 보세요.\n휴대폰(안드로이드): https://github.com/sysoppark-oss/onum/releases/download/test-build/onum-test.apk\n컴퓨터: https://sysoppark-oss.github.io/onum/"))
 
 /** 휴대폰은 공유 창, 컴퓨터는 공유 창이 있으면 쓰고 없으면 글을 복사한다 */
 async function shareApp(): Promise<string> {

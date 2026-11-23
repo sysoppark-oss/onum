@@ -8,8 +8,9 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // GitHub에서 만들 때마다 번호가 올라가 기존 앱 위에 덮어 설치된다
-        versionCode((System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger())
-        versionName "1.0.0-test." + (System.getenv("GITHUB_RUN_NUMBER") ?: "local")
+        // 정식 판(스토어)은 ONUM_VERSION_CODE·ONUM_VERSION_NAME으로 번호를 정한다
+        versionCode((System.getenv("ONUM_VERSION_CODE") ?: System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger())
+        versionName(System.getenv("ONUM_VERSION_NAME") ?: ("1.0.0-test." + (System.getenv("GITHUB_RUN_NUMBER") ?: "local")))
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -26,12 +27,23 @@ android {
             keyAlias "onumtest"
             keyPassword "android"
         }
+        // 정식 판 열쇠: 저장소에 두지 않는다. GitHub Secrets에서 꺼내 파일로 만든 뒤 경로와 비밀번호를 넘긴다.
+        if (System.getenv("ONUM_KEYSTORE")) {
+            release {
+                storeFile file(System.getenv("ONUM_KEYSTORE"))
+                storePassword System.getenv("ONUM_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ONUM_KEY_ALIAS")
+                keyPassword System.getenv("ONUM_KEY_PASSWORD")
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.test
         }
         release {
+            if (System.getenv("ONUM_KEYSTORE")) signingConfig signingConfigs.release
+            debuggable false
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

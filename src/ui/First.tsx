@@ -12,9 +12,10 @@ import { LANGS, lang, setLang, tx, type Lang } from "../lib/i18n";
 import { Page } from './Sheets'
 import { appLink, lineOf, link, useChurch } from '../lib/church'
 import { CardMark } from './Church'
+import { getUrl, TEST_APK_URL } from '../lib/channel'
 
 // 마우스를 쓰는 넓은 화면이면 PC로 본다
-const APK = 'https://github.com/sysoppark-oss/onum/releases/download/test-build/onum-test.apk'
+const APK = getUrl(TEST_APK_URL)
 export const isPC = !isNative && window.matchMedia('(pointer: fine) and (min-width: 700px)').matches
 
 function NameLine() {

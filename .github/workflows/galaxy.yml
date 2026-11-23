@@ -1,0 +1,91 @@
+name: 갤럭시 스토어 정식 판 만들기
+
+# 손으로만 실행한다(Actions › 갤럭시 스토어 정식 판 만들기 › Run workflow).
+# 만든 파일은 공개 릴리스에 올리지 않고, 이 실행 기록 아래 「Artifacts」에만 둔다.
+on:
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: '판 이름 (스토어에 보이는 번호, 예: 2.0.0)'
+        required: true
+        default: '2.0.0'
+
+permissions:
+  contents: read
+
+jobs:
+  galaxy:
+    runs-on: ubuntu-latest
+    env:
+      ONUM_VERSION_NAME: ${{ inputs.version_name }}
+      # 시험판 번호보다 늘 크게, 실행할 때마다 하나씩 올라간다(스토어는 번호가 올라가야 업데이트로 받는다)
+      ONUM_VERSION_CODE: ${{ 100000 + github.run_number }}
+      VITE_STORE: galaxy
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: 화면 만들기(스토어 판: 앱 안 새 판 받기 끔)
+        run: |
+          npm ci
+          echo "VITE_NATIVE=$(sh tools/native-hash.sh)" >> $GITHUB_ENV
+          npm run build
+          npx cap sync android
+
+      - name: 정식 서명 열쇠 꺼내기
+        env:
+          KEYSTORE_B64: ${{ secrets.ONUM_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ONUM_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ONUM_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ONUM_KEY_PASSWORD }}
+        run: |
+          if [ -z "$KEYSTORE_B64" ]; then
+            echo "::warning::정식 서명 열쇠(ONUM_KEYSTORE_B64)가 없어 서명하지 않은 점검용 파일만 만듭니다. 스토어에는 올릴 수 없어요."
+            exit 0
+          fi
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/onum-release.keystore"
+          {
+            echo "ONUM_KEYSTORE=$RUNNER_TEMP/onum-release.keystore"
+            echo "ONUM_KEYSTORE_PASSWORD=$KS_PASS"
+            echo "ONUM_KEY_ALIAS=$KEY_ALIAS"
+            echo "ONUM_KEY_PASSWORD=$KEY_PASS"
+          } >> $GITHUB_ENV
+
+      - name: APK·AAB 만들기
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease bundleRelease --no-daemon
+          mkdir -p ../out
+          if [ -n "$ONUM_KEYSTORE" ]; then
+            cp app/build/outputs/apk/release/app-release.apk "../out/onum-${ONUM_VERSION_NAME}.apk"
+            cp app/build/outputs/bundle/release/app-release.aab "../out/onum-${ONUM_VERSION_NAME}.aab"
+          else
+            cp app/build/outputs/apk/release/app-release-unsigned.apk "../out/onum-${ONUM_VERSION_NAME}-unsigned-check-only.apk"
+          fi
+
+      - name: 디버깅이 꺼져 있는지 확인
+        run: |
+          AAPT=$(ls $ANDROID_HOME/build-tools/*/aapt | tail -1)
+          f=$(ls out/*.apk | head -1)
+          $AAPT dump badging "$f" | grep -E "^package|application-debuggable" || true
+          if $AAPT dump badging "$f" | grep -q "application-debuggable"; then echo "::error::디버깅이 켜져 있어요"; exit 1; fi
+
+      - name: 열쇠 파일 지우기
+        if: always()
+        run: rm -f "$RUNNER_TEMP/onum-release.keystore"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: onum-galaxy-${{ inputs.version_name }}-${{ github.run_number }}
+          path: out/
+          retention-days: 30

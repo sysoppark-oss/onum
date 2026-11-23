@@ -6,6 +6,7 @@ import { useSyncExternalStore } from 'react'
 import { CapacitorUpdater } from '@capgo/capacitor-updater'
 import { isNative } from './native'
 import { load, save } from './store'
+import { STORE } from './channel'
 
 const API = 'https://api.github.com/repos/sysoppark-oss/onum/releases/tags/test-build'
 export const BUILD = {
@@ -49,7 +50,7 @@ export async function checkUpdate(force = false): Promise<Check | null> {
   return c
 }
 async function checkUpdate0(force: boolean): Promise<Check | null> {
-  if (!isNative || BUILD.sha === 'dev') return null
+  if (!isNative || STORE || BUILD.sha === 'dev') return null // 스토어 판은 스토어가 업데이트한다
   const last = load<number>('updAt', 0)
   if (!force && Date.now() - last < EVERY) return null
   save('updAt', Date.now())
@@ -73,7 +74,7 @@ async function checkUpdate0(force: boolean): Promise<Check | null> {
 }
 
 /** 받아 둔 화면 판이 있으면 바꿔 끼운다(앱이 다시 그려진다). 음악이 나오는 중에는 부르지 않는다 */
-export function hasPending(): boolean { return isNative && !!load<string>('pendingId', '') && load<string>('pendingSha', '') !== BUILD.sha }
+export function hasPending(): boolean { return isNative && !STORE && !!load<string>('pendingId', '') && load<string>('pendingSha', '') !== BUILD.sha }
 export async function applyPending(): Promise<void> {
   const id = load<string>('pendingId', '')
   if (!id) return
