@@ -1,6 +1,6 @@
-name: 갤럭시 스토어 정식 판 만들기
+name: 스토어 정식 판 만들기
 
-# 손으로만 실행한다(Actions › 갤럭시 스토어 정식 판 만들기 › Run workflow).
+# 손으로만 실행한다(Actions › 스토어 정식 판 만들기 › Run workflow).
 # 만든 파일은 공개 릴리스에 올리지 않고, 이 실행 기록 아래 「Artifacts」에만 둔다.
 on:
   workflow_dispatch:
@@ -9,6 +9,12 @@ on:
         description: '판 이름 (스토어에 보이는 번호, 예: 2.0.0)'
         required: true
         default: '2.0.0'
+      store:
+        description: '올릴 스토어 (onestore 또는 galaxy)'
+        required: true
+        default: 'onestore'
+        type: choice
+        options: [onestore, galaxy]
 
 permissions:
   contents: read
@@ -18,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ONUM_VERSION_NAME: ${{ inputs.version_name }}
-      VITE_STORE: galaxy
+      VITE_STORE: ${{ inputs.store }}
     steps:
       - uses: actions/checkout@v4
 
@@ -32,7 +38,7 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - name: '화면 만들기(스토어 판 - 앱 안 새 판 받기 끔)'
+      - name: '화면 만들기(스토어 판 - 앱 안 새 판 받기 끔, 받는 곳 주소)'
         run: |
           # 판 번호: 시험판 번호보다 늘 크게, 실행할 때마다 하나씩 올라간다(스토어는 번호가 올라가야 업데이트로 받는다)
           echo "ONUM_VERSION_CODE=$((100000 + GITHUB_RUN_NUMBER))" >> $GITHUB_ENV
@@ -67,8 +73,8 @@ jobs:
           ./gradlew assembleRelease bundleRelease --no-daemon
           mkdir -p ../out
           if [ -n "$ONUM_KEYSTORE" ]; then
-            cp app/build/outputs/apk/release/app-release.apk "../out/onum-${ONUM_VERSION_NAME}.apk"
-            cp app/build/outputs/bundle/release/app-release.aab "../out/onum-${ONUM_VERSION_NAME}.aab"
+            cp app/build/outputs/apk/release/app-release.apk "../out/onum-${VITE_STORE}-${ONUM_VERSION_NAME}.apk"
+            cp app/build/outputs/bundle/release/app-release.aab "../out/onum-${VITE_STORE}-${ONUM_VERSION_NAME}.aab"
           else
             cp app/build/outputs/apk/release/app-release-unsigned.apk "../out/onum-${ONUM_VERSION_NAME}-unsigned-check-only.apk"
           fi
@@ -89,6 +95,6 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: onum-galaxy-${{ inputs.version_name }}-${{ github.run_number }}
+          name: onum-${{ inputs.store }}-${{ inputs.version_name }}-${{ github.run_number }}
           path: out/
           retention-days: 30
