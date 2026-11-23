@@ -18,8 +18,6 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ONUM_VERSION_NAME: ${{ inputs.version_name }}
-      # 시험판 번호보다 늘 크게, 실행할 때마다 하나씩 올라간다(스토어는 번호가 올라가야 업데이트로 받는다)
-      ONUM_VERSION_CODE: ${{ 100000 + github.run_number }}
       VITE_STORE: galaxy
     steps:
       - uses: actions/checkout@v4
@@ -36,6 +34,8 @@ jobs:
 
       - name: 화면 만들기(스토어 판: 앱 안 새 판 받기 끔)
         run: |
+          # 판 번호: 시험판 번호보다 늘 크게, 실행할 때마다 하나씩 올라간다(스토어는 번호가 올라가야 업데이트로 받는다)
+          echo "ONUM_VERSION_CODE=$((100000 + GITHUB_RUN_NUMBER))" >> $GITHUB_ENV
           npm ci
           echo "VITE_NATIVE=$(sh tools/native-hash.sh)" >> $GITHUB_ENV
           npm run build
