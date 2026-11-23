@@ -79,6 +79,9 @@ jobs:
           f=$(ls out/*.apk | head -1)
           $AAPT dump badging "$f" | grep -E "^package|application-debuggable" || true
           if $AAPT dump badging "$f" | grep -q "application-debuggable"; then echo "::error::디버깅이 켜져 있어요"; exit 1; fi
+          # 어떤 열쇠로 서명됐는지(공개해도 되는 지문) 기록에 남긴다
+          SIGNER=$(ls $ANDROID_HOME/build-tools/*/apksigner | tail -1)
+          $SIGNER verify --print-certs "$f" | grep -E "SHA-256|DN" || true
 
       - name: 열쇠 파일 지우기
         if: always()
