@@ -284,6 +284,7 @@ const STROKE: Record<string, React.ReactNode> = {
   share: <><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="6" r="2.5" /><circle cx="18" cy="18" r="2.5" /><line x1="8.2" y1="10.8" x2="15.8" y2="7.2" /><line x1="8.2" y1="13.2" x2="15.8" y2="16.8" /></>,
   trim: <><polyline points="8 4 4 4 4 20 8 20" /><polyline points="16 4 20 4 20 20 16 20" /><line x1="9" y1="12" x2="15" y2="12" /></>,
   level: <><line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="17" x2="20" y2="17" /><circle cx="9" cy="7" r="2.4" /><circle cx="15" cy="17" r="2.4" /></>,
+  mic: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7" /></>,
   note: <><path d="M9 18V6l10-2v12" /><circle cx="6.5" cy="18" r="2.5" /><circle cx="16.5" cy="16" r="2.5" /></>,
   lyric: <><line x1="4" y1="6" x2="14" y2="6" /><line x1="4" y1="11" x2="14" y2="11" /><line x1="4" y1="16" x2="10" y2="16" /><path d="M18 18V8l3-1" /><circle cx="16" cy="18" r="2" /></>,
   dots: <><circle cx="5" cy="12" r="1.2" /><circle cx="12" cy="12" r="1.2" /><circle cx="19" cy="12" r="1.2" /></>,

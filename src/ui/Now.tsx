@@ -20,6 +20,8 @@ import { ConsoleOpen, ConsolePage, ConsoleViz, type ConsoleKind } from './Viz'
 import { CardMark, ChurchPage } from './Church'
 import { tx } from "../lib/i18n";
 import { useFlag } from '../lib/flag'
+import { useKaraokeOn } from '../lib/karaoke'
+import { KaraokePage } from './Karaoke'
 
 /* ── 소리 모양 ── */
 export function ShapeBar({ t, time, duration, onSeek, ab, mark, viz = 'shape', el, playing = false, onConsole, onSwipe, flash }: { t: Track; time: number; duration: number; onSeek?: (s: number) => void; ab?: AB | null; mark?: number | null; viz?: Viz; el?: () => HTMLAudioElement | null; playing?: boolean; onConsole?: () => void; onSwipe?: (d: 1 | -1) => void; flash?: string }) {
@@ -352,6 +354,9 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
   const [pracOpen, setPracOpen] = useState(false)
   const closePrac = useCallback(() => setPracOpen(false), [])
   const [lyOpen, setLyOpen] = useState<false | 'view' | 'edit'>(false)
+  const karaOn = useKaraokeOn()
+  const [karaOpen, setKaraOpen] = useState(false)
+  const closeKara = useCallback(() => setKaraOpen(false), [])
   const [view, setView] = useState<'flow' | 'lyrics'>(() => load('nowView', 'flow'))
   const pickView = (v: 'flow' | 'lyrics') => { setView(v); save('nowView', v) }
   const closeLy = useCallback(() => setLyOpen(false), [])
@@ -395,6 +400,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
               <CardMark c={{ ...church, line: lineOf(church) }} size="bar" />
             </button>
           : <span className="mark">{tx("온음")}</span>}
+        {karaOn && cur && !talk && <button className="kara-open" onClick={() => setKaraOpen(true)}><Icon n="mic" s={18} />{tx("노래방")}</button>}
         {output && <span className={'out o-' + (output.kind === 'bluetooth' ? (output.car ? 'car' : 'bt') : output.kind)} role="status" aria-label={outputLabel(output)}><span className="oi"><Icon n={outputIcon(output)} s={16} /></span><span className="ot" aria-hidden="true">{output.kind === 'bluetooth' && output.name ? output.name : output.kind === 'speaker' ? tx("휴대폰") : outputLabel(output)}</span></span>}
       </div>
 
@@ -537,6 +543,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
       {pracOpen && cur && <PracticeSheet t={cur} player={player} onClose={closePrac} />}
       {chOpen && <ChurchPage onClose={closeCh} start="current" />}
       {consoleOpen && <ConsolePage el={player.el} playing={player.playing} onClose={closeConsole} />}
+      {karaOpen && cur && <KaraokePage t={cur} player={player} output={output} onClose={closeKara} />}
       {lyOpen && cur && <LyricsPage t={cur} player={player} onClose={closeLy} start={lyOpen === 'view' ? undefined : lyOpen} />}
       {queueOpen && <QueuePage player={player} tracks={tracks} lists={lists} onClose={closeQueue} />}
     </div>

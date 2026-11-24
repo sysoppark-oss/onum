@@ -12,6 +12,7 @@ import { DupesPage, type Hide } from './Dupes'
 import { findDupes } from '../lib/dupes'
 import { tx } from "../lib/i18n";
 import type { Edits } from '../lib/edits'
+import { SUNG, useKaraokeOn } from '../lib/karaoke'
 
 const DAY = 86400000
 // 바로가기 목록: 파일이 있는 자리로 가른다(설치형 앱은 전체 경로, PC는 폴더 이름)
@@ -47,6 +48,7 @@ export function ListsScreen({ tracks, music, player, lists, edits, onPlayed, hid
   const byId = useMemo(() => new Map(tracks.map((t) => [t.id, t])), [tracks])
   const itemsOf = (p: Playlist) => p.ids.map((id) => byId.get(id)).filter((t): t is Track => !!t)
 
+  const karaOn = useKaraokeOn()
   const autos = useMemo<Auto[]>(() => {
     const now = Date.now()
     const tracks = music // 저절로 모이는 목록에는 강의를 넣지 않는다
@@ -59,15 +61,17 @@ export function ListsScreen({ tracks, music, player, lists, edits, onPlayed, hid
     }).sort((a, b) => (player.last[a.id] ?? 0) - (player.last[b.id] ?? 0))
     const newest = (a: Track, b: Track) => b.added - a.added
     const kakao = tracks.filter((t) => KAKAO.test(where(t))).sort(newest)
+    const sung = karaOn ? tracks.filter((t) => SUNG.test(where(t))).sort(newest) : []
     const down = tracks.filter((t) => !KAKAO.test(where(t)) && DOWN.test(where(t))).sort(newest)
     return [
+      ...(sung.length ? [{ id: 'sung', name: tx("내가 부른 노래"), sub: tx("노래방에서 녹음한 곡"), items: sung }] : []),
       ...(kakao.length ? [{ id: 'kakao', name: tx("카톡으로 받은 음악"), sub: tx("카카오톡에서 저장한 곡"), items: kakao }] : []),
       ...(down.length ? [{ id: 'down', name: tx("다운로드한 음악"), sub: tx("다운로드 폴더의 곡"), items: down }] : []),
       { id: 'often', name: tx("자주 들은 곡"), sub: tx("많이 들은 순서"), items: often },
       { id: 'fresh', name: tx("새로 들어온 곡"), sub: tx("최근 2주 동안 추가된 곡"), items: fresh },
       { id: 'old', name: tx("한동안 안 들은 곡"), sub: tx("석 달 넘게 듣지 않은 곡"), items: old },
     ]
-  }, [music, player.plays, player.last])
+  }, [music, player.plays, player.last, karaOn])
 
   /** 목록에서 마지막으로 듣던 곡·자리(곡이 목록에 남아 있을 때만) */
   const resumeOf = (p: Playlist, items: Track[]) => {

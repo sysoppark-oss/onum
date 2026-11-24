@@ -39,7 +39,7 @@ export async function exportEdit(parts: ExportPart[], name: string, onProgress: 
   return { where: `${safe}.wav`, url, file: `${safe}.wav` }
 }
 
-function toWav(L: Float32Array, R: Float32Array): ArrayBuffer {
+export function toWav(L: Float32Array, R: Float32Array): ArrayBuffer {
   const n = L.length, bytes = n * 4
   const b = new ArrayBuffer(44 + bytes), v = new DataView(b)
   const w = (o: number, s: string) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)) }

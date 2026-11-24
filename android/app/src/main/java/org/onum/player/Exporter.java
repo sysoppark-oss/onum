@@ -250,6 +250,41 @@ class Exporter {
         }
         String safe = name.replaceAll("[\\\\/:*?\"<>|]", " ").trim();
         if (safe.isEmpty()) safe = "온음 편집곡";
+        return store(ctx, tmp, safe, null);
+    }
+
+    /** 노래방 녹음: 앱이 섞어 만든 PCM(44.1kHz 스테레오 16비트, 리틀 엔디언) 파일을 AAC로 만들어 「음악/온음/<sub>」에 넣는다 */
+    static String fromPcm(Context ctx, File pcm, String name, String sub) throws Exception {
+        File tmp = new File(ctx.getCacheDir(), "onum-export.m4a");
+        if (tmp.exists()) tmp.delete();
+        Exporter x = new Exporter(tmp);
+        try (InputStream is = new FileInputStream(pcm)) {
+            byte[] buf = new byte[65536];
+            int n, carry = 0;
+            byte[] rest = new byte[4];
+            while ((n = is.read(buf)) > 0) {
+                int i = 0;
+                if (carry > 0) {
+                    while (carry < 4 && i < n) rest[carry++] = buf[i++];
+                    if (carry == 4) { x.put(s16(rest, 0), s16(rest, 2)); carry = 0; }
+                }
+                for (; i + 4 <= n; i += 4) x.put(s16(buf, i), s16(buf, i + 2));
+                while (i < n) rest[carry++] = buf[i++];
+            }
+        } finally {
+            x.finish();
+        }
+        String safe = name.replaceAll("[\\\\/:*?\"<>|]", " ").trim();
+        if (safe.isEmpty()) safe = "온음 노래방";
+        return store(ctx, tmp, safe, sub);
+    }
+
+    private static float s16(byte[] b, int o) { return (short) ((b[o] & 0xff) | (b[o + 1] << 8)) / 32768f; }
+
+    /** 만든 .m4a를 「음악/온음」(sub가 있으면 그 아래)에 넣는다 */
+    private static String store(Context ctx, File tmp, String safe, String sub) throws Exception {
+        String rel = Environment.DIRECTORY_MUSIC + "/온음" + (sub != null && !sub.isEmpty() ? "/" + sub : "");
+        String shown = "음악/온음/" + (sub != null && !sub.isEmpty() ? sub + "/" : "");
         String file = safe + ".m4a";
         if (Build.VERSION.SDK_INT >= 29) {
             ContentResolver cr = ctx.getContentResolver();
@@ -257,7 +292,7 @@ class Exporter {
             v.put(MediaStore.Audio.Media.DISPLAY_NAME, file);
             v.put(MediaStore.Audio.Media.TITLE, safe);
             v.put(MediaStore.Audio.Media.MIME_TYPE, "audio/mp4");
-            v.put(MediaStore.Audio.Media.RELATIVE_PATH, Environment.DIRECTORY_MUSIC + "/온음");
+            v.put(MediaStore.Audio.Media.RELATIVE_PATH, rel);
             v.put(MediaStore.Audio.Media.IS_MUSIC, 1);
             v.put(MediaStore.Audio.Media.IS_PENDING, 1);
             Uri uri = cr.insert(MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY), v);
@@ -272,10 +307,11 @@ class Exporter {
             v.put(MediaStore.Audio.Media.IS_PENDING, 0);
             cr.update(uri, v, null, null);
             tmp.delete();
-            return "음악/온음/" + file;
+            return shown + file;
         }
         // 안드로이드 9 이하: 앱 전용 음악 폴더에 둔다(저장 권한 없이 쓸 수 있는 곳)
         File dir = ctx.getExternalFilesDir(Environment.DIRECTORY_MUSIC);
+        if (dir != null && sub != null && !sub.isEmpty()) { dir = new File(dir, sub); dir.mkdirs(); }
         if (dir == null) throw new Exception("save_failed");
         File out = new File(dir, file);
         try (InputStream is = new FileInputStream(tmp); OutputStream os = new FileOutputStream(out)) {

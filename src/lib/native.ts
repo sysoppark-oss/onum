@@ -35,6 +35,8 @@ interface MusicScanPlugin {
   addListener(event: 'exportProgress', fn: (p: { f: number }) => void): Promise<PluginListenerHandle>
   openUrl(opts: { url: string }): Promise<void>
   exportClips(opts: { parts: { path: string; s: number; e: number }[]; name: string }): Promise<{ where: string }>
+  pcmWrite(opts: { b64: string; first: boolean }): Promise<void>
+  pcmSave(opts: { name: string; sub: string }): Promise<{ where: string }>
 }
 
 const MusicScan = registerPlugin<MusicScanPlugin>('MusicScan')
@@ -177,4 +179,20 @@ export function openWeb(url: string): void {
 /** 가사를 곡 옆에 .lrc로: 저장 위치 창을 곡 폴더에서 연다. 저장했으면 true */
 export async function saveLrcNative(name: string, text: string, path?: string): Promise<boolean> {
   try { return (await MusicScan.saveLrc({ name, text, path })).saved } catch { return false }
+}
+
+/** 노래방 녹음(섞은 PCM 16비트 스테레오)을 「음악/온음/노래방」에 .m4a로 저장(설치형 앱) */
+export async function nativeSavePcm(pcm: Int16Array, name: string, onProgress: (f: number) => void): Promise<string> {
+  const bytes = new Uint8Array(pcm.buffer, pcm.byteOffset, pcm.byteLength)
+  const STEP = 384 * 1024
+  for (let i = 0; i < bytes.length; i += STEP) {
+    const part = bytes.subarray(i, Math.min(bytes.length, i + STEP))
+    let bin = ''
+    for (let j = 0; j < part.length; j += 0x8000) bin += String.fromCharCode(...part.subarray(j, j + 0x8000))
+    await MusicScan.pcmWrite({ b64: btoa(bin), first: i === 0 })
+    onProgress(0.8 * Math.min(1, (i + STEP) / bytes.length))
+  }
+  const r = await MusicScan.pcmSave({ name, sub: '노래방' })
+  onProgress(1)
+  return r.where
 }

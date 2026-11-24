@@ -1243,3 +1243,63 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 /* 제목이 길면 화면 머리 오른쪽 단추는 아이콘만 */
 .lh.tight .cue-lock { width: 2.75rem; padding: 0; justify-content: center; }
 .lh.tight .cue-lock span { display: none; }
+
+/* 노래방 */
+.now .top .kara-open { margin-left: auto; }
+.kara-open { display: inline-flex; align-items: center; gap: 0.375rem; min-height: 2.75rem; padding: 0 0.875rem 0 0.75rem; border-radius: 1.375rem; background: var(--sf); font-size: 0.875rem; font-weight: 800; color: var(--ink); flex-shrink: 0; }
+.kara-open:active { transform: scale(.97); }
+.kara { display: flex; flex-direction: column; gap: 0.875rem; padding-bottom: 1.75rem; }
+.kara-who { margin-top: -0.375rem; font-size: 0.875rem; color: var(--ink2); min-height: 1em; }
+.kara-ly { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 0.625rem; min-height: 10.5rem; padding: 1.125rem 1rem; border-radius: 1.25rem; background: var(--sf); text-align: center; }
+.kara-ly p { word-break: keep-all; overflow-wrap: anywhere; }
+.kara-l0 { font-size: 1.625rem; font-weight: 800; line-height: 1.35; color: var(--ink); }
+.kara-l1 { font-size: 1.125rem; font-weight: 600; line-height: 1.4; color: var(--ink2); }
+.kara-l2 { font-size: 0.9375rem; font-weight: 600; line-height: 1.4; color: var(--ink3); }
+.kara-gap { display: inline-flex; align-items: center; gap: 0.375rem; font-size: 1.125rem; font-weight: 700; color: var(--ink2); }
+.kara-hint { font-size: 0.9375rem; line-height: 1.5; color: var(--ink2); }
+.kara-time { display: flex; align-items: center; gap: 0.625rem; font-size: 0.8125rem; font-weight: 600; color: var(--ink2); }
+.kara-bar, .kara-meter { position: relative; flex: 1; height: 0.375rem; border-radius: 0.1875rem; background: var(--sf); overflow: hidden; }
+.kara-bar i, .kara-meter i { position: absolute; inset: 0; background: var(--ink); transform-origin: left; }
+.kara-meter { flex: none; height: 0.5rem; border-radius: 0.25rem; }
+.kara-meter i { transition: transform 60ms linear; }
+.kara-go { display: flex; flex-direction: column; align-items: stretch; gap: 0.625rem; }
+.kara-rec, .kara-stop { min-height: 4rem; font-size: 1.1875rem; }
+.kara-sing { align-self: center; }
+.kara-note { font-size: 0.875rem; line-height: 1.5; color: var(--ink2); }
+.kara-err { font-size: 0.875rem; line-height: 1.5; font-weight: 700; color: var(--ink); }
+.kara-set { display: flex; flex-direction: column; gap: 1rem; margin-top: 0.375rem; padding-top: 1rem; border-top: 1px solid var(--line); }
+.kara-row { display: flex; flex-direction: column; gap: 0.5rem; }
+.kara-two { gap: 1rem; }
+.kara-two > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.kara-k { font-size: 0.875rem; font-weight: 700; color: var(--ink2); }
+.kara-seg { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.375rem; }
+.kara-seg3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.kara-seg button { min-height: 2.75rem; padding: 0 0.25rem; border-radius: 1.375rem; background: var(--sf); font-size: 0.9375rem; font-weight: 700; color: var(--ink2); text-align: center; word-break: keep-all; }
+.kara-seg button.on { background: var(--ink); color: var(--on-ink); }
+.kara-seg button:disabled, .kara-pm button:disabled { opacity: .4; }
+.kara-pm { display: flex; align-items: center; justify-content: space-between; gap: 0.25rem; }
+.kara-pm button { width: 2.75rem; height: 2.75rem; border-radius: 1.375rem; background: var(--sf); display: flex; align-items: center; justify-content: center; color: var(--ink); flex-shrink: 0; }
+.kara-pm b { flex: 1; text-align: center; font-size: 1.0625rem; font-weight: 800; }
+.kara-resync { align-self: flex-start; }
+.kara-rev { display: flex; flex-direction: column; gap: 0.75rem; }
+.kara-score { display: flex; align-items: baseline; justify-content: center; gap: 0.25rem; margin-top: 0.25rem; }
+.kara-score b { font-size: 4.5rem; font-weight: 800; line-height: 1; letter-spacing: -0.03em; }
+.kara-score span { font-size: 1.25rem; font-weight: 700; color: var(--ink2); }
+.kara-say { text-align: center; font-size: 1.0625rem; font-weight: 700; line-height: 1.45; word-break: keep-all; }
+.kara-best { text-align: center; font-size: 0.875rem; color: var(--ink2); }
+.kara-parts { display: flex; flex-direction: column; gap: 0.5rem; margin: 0.25rem 0 0.375rem; }
+.kara-parts li { display: flex; align-items: center; gap: 0.625rem; font-size: 0.875rem; color: var(--ink2); }
+.kara-parts li span { width: 6.5em; flex-shrink: 0; }
+.kara-parts i { display: block; flex: 1; height: 0.375rem; border-radius: 0.1875rem; }
+.kara-adj { flex-direction: row; align-items: center; justify-content: space-between; gap: 0.625rem; }
+.kara-adj .kara-k { flex: 1; min-width: 0; }
+.kara-adj .kara-pm { width: 11.25rem; flex-shrink: 0; }
+.kara-save { align-self: stretch; justify-content: center; min-height: 3.25rem; }
+.kara-ok { display: flex; flex-direction: column; gap: 0.625rem; font-size: 0.9375rem; line-height: 1.5; }
+.kara-ok .pillbtn { align-self: flex-start; }
+.kara-again { align-self: center; }
+.kara.sync .kara-ly { min-height: 13.75rem; }
+.kara-cnt { text-align: center; font-size: 0.875rem; color: var(--ink2); }
+.kara-tap { min-height: 6rem; font-size: 1.625rem; border-radius: 3rem; }
+.kara-syncact { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; }
+.kara-syncact .pillbtn.on { background: var(--ink); color: var(--on-ink); }

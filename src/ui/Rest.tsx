@@ -20,6 +20,7 @@ import { Page, XfadeChips } from './Sheets'
 import type { Player } from '../lib/usePlayer'
 import { Share } from '@capacitor/share'
 import { isNative } from '../lib/native'
+import { setKaraokeOn, useKaraokeOn } from '../lib/karaoke'
 import { STORE, getUrl } from '../lib/channel'
 import type { Battery } from './Battery'
 import { EFFECTIVE, PRIVACY } from '../lib/privacy'
@@ -100,6 +101,7 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
   verseSpeed: VerseSpeed; setVerseSpeed: (v: VerseSpeed) => void; player: Player; onNews: () => void; onCheck: (force?: boolean) => Promise<Check | null>
 }) {
   const norm = player.normOn, setNorm = player.setNorm
+  const karaOn = useKaraokeOn()
   const kjv = useKjv()
   const notesOn = useFlag('notes', true)
   const seasonOn = useFlag('season', true)
@@ -134,6 +136,12 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
           <div className="lrow">
             <span className="x"><span className="x1" id="easy-l">{tx("쉬운 화면")}</span><span className="x2">{tx("글자와 버튼을 크게, 꼭 필요한 것만")}</span></span>
             <button className="sw" role="switch" aria-checked={easy} aria-labelledby="easy-l" onClick={() => setEasy(!easy)} />
+          </div>
+        </li>
+        <li>
+          <div className="lrow">
+            <span className="x"><span className="x1" id="kara-l">{tx("노래방 쓰기")}</span><span className="x2">{tx("끄면 노래방 단추와 「내가 부른 노래」가 사라져요")}</span></span>
+            <button className="sw" role="switch" aria-checked={karaOn} aria-labelledby="kara-l" onClick={() => setKaraokeOn(!karaOn)} />
           </div>
         </li>
         <li className="setrow">

@@ -346,6 +346,38 @@ public class MusicScanPlugin extends Plugin {
         }).start();
     }
 
+    /** 노래방 녹음: 앱이 섞은 소리(PCM)를 조각조각 받아 임시 파일에 이어 쓴다 */
+    @PluginMethod
+    public void pcmWrite(PluginCall call) {
+        String b64 = call.getString("b64", "");
+        boolean first = Boolean.TRUE.equals(call.getBoolean("first", false));
+        try {
+            java.io.File f = new java.io.File(getContext().getCacheDir(), "onum-karaoke.pcm");
+            if (first && f.exists()) f.delete();
+            try (java.io.FileOutputStream os = new java.io.FileOutputStream(f, true)) {
+                os.write(android.util.Base64.decode(b64, android.util.Base64.DEFAULT));
+            }
+            call.resolve();
+        } catch (Exception e) { call.reject("pcm_write_failed", e); }
+    }
+
+    /** 이어 쓴 PCM을 .m4a로 만들어 「음악/온음/노래방」에 넣는다 */
+    @PluginMethod
+    public void pcmSave(PluginCall call) {
+        String name = call.getString("name", "온음 노래방");
+        String sub = call.getString("sub", "노래방");
+        new Thread(() -> {
+            java.io.File f = new java.io.File(getContext().getCacheDir(), "onum-karaoke.pcm");
+            try {
+                String where = Exporter.fromPcm(getContext(), f, name, sub);
+                JSObject r = new JSObject();
+                r.put("where", where);
+                call.resolve(r);
+            } catch (Exception e) { call.reject("pcm_save_failed", e); }
+            finally { f.delete(); }
+        }).start();
+    }
+
     /** 강의의 조용한 구간: 처음부터 끝까지 50ms 창으로 재어, 0.7초 넘게 조용한 곳을 [시작, 끝](1/100초)으로 돌려준다 */
     @PluginMethod
     public void quiet(PluginCall call) {
