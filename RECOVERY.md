@@ -18,6 +18,17 @@
 - 정식 서명 열쇠의 지문(공개 정보): SHA-256 `3C:21:D9:69 … EA:38`. 다시 넣은 뒤 아래 4의 지문 확인으로 맞는 열쇠인지 봐요.
 - `android/app/onum-test.keystore`는 **시험판 전용 열쇠**로, 일부러 공개해 두었어요(누구나 시험판을 직접 만들어 볼 수 있게). 스토어 판과는 상관없어요.
 
+### 시험판과 스토어 판은 다른 앱이에요
+
+| | 패키지 이름 | 앱 이름 | 서명 |
+|---|---|---|---|
+| 스토어 판 | `org.onum.player` (절대 바꾸지 않음) | 온음 | 정식 열쇠(지문 `3c21d969…`) |
+| 시험판 | `org.onum.player.test` | 온음 시험판(아이콘에 「시험」 띠) | 공개 시험 열쇠 |
+
+- 시험판은 **GitHub 공식 주소(github.com/sysoppark-oss/onum의 시험판 페이지)에서 받은 것만** 설치해요. 시험 열쇠가 공개되어 있어 다른 곳의 「온음 시험판」은 가짜일 수 있어요.
+- **옛 시험판**(2026-11-24 전, `org.onum.player`에 시험 열쇠로 서명)을 깐 사람은 그 앱을 지우고 새 시험판이나 스토어 판을 깔아요. 옛 앱의 목록·설정은 넘어오지 않아요.
+- 시험판 이름 꼬리는 `android/app/build.gradle`의 debug `applicationIdSuffix ".test"`, 이름·아이콘은 `android/app/src/debug/res`에 있어요(`python3 tools/app-icon.py`로 다시 만듦).
+
 ## 2. 새 PC 없이도 되는 것 (GitHub에서)
 
 온음은 GitHub Actions가 대신 만들어 줘서 **PC가 없어도** 아래가 돼요.

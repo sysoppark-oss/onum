@@ -1,4 +1,5 @@
 """public/icon-512.png(온음 아이콘)로 안드로이드 앱 아이콘·시작 화면을 만든다.
+시험판(src/debug)에는 아래쪽에 청동색 「시험」 띠를 얹은 아이콘을 따로 만든다.
 사용: python3 tools/app-icon.py"""
 from PIL import Image, ImageDraw
 import glob, os
@@ -37,4 +38,30 @@ for p in glob.glob(f'{R}/drawable*/splash.png'):
     sp.paste(fg.resize((n, n), Image.LANCZOS), ((w - n) // 2, (h - n) // 2), fg.resize((n, n), Image.LANCZOS))
     sp.save(p)
 open(f'{R}/values/ic_launcher_background.xml', 'w').write('<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">#101213</color>\n</resources>\n')
+
+# 시험판 아이콘: 보이는 원 안 아래쪽에 청동색 「시험」 띠
+from PIL import ImageFont
+import glob as _g
+FONT = (_g.glob('/tmp/pf/package/dist/public/static/Pretendard-ExtraBold.otf') + _g.glob('/usr/share/fonts/**/*Bold*.ttf', recursive=True))[0]
+def badge(img, vis, off):
+    # img: RGBA, 보이는 영역 vis(정사각형 한 변), off: 보이는 영역의 왼쪽 위
+    d = ImageDraw.Draw(img)
+    w, h = int(vis * 0.54), int(vis * 0.18)
+    x0 = off + (vis - w) // 2; y0 = off + int(vis * 0.71)
+    d.rounded_rectangle([x0, y0, x0 + w, y0 + h], radius=h // 2, fill=(226, 176, 106, 255))
+    f = ImageFont.truetype(FONT, int(h * 0.66))
+    l, t, r, b = d.textbbox((0, 0), '시험', font=f)
+    d.text((x0 + (w - (r - l)) / 2 - l, y0 + (h - (b - t)) / 2 - t), '시험', font=f, fill=(16, 18, 19, 255))
+D = 'android/app/src/debug/res'
+for d_, k in dens.items():
+    os.makedirs(f'{D}/mipmap-{d_}', exist_ok=True)
+    full = int(108 * k); vis = int(72 * k)
+    lay = Image.open(f'{R}/mipmap-{d_}/ic_launcher_foreground.png').convert('RGBA')
+    badge(lay, vis, (full - vis) // 2)
+    lay.save(f'{D}/mipmap-{d_}/ic_launcher_foreground.png')
+    for name in ('ic_launcher', 'ic_launcher_round'):
+        im = Image.open(f'{R}/mipmap-{d_}/{name}.png').convert('RGBA')
+        s_ = im.width
+        badge(im, s_, 0)
+        im.save(f'{D}/mipmap-{d_}/{name}.png')
 print('ok')

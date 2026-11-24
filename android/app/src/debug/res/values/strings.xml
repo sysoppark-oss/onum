@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 시험판(org.onum.player.test)만의 이름. 스토어 판은 src/main 그대로 「온음」 -->
+<resources>
+    <string name="app_name">온음 시험판</string>
+    <string name="title_activity_main">온음 시험판</string>
+</resources>
