@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# 비밀·열쇠는 저장소에 넣지 않는다(RECOVERY.md 참고). 시험판 열쇠만 일부러 공개
+*.keystore
+*.jks
+.env*
+*보관용*
+!android/app/onum-test.keystore
