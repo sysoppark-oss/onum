@@ -372,6 +372,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
   const rp = repeatShort(player)
   const p = shown ? info(shown) : null
   const talk = !!shown?.talk
+  const rateOn = !!(player.practice?.r && player.practice.r !== 1)
   const lyView = cur && !talk ? view : 'flow'
   const lec = talk && shown ? lectureOf(shown) : null
   const music = tracks.filter((t) => !t.talk)
@@ -410,11 +411,12 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
         {talk ? (
           <p className="who">{who}{shown!.duration > 0 && <span>{who ? ' · ' : ''}{minutesText(Math.round(shown!.duration / 60))}</span>}</p>
         ) : (who || p?.original) && <p className="who">{who}{p?.original && <span>{who ? ' · ' : ''}{tx("원곡 ")}{p.original}</span>}</p>}
-        {cur && !talk && (player.practice || player.ab) && (
+        {cur && !talk && <KeyRow player={player} id={cur.src ?? cur.id} />}
+        {cur && !talk && (rateOn || player.ab) && (
           <div className="chiprow">
-            {(player.practice || player.ab) && (
-              <button className={'prac' + (player.practice ? ' on' : '')} onClick={() => setPracOpen(true)} aria-haspopup="dialog" aria-label={player.practice ? tx("연습 중인 빠르기와 키 바꾸기") : undefined}>
-                <Icon n="note" s={18} />{player.practice ? <span className="num">{[player.practice.r && player.practice.r !== 1 ? `${player.practice.r}×` : '', player.practice.k ? tx("키 {0}{1}", player.practice.k > 0 ? '+' : '−', Math.abs(player.practice.k)) : ''].filter(Boolean).join(' · ')}</span> : <span>{tx("빠르기·키")}</span>}
+            {(rateOn || player.ab) && (
+              <button className={'prac' + (rateOn ? ' on' : '')} onClick={() => setPracOpen(true)} aria-haspopup="dialog" aria-label={rateOn ? tx("연습 중인 빠르기와 키 바꾸기") : undefined}>
+                <Icon n="note" s={18} />{rateOn ? <span className="num">{tx("빠르기 ")}{player.practice!.r}×</span> : <span>{tx("빠르기·키")}</span>}
               </button>
             )}
           </div>
@@ -546,6 +548,22 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
       {karaOpen && cur && <KaraokePage t={cur} player={player} output={output} onClose={closeKara} />}
       {lyOpen && cur && <LyricsPage t={cur} player={player} onClose={closeLy} start={lyOpen === 'view' ? undefined : lyOpen} />}
       {queueOpen && <QueuePage player={player} tracks={tracks} lists={lists} onClose={closeQueue} />}
+    </div>
+  )
+}
+
+/* 듣는 중에 바로 키를 반음씩 올리고 내린다(곡마다 기억). 가운데를 누르면 원래 키 */
+function KeyRow({ player, id }: { player: Player; id: string }) {
+  const k = player.practice?.k ?? 0
+  const r = player.practice?.r ?? 1
+  const set = (nk: number) => player.setPractice(id, { r, k: Math.max(-6, Math.min(6, nk)) })
+  return (
+    <div className="keyrow" role="group" aria-label={tx("키")}>
+      <button onClick={() => set(k - 1)} disabled={k <= -6} aria-label={tx("키 반음 낮추기")}><Icon n="minus" s={22} /></button>
+      <button className={'keyrow-mid' + (k ? ' on' : '')} onClick={() => set(0)} disabled={!k} aria-label={k ? tx("원래 키로 돌리기 · 지금 {0}", k > 0 ? tx("{0} 높게", k) : tx("{0} 낮게", -k)) : tx("원래 키")}>
+        <span className="keyrow-l">{tx("키")}</span><b className="num">{k === 0 ? tx("원래 키") : `${k > 0 ? '+' : '−'}${Math.abs(k)}`}</b>
+      </button>
+      <button onClick={() => set(k + 1)} disabled={k >= 6} aria-label={tx("키 반음 올리기")}><Icon n="plus" s={22} /></button>
     </div>
   )
 }

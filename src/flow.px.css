@@ -789,6 +789,15 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 @media (prefers-reduced-motion: reduce) { .med-v { animation: none; } .med-bar i { transition: none; } }
 .med-dim { position: fixed; inset: 0; z-index: 2; background: var(--dim); animation: fade-in 200ms ease; }
 .chiprow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.keyrow { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.keyrow > button { width: 48px; height: 48px; border-radius: 24px; background: var(--sf); color: var(--ink); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.keyrow > button:disabled { opacity: .35; }
+.keyrow > button:active:not(:disabled) { transform: scale(.95); }
+.keyrow > .keyrow-mid { width: auto; min-width: 128px; padding: 0 16px; gap: 8px; background: transparent; box-shadow: inset 0 0 0 1.5px var(--line); }
+.keyrow > .keyrow-mid:disabled { opacity: 1; }
+.keyrow > .keyrow-mid.on { background: var(--ink); color: var(--on-ink); box-shadow: none; }
+.keyrow-l { font-size: 14px; font-weight: 700; color: inherit; opacity: .7; }
+.keyrow-mid b { font-size: 17px; font-weight: 800; }
 
 /* ───────── 가사 ───────── */
 .ly-edit { display: flex; flex-direction: column; gap: 14px; }
