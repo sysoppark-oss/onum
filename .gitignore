@@ -28,3 +28,4 @@ dist-ssr
 *.jks
 .env*
 *보관용*
+android/app/src/main/assets/models/

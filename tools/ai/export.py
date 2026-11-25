@@ -30,9 +30,13 @@ for init in g.initializer:
     init.CopyFrom(h)
     casts.append(helper.make_node('Cast', [name + '__f16'], [name], to=TensorProto.FLOAT, name=name + '__cast'))
 for n in reversed(casts): g.node.insert(0, n)
+mid = out / 'htdemucs_f16w.onnx'
+onnx.save(m, str(mid))
+# STFT 표를 계산식으로 바꿔 파일을 줄인다(결과 같음)
+import subprocess
 small = out / 'htdemucs.onnx'
-onnx.save(m, str(small))
-onnx.checker.check_model(str(small))
+subprocess.run([sys.executable, str(Path(__file__).with_name('shrink.py')), str(mid), str(small)], check=True)
+mid.unlink()
 
 # 두 모델을 같은 입력으로 돌려 차이를 본다(소리 크기 1 기준)
 rng = np.random.default_rng(0)
@@ -40,6 +44,7 @@ t = np.arange(343980) / 44100
 x = (0.3 * np.sin(2 * np.pi * 220 * t) + 0.05 * rng.standard_normal(343980)).astype(np.float32)
 mix = np.stack([x, np.roll(x, 50)])[None]
 o = ort.SessionOptions(); o.intra_op_num_threads = 4
+o.graph_optimization_level = ort.GraphOptimizationLevel.ORT_DISABLE_ALL  # 앱과 같게(켜면 메모리가 수 GB)
 a = ort.InferenceSession(str(fp32), o).run(['stems'], {'mix': mix})[0]
 t0 = time.time()
 b = ort.InferenceSession(str(small), o).run(['stems'], {'mix': mix})[0]
@@ -47,7 +52,7 @@ dt = time.time() - t0
 diff = float(np.abs(a - b).max())
 print('shape', b.shape, 'max diff fp32 vs fp16w', diff, f'one chunk {dt:.2f}s on CI CPU')
 assert b.shape == (1, 4, 2, 343980)
-assert diff < 2e-2, diff
+assert diff < 2e-3, diff
 
 sha = hashlib.sha256(small.read_bytes()).hexdigest()
 info = {'file': 'htdemucs.onnx', 'sha256': sha, 'bytes': small.stat().st_size,

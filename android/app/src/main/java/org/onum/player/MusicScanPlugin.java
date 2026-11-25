@@ -378,6 +378,62 @@ public class MusicScanPlugin extends Plugin {
         }).start();
     }
 
+    /** 노래방 AI 반주: 앱 안에 모델이 있는지, 이 곡의 반주를 이미 만들었는지 */
+    @PluginMethod
+    public void aiInfo(PluginCall call) {
+        String id = call.getString("id", "");
+        JSObject r = new JSObject();
+        r.put("model", Splitter.hasModel(getContext()));
+        java.io.File f = Splitter.outFile(getContext(), id);
+        if (!id.isEmpty() && f.exists() && f.length() > 0) r.put("file", f.getAbsolutePath());
+        call.resolve(r);
+    }
+
+    /** 노래방 AI 반주 만들기. 진행은 aiProgress 알림으로 보낸다 */
+    @PluginMethod
+    public void aiSplit(PluginCall call) {
+        String path = call.getString("path");
+        String id = call.getString("id");
+        double dur = call.getDouble("dur", 0.0);
+        if (path == null || id == null) { call.reject("no_path"); return; }
+        Thread th = new Thread(() -> {
+            long t0 = System.currentTimeMillis();
+            final long[] last = {0};
+            try {
+                java.io.File f = Splitter.run(getContext(), path, dur, id, x -> {
+                    long now = System.currentTimeMillis();
+                    if (now - last[0] < 400 && x < 1) return;
+                    last[0] = now;
+                    JSObject p = new JSObject();
+                    p.put("id", id);
+                    p.put("f", x);
+                    notifyListeners("aiProgress", p);
+                });
+                JSObject r = new JSObject();
+                r.put("file", f.getAbsolutePath());
+                r.put("ms", System.currentTimeMillis() - t0);
+                call.resolve(r);
+            } catch (OutOfMemoryError e) {
+                call.reject("ai_memory");
+            } catch (Exception e) {
+                call.reject("cancelled".equals(e.getMessage()) ? "ai_cancelled" : "ai_failed", e);
+            }
+        });
+        th.setPriority(Thread.NORM_PRIORITY - 1);
+        th.start();
+    }
+
+    @PluginMethod
+    public void aiCancel(PluginCall call) { Splitter.cancel = true; call.resolve(); }
+
+    /** 만든 AI 반주 지우기 */
+    @PluginMethod
+    public void aiDelete(PluginCall call) {
+        String id = call.getString("id", "");
+        if (!id.isEmpty()) Splitter.outFile(getContext(), id).delete();
+        call.resolve();
+    }
+
     /** 강의의 조용한 구간: 처음부터 끝까지 50ms 창으로 재어, 0.7초 넘게 조용한 곳을 [시작, 끝](1/100초)으로 돌려준다 */
     @PluginMethod
     public void quiet(PluginCall call) {

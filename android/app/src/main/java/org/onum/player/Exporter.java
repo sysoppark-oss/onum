@@ -30,7 +30,7 @@ import java.nio.ShortBuffer;
  * 구간마다 필요한 부분만 풀어(디코드) 이어 붙이고, 구간 경계에는 10ms 페이드를 넣어 '딱' 소리를 막는다.
  * 통째로 메모리에 올리지 않고 흘려 보내며(스트리밍) 인코딩한다.
  */
-class Exporter {
+class Exporter implements PcmSink {
     static final int SR = 44100, CH = 2;
     private static final int FADE = SR / 100; // 10ms
 
@@ -46,7 +46,7 @@ class Exporter {
     private final short[] pend = new short[8192 * CH];
     private int pendN = 0;
 
-    private Exporter(File out) throws Exception {
+    Exporter(File out) throws Exception {
         MediaFormat f = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, SR, CH);
         f.setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC);
         f.setInteger(MediaFormat.KEY_BIT_RATE, 192_000);
@@ -58,7 +58,7 @@ class Exporter {
     }
 
     /** 스테레오 PCM 한 프레임을 모아 두었다가 인코더에 넘긴다 */
-    private void put(float l, float r) {
+    public void put(float l, float r) {
         pend[pendN++] = toShort(l);
         pend[pendN++] = toShort(r);
         if (pendN == pend.length) flush(false);
@@ -116,7 +116,7 @@ class Exporter {
         }
     }
 
-    private void finish() {
+    void finish() {
         flush(true);
         try { enc.stop(); } catch (Exception ignored) {}
         enc.release();
@@ -125,7 +125,7 @@ class Exporter {
     }
 
     /** 한 구간: s초부터 e초까지 풀어 44.1kHz 스테레오로 바꿔(선형 보간) 넣는다 */
-    private void part(Clip c, Progress pr, double doneSec, double totalSec) throws Exception {
+    static void decode(Clip c, PcmSink out, boolean fade, Progress pr, double doneSec, double totalSec) throws Exception {
         MediaExtractor ex = new MediaExtractor();
         ex.setDataSource(c.path);
         MediaFormat fmt = null;
@@ -212,10 +212,12 @@ class Exporter {
                         else { l0 = L[(int) (i0 - base)]; r0 = R[(int) (i0 - base)]; }
                         float l1 = L[(int) (i0 + 1 - base)], r1 = R[(int) (i0 + 1 - base)];
                         float gain = 1f;
-                        if (outN < FADE) gain = outN / (float) FADE;
-                        long left = outTotal - outN;
-                        if (left < FADE) gain = Math.min(gain, left / (float) FADE);
-                        put((float) (l0 + (l1 - l0) * f) * gain, (float) (r0 + (r1 - r0) * f) * gain);
+                        if (fade) {
+                            if (outN < FADE) gain = outN / (float) FADE;
+                            long left = outTotal - outN;
+                            if (left < FADE) gain = Math.min(gain, left / (float) FADE);
+                        }
+                        out.put((float) (l0 + (l1 - l0) * f) * gain, (float) (r0 + (r1 - r0) * f) * gain);
                         outN++;
                         t += ratio;
                     }
@@ -242,7 +244,7 @@ class Exporter {
         double done = 0;
         try {
             for (Clip c : clips) {
-                x.part(c, pr, done, total);
+                decode(c, x, true, pr, done, total);
                 done += Math.max(0, c.e - c.s);
             }
         } finally {

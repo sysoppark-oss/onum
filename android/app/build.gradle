@@ -12,12 +12,16 @@ android {
         versionCode((System.getenv("ONUM_VERSION_CODE") ?: System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger())
         versionName(System.getenv("ONUM_VERSION_NAME") ?: ("1.0.0-test." + (System.getenv("GITHUB_RUN_NUMBER") ?: "local")))
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        // 노래방 AI(ONNX Runtime)의 기계어 부분: 휴대폰(arm)과 에뮬레이터(x86_64)만
+        ndk { abiFilters 'arm64-v8a', 'armeabi-v7a', 'x86_64' }
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
              // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // 노래방 AI 모델은 압축하지 않고 넣는다(크기를 그대로 읽어 한 번만 꺼내 둔다)
+    androidResources { noCompress += ['onnx'] }
     signingConfigs {
         // 시험판 열쇠: 저장소에 두지 않는다(2026-11-25부터 비공개). GitHub Secrets(ONUM_TEST_*)에서 꺼내 파일로 만든 뒤 넘긴다.
         // 없으면(내 PC에서 만들 때) 안드로이드 기본 디버그 열쇠로 서명된다.
@@ -69,6 +73,8 @@ dependencies {
     implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
     implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
     implementation project(':capacitor-android')
+    // 노래방 AI 목소리 분리(기기 안에서만 계산)
+    implementation 'com.microsoft.onnxruntime:onnxruntime-android:1.22.0'
     testImplementation "junit:junit:$junitVersion"
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
