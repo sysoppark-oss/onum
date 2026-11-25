@@ -9,4 +9,5 @@
     <string name="w_pause">暂停</string>
     <string name="w_next">下一首</string>
     <string name="n_channel">正在播放</string>
+    <string name="n_ai_channel">歌唱练习 AI伴奏</string>
 </resources>

@@ -15,7 +15,7 @@ import { Icon, Sheet, VirtualList, info, whoLine } from './common'
 import { matches } from '../lib/hangul'
 import { fmt } from '../lib/library'
 import { Page } from './Sheets'
-import { aiCancel, aiInfo, aiSplit, type AiInfo } from '../lib/aisplit'
+import { aiCancel, aiInfo, aiJob, aiStart, onAiJob, type AiInfo } from '../lib/aisplit'
 import { LyricsPage } from './Lyrics'
 
 type Phase = 'idle' | 'sing' | 'rec' | 'review' | 'sync'
@@ -60,7 +60,11 @@ export function KaraokePage({ t, player, output, onClose }: { t: Track; player: 
   const [micOn, setMicOn] = useState(false)
   const [micG, setMicG] = useState(() => Math.min(MICS.length - 1, Math.max(0, load<number>('karaMicG', 2))))
   const [clip, setClip] = useState(false)
-  const [aiP, setAiP] = useState(-1)
+  // 이 곡의 반주를 만드는 중이면 진행률(0~1), 아니면 -1. 화면을 닫았다 와도 이어서 보인다
+  const jobP = (j: ReturnType<typeof aiJob>) => (j && j.id === t.id && j.state === 'run' ? j.p : -1)
+  const [aiP, setAiP] = useState(() => jobP(aiJob()))
+  // 다른 곡의 반주를 만드는 중이면 그 곡 이름
+  const [aiOther, setAiOther] = useState(() => { const j = aiJob(); return j && j.state === 'run' && j.id !== t.id ? j.song : '' })
   const [aiErr, setAiErr] = useState('')
   const useAi = !!(s.ai && aiUrl)
   const a = useRef<HTMLAudioElement | null>(null)
@@ -69,7 +73,14 @@ export function KaraokePage({ t, player, output, onClose }: { t: Track; player: 
   const map = useRef({ ctx: 0, pos: 0 }) // 곡 위치 pos가 AudioContext 시각 ctx일 때
   useWake(phase === 'sing' || phase === 'rec' || phase === 'sync' || aiP >= 0)
   useEffect(() => { aiInfo(t).then((r) => { setAi(r); setAiUrls(r.urls) }) }, [t])
-  useEffect(() => () => { if (aiP >= 0) aiCancel() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => onAiJob((j) => {
+    if (!j) return
+    setAiP(jobP(j))
+    setAiOther(j.state === 'run' && j.id !== t.id ? j.song : '')
+    if (j.id !== t.id) { if (j.state !== 'run') aiInfo(t).then((r) => { setAi(r); setAiUrls(r.urls) }); return }
+    if (j.state === 'done' && j.urls) { setAiUrls(j.urls); setAiErr('') }
+    if (j.state === 'fail') setAiErr(/memory/.test(j.err || '') ? tx("휴대폰 메모리가 모자라 반주를 만들지 못했어요. 다른 앱을 닫고 다시 해 보세요.") : tx("반주를 만들지 못했어요. 다시 해 보세요."))
+  }), [t]) // eslint-disable-line react-hooks/exhaustive-deps
   // AI 반주를 켜고 끌 때 재생기 소리를 바꾼다(부르는 중이 아닐 때만 바꿀 수 있다)
   useEffect(() => {
     const el = a.current
@@ -78,17 +89,15 @@ export function KaraokePage({ t, player, output, onClose }: { t: Track; player: 
     if (el.src !== want && !el.src.endsWith(want)) { el.src = want; el.load() }
   }, [useAi, aiUrl, t.url])
   const makeAi = async () => {
-    setAiErr(''); setAiP(0)
+    setAiErr('')
     try {
-      const u = await aiSplit(t, (f) => setAiP(f))
-      setAiUrls(u)
+      await aiStart(t, { title: tx("AI 반주 만드는 중 · {0}", t.title), done: tx("AI 반주를 다 만들었어요 · {0}", t.title) })
       change({ ai: true })
     } catch (e) {
       const m = e instanceof Error ? e.message : String(e)
       console.warn('ai split', m)
-      if (!/cancel/.test(m)) setAiErr(/memory/.test(m) ? tx("휴대폰 메모리가 모자라 반주를 만들지 못했어요. 다른 앱을 닫고 다시 해 보세요.") : tx("반주를 만들지 못했어요. 다시 해 보세요."))
+      if (/busy/.test(m)) setAiErr(tx("다른 곡의 반주를 만드는 중이에요. 끝난 뒤에 해 주세요."))
     }
-    setAiP(-1)
   }
 
   const openMic = async (): Promise<boolean> => {
@@ -323,7 +332,8 @@ export function KaraokePage({ t, player, output, onClose }: { t: Track; player: 
                 </div>
                 {!aiUrl && <div className="kara-ai">
                   <p className="kara-note">{tx("이 단계는 반주를 한 번 더 만들어야 써요. 지금은 원곡으로 나와요.")}</p>
-                  <button className="pillbtn" onClick={() => void makeAi()} disabled={busy}><Icon n="mic" s={18} />{tx("AI 반주 다시 만들기")}</button>
+                  <button className="pillbtn" onClick={() => void makeAi()} disabled={busy || !!aiOther}><Icon n="mic" s={18} />{tx("AI 반주 다시 만들기")}</button>
+                  {aiOther && <p className="kara-note" role="status">{tx("「{0}」 반주를 만드는 중이에요. 끝난 뒤에 할 수 있어요.", aiOther)}</p>}
                   {aiErr && <p className="kara-err" role="alert">{aiErr}</p>}
                 </div>}
               </div>}
@@ -331,12 +341,13 @@ export function KaraokePage({ t, player, output, onClose }: { t: Track; player: 
               <div className="kara-ai" role="status">
                 <p className="kara-ai-t">{tx("AI로 반주 만드는 중")} <b className="num">{Math.floor(aiP * 100)}%</b></p>
                 <div className="kara-bar"><i style={{ transform: `scaleX(${aiP})` }} /></div>
-                <p className="kara-note">{tx("휴대폰이 곡을 직접 계산하고 있어요. 화면을 켜 둔 채 기다려 주세요. 한 번 만들면 다음부터 바로 써요.")}</p>
+                <p className="kara-note">{tx("휴대폰이 곡을 직접 계산하고 있어요. 다른 메뉴로 가거나 화면을 꺼도 계속 만들고, 다 되면 알려 드려요. 한 번 만들면 다음부터 바로 써요.")}</p>
                 <button className="textlink" onClick={aiCancel}>{tx("그만 만들기")}</button>
               </div>
             ) : (
               <div className="kara-ai">
-                <button className="go kara-ai-go" onClick={() => void makeAi()} disabled={busy}><Icon n="mic" s={20} />{tx("AI로 가수 목소리 지우기")}</button>
+                <button className="go kara-ai-go" onClick={() => void makeAi()} disabled={busy || !!aiOther}><Icon n="mic" s={20} />{tx("AI로 가수 목소리 지우기")}</button>
+                {aiOther && <p className="kara-note" role="status">{tx("「{0}」 반주를 만드는 중이에요. 끝난 뒤에 할 수 있어요.", aiOther)}</p>}
                 <p className="kara-note">{tx("목소리만 떼어 낸 깨끗한 반주를 만들어요. 처음 한 번은 곡 길이에 따라 몇 분 걸려요. 노래는 휴대폰 밖으로 나가지 않아요.")}</p>
                 {aiErr && <p className="kara-err" role="alert">{aiErr}</p>}
               </div>

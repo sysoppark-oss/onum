@@ -393,16 +393,24 @@ public class MusicScanPlugin extends Plugin {
         call.resolve(r);
     }
 
-    /** 노래방 AI 반주 만들기. 진행은 aiProgress 알림으로 보낸다 */
+    private static final java.util.concurrent.atomic.AtomicBoolean aiRunning = new java.util.concurrent.atomic.AtomicBoolean(false);
+
+    /** 노래연습 AI 반주 만들기. 진행은 aiProgress 알림과 알림줄(AiService)로 보낸다 */
     @PluginMethod
     public void aiSplit(PluginCall call) {
         String path = call.getString("path");
         String id = call.getString("id");
         double dur = call.getDouble("dur", 0.0);
         if (path == null || id == null) { call.reject("no_path"); return; }
+        // 한 번에 하나만: 두 개가 같이 돌면 메모리가 모자라 앱이 꺼진다
+        if (!aiRunning.compareAndSet(false, true)) { call.reject("ai_busy"); return; }
+        String title = call.getString("title", "");
+        String done = call.getString("done", "");
+        try { AiService.start(getContext(), title); } catch (Exception ignored) { }
         Thread th = new Thread(() -> {
             long t0 = System.currentTimeMillis();
             final long[] last = {0};
+            String doneMsg = null;
             try {
                 java.io.File[] f = Splitter.run(getContext(), path, dur, id, x -> {
                     long now = System.currentTimeMillis();
@@ -412,17 +420,22 @@ public class MusicScanPlugin extends Plugin {
                     p.put("id", id);
                     p.put("f", x);
                     notifyListeners("aiProgress", p);
+                    AiService.progress(getContext(), (int) Math.floor(x * 100));
                 });
                 JSObject r = new JSObject();
                 com.getcapacitor.JSArray fs = new com.getcapacitor.JSArray();
                 for (java.io.File x : f) fs.put(x.getAbsolutePath());
                 r.put("files", fs);
                 r.put("ms", System.currentTimeMillis() - t0);
+                doneMsg = done;
                 call.resolve(r);
             } catch (OutOfMemoryError e) {
                 call.reject("ai_memory");
             } catch (Exception e) {
                 call.reject("cancelled".equals(e.getMessage()) ? "ai_cancelled" : "ai_failed", e);
+            } finally {
+                aiRunning.set(false);
+                try { AiService.finish(getContext(), doneMsg); } catch (Exception ignored) { }
             }
         });
         th.setPriority(Thread.NORM_PRIORITY - 1);

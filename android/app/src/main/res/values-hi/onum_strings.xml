@@ -9,4 +9,5 @@
     <string name="w_pause">रोकें</string>
     <string name="w_next">अगला गीत</string>
     <string name="n_channel">अभी बज रहा</string>
+    <string name="n_ai_channel">गायन अभ्यास AI संगीत</string>
 </resources>

@@ -9,4 +9,5 @@
     <string name="w_pause">일시 정지</string>
     <string name="w_next">다음 곡</string>
     <string name="n_channel">재생 중</string>
+    <string name="n_ai_channel">노래연습 AI 반주</string>
 </resources>

@@ -9,4 +9,5 @@
     <string name="w_pause">Pause</string>
     <string name="w_next">Next</string>
     <string name="n_channel">Now playing</string>
+    <string name="n_ai_channel">Singing practice AI backing</string>
 </resources>

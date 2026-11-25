@@ -207,6 +207,7 @@ button.rowbtn:active { background: var(--sf); }
   padding: 10px 18px; border-radius: 22px; background: var(--ink); color: var(--on-ink); font-size: 15px; font-weight: 700; white-space: nowrap;
 }
 .toast.over { background: var(--warn); color: var(--on-ink); }
+.toast-wrap { white-space: normal; width: max-content; max-width: calc(100vw - 32px); text-align: center; overflow-wrap: anywhere; }
 
 /* ───────── 창 ───────── */
 .dim { position: fixed; inset: 0; z-index: 50; background: var(--dim); display: flex; align-items: flex-end; justify-content: center; animation: fade-in 200ms ease-out; }

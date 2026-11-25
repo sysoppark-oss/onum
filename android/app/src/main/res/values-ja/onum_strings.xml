@@ -9,4 +9,5 @@
     <string name="w_pause">一時停止</string>
     <string name="w_next">次の曲</string>
     <string name="n_channel">再生中</string>
+    <string name="n_ai_channel">カラオケ練習 AI伴奏</string>
 </resources>

@@ -34,13 +34,49 @@ export async function aiInfo(t: Track): Promise<AiInfo> {
 let cancelled = false
 export function aiCancel() { cancelled = true; if (isNative) void nativeAi.cancel().catch(() => {}) }
 
+/* ───────── 지금 만드는 반주(앱 전체에 하나) ─────────
+   노래연습 화면을 닫거나 다른 메뉴로 가도 계속 만든다. 화면에 다시 들어오면 진행률을 그대로 보여 준다.
+   두 곡을 같이 만들면 메모리가 모자라므로 한 번에 하나만 만든다. */
+export interface AiJob { id: string; song: string; p: number; state: 'run' | 'done' | 'fail' | 'cancel'; err?: string; urls?: string[] }
+let job: AiJob | null = null
+let jobP: Promise<string[]> | null = null
+const subs = new Set<(j: AiJob | null) => void>()
+const emit = (j: AiJob) => { job = j; subs.forEach((f) => f(j)) }
+export const aiJob = () => job
+export function onAiJob(f: (j: AiJob | null) => void): () => void { subs.add(f); return () => { subs.delete(f) } }
+
+/** 반주 만들기를 시작한다(같은 곡이 이미 만드는 중이면 그 결과를 기다린다). 다른 곡이 만드는 중이면 ai_busy */
+export function aiStart(t: Track, text: { title: string; done: string }): Promise<string[]> {
+  if (job?.state === 'run') {
+    if (job.id === t.id && jobP) return jobP
+    return Promise.reject(new Error('ai_busy'))
+  }
+  emit({ id: t.id, song: t.title, p: 0, state: 'run' })
+  let last = 0
+  jobP = aiSplit(t, (f) => {
+    const now = performance.now()
+    if (f < 1 && now - last < 300) return
+    last = now
+    if (job?.id === t.id && job.state === 'run') emit({ ...job, p: f })
+  }, text).then((urls) => {
+    emit({ id: t.id, song: t.title, p: 1, state: 'done', urls })
+    return urls
+  }, (e: unknown) => {
+    const m = e instanceof Error ? e.message : String(e)
+    emit({ id: t.id, song: t.title, p: job?.p ?? 0, state: /cancel/.test(m) ? 'cancel' : 'fail', err: m })
+    throw e
+  })
+  jobP.catch(() => {})
+  return jobP
+}
+
 /** 반주 만들기(목소리 남기기 단계마다 하나씩). onProgress(0~1). 돌려주는 값: 단계별 반주 주소 */
-export async function aiSplit(t: Track, onProgress: (f: number) => void): Promise<string[]> {
+async function aiSplit(t: Track, onProgress: (f: number) => void, text: { title: string; done: string }): Promise<string[]> {
   cancelled = false
   if (isNative) {
     const h = await nativeAi.onProgress((p) => { if (p.id === t.id) onProgress(p.f) })
     try {
-      const r = await nativeAi.split(t.path!, t.id, t.duration || 0)
+      const r = await nativeAi.split(t.path!, t.id, t.duration || 0, text.title, text.done)
       const v = Date.now()
       return r.files.map((f) => nativeAi.src(f) + '?v=' + v)
     } finally { void h.remove() }

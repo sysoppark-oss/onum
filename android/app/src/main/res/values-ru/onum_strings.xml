@@ -9,4 +9,5 @@
     <string name="w_pause">Пауза</string>
     <string name="w_next">Следующая песня</string>
     <string name="n_channel">Сейчас играет</string>
+    <string name="n_ai_channel">Тренировка пения: AI-минус</string>
 </resources>
