@@ -18,9 +18,9 @@ export function setKaraokeOn(v: boolean) { on = v; save('karaoke', v); subs.forE
 export function useKaraokeOn() { return useSyncExternalStore((f) => { subs.add(f); return () => { subs.delete(f) } }, () => on) }
 
 // ── 곡마다 노래방 설정
-export interface KaraSet { vox: Vox; semi: number; rate: number }
+export interface KaraSet { vox: Vox; semi: number; rate: number; ai?: boolean }
 export const karaSet = (id: string): KaraSet => ({ vox: load<Vox>('karaVox', 2), semi: 0, rate: 1, ...load<Partial<KaraSet>>('kara:' + id, {}) })
-export function saveKaraSet(id: string, s: KaraSet) { save('kara:' + id, { semi: s.semi, rate: s.rate, vox: s.vox }); if (s.vox) save('karaVox', s.vox) }
+export function saveKaraSet(id: string, s: KaraSet) { save('kara:' + id, { semi: s.semi, rate: s.rate, vox: s.vox, ai: s.ai }); if (s.vox) save('karaVox', s.vox) }
 
 /** 「내가 부른 노래」: 노래방에서 저장한 곡이 들어가는 폴더 */
 export const SUNG = /(^|\/)온음\/노래방(\/|$)/
@@ -34,6 +34,7 @@ export interface Take {
   end: number
   set: KaraSet
   score: Score
+  back?: string // AI 반주로 불렀으면 그 반주 주소
 }
 
 let micReady: Promise<void> | null = null

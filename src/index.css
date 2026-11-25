@@ -1277,6 +1277,15 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .kara-seg button { min-height: 2.75rem; padding: 0 0.25rem; border-radius: 1.375rem; background: var(--sf); font-size: 0.9375rem; font-weight: 700; color: var(--ink2); text-align: center; word-break: keep-all; }
 .kara-seg button.on { background: var(--ink); color: var(--on-ink); }
 .kara-seg button:disabled, .kara-pm button:disabled { opacity: .4; }
+.kara-seg2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.kara-k2 { font-weight: 600; color: var(--ink3); }
+.kara-ai { display: flex; flex-direction: column; align-items: stretch; gap: 0.625rem; }
+.kara-ai-t { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; font-size: 1rem; font-weight: 800; color: var(--ink); }
+.kara-ai-t b { font-size: 1rem; }
+.kara-ai .textlink { align-self: flex-start; }
+.kara-ai-go { width: 100%; }
+.kara-ai .kara-bar { flex: none; }
+.kara-go button:disabled { opacity: .4; }
 .kara-pm { display: flex; align-items: center; justify-content: space-between; gap: 0.25rem; }
 .kara-pm button { width: 2.75rem; height: 2.75rem; border-radius: 1.375rem; background: var(--sf); display: flex; align-items: center; justify-content: center; color: var(--ink); flex-shrink: 0; }
 .kara-pm b { flex: 1; text-align: center; font-size: 1.0625rem; font-weight: 800; }

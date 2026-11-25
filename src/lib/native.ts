@@ -37,6 +37,11 @@ interface MusicScanPlugin {
   exportClips(opts: { parts: { path: string; s: number; e: number }[]; name: string }): Promise<{ where: string }>
   pcmWrite(opts: { b64: string; first: boolean }): Promise<void>
   pcmSave(opts: { name: string; sub: string }): Promise<{ where: string }>
+  aiInfo(opts: { id: string }): Promise<{ model: boolean; file?: string }>
+  aiSplit(opts: { path: string; id: string; dur: number }): Promise<{ file: string; ms: number }>
+  aiCancel(): Promise<void>
+  aiDelete(opts: { id: string }): Promise<void>
+  addListener(event: 'aiProgress', fn: (p: { id: string; f: number }) => void): Promise<PluginListenerHandle>
 }
 
 const MusicScan = registerPlugin<MusicScanPlugin>('MusicScan')
@@ -195,4 +200,14 @@ export async function nativeSavePcm(pcm: Int16Array, name: string, onProgress: (
   const r = await MusicScan.pcmSave({ name, sub: '노래방' })
   onProgress(1)
   return r.where
+}
+
+/** 노래방 AI 반주(설치형 앱): 휴대폰 안에서 모델을 돌린다 */
+export const nativeAi = {
+  info: (id: string) => MusicScan.aiInfo({ id }),
+  split: (path: string, id: string, dur: number) => MusicScan.aiSplit({ path, id, dur }),
+  cancel: () => MusicScan.aiCancel(),
+  remove: (id: string) => MusicScan.aiDelete({ id }),
+  onProgress: (fn: (p: { id: string; f: number }) => void) => MusicScan.addListener('aiProgress', fn),
+  src: (file: string) => Capacitor.convertFileSrc(file),
 }

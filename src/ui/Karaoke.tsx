@@ -15,6 +15,7 @@ import { Icon, Sheet, VirtualList, info, whoLine } from './common'
 import { matches } from '../lib/hangul'
 import { fmt } from '../lib/library'
 import { Page } from './Sheets'
+import { aiCancel, aiInfo, aiSplit, type AiInfo } from '../lib/aisplit'
 import { LyricsPage } from './Lyrics'
 
 type Phase = 'idle' | 'sing' | 'rec' | 'review' | 'sync'
@@ -45,11 +46,39 @@ export function KaraokePage({ t, player, output, onClose }: { t: Track; player: 
   const [lyEdit, setLyEdit] = useState(false)
   const [help, setHelp] = useState(false)
   const [level, setLevel] = useState(0)
+  // AI 반주: 만들 수 있는지(ai), 만든 반주 주소(aiUrl), 만드는 중 진행(aiP, -1이면 쉬는 중)
+  const [ai, setAi] = useState<AiInfo | null>(null)
+  const [aiUrl, setAiUrl] = useState<string | undefined>()
+  const [aiP, setAiP] = useState(-1)
+  const [aiErr, setAiErr] = useState('')
+  const useAi = !!(s.ai && aiUrl)
   const a = useRef<HTMLAudioElement | null>(null)
   const mic = useRef<MicRecorder | null>(null)
   const frames = useRef<Frame[]>([])
   const map = useRef({ ctx: 0, pos: 0 }) // 곡 위치 pos가 AudioContext 시각 ctx일 때
-  useWake(phase === 'sing' || phase === 'rec' || phase === 'sync')
+  useWake(phase === 'sing' || phase === 'rec' || phase === 'sync' || aiP >= 0)
+  useEffect(() => { aiInfo(t).then((r) => { setAi(r); setAiUrl(r.url) }) }, [t])
+  useEffect(() => () => { if (aiP >= 0) aiCancel() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // AI 반주를 켜고 끌 때 재생기 소리를 바꾼다(부르는 중이 아닐 때만 바꿀 수 있다)
+  useEffect(() => {
+    const el = a.current
+    if (!el) return
+    const want = useAi ? aiUrl! : t.url
+    if (el.src !== want && !el.src.endsWith(want)) { el.src = want; el.load() }
+  }, [useAi, aiUrl, t.url])
+  const makeAi = async () => {
+    setAiErr(''); setAiP(0)
+    try {
+      const u = await aiSplit(t, (f) => setAiP(f))
+      setAiUrl(u)
+      change({ ai: true })
+    } catch (e) {
+      const m = e instanceof Error ? e.message : String(e)
+      console.warn('ai split', m)
+      if (!/cancel/.test(m)) setAiErr(/memory/.test(m) ? tx("휴대폰 메모리가 모자라 반주를 만들지 못했어요. 다른 앱을 닫고 다시 해 보세요.") : tx("반주를 만들지 못했어요. 다시 해 보세요."))
+    }
+    setAiP(-1)
+  }
 
   // 듣던 음악은 잠시 멈추고, 노래방 전용 재생기를 만든다
   useEffect(() => {
@@ -70,9 +99,9 @@ export function KaraokePage({ t, player, output, onClose }: { t: Track; player: 
   const apply = useCallback((st: KaraSet, syncing = false) => {
     const el = a.current
     if (!el) return
-    setFx(el, { vox: syncing ? 0 : st.vox, semis: syncing ? 0 : st.semi, rate: syncing ? 1 : st.rate, viz: true })
+    setFx(el, { vox: syncing || (st.ai && aiUrl) ? 0 : st.vox, semis: syncing ? 0 : st.semi, rate: syncing ? 1 : st.rate, viz: true })
     el.playbackRate = syncing ? 1 : st.rate
-  }, [])
+  }, [aiUrl])
   useEffect(() => { apply(s, phase === 'sync') }, [s, phase, apply])
 
   // 시간 따라가기 + 마이크 점수 재기 + 한쪽 귀 녹음(모노) 알아보기
@@ -152,7 +181,7 @@ export function KaraokePage({ t, player, output, onClose }: { t: Track; player: 
         const zero = map.current.ctx - map.current.pos / s.rate
         const at = r.t0 - zero - latency()
         const sc = scoreOf(frames.current, ly, 0, end)
-        setTake({ pcm: r.pcm, sr: r.sr, at, end, set: { ...s }, score: sc })
+        setTake({ pcm: r.pcm, sr: r.sr, at, end, set: { ...s, vox: useAi ? 0 : s.vox }, score: sc, back: useAi ? aiUrl : undefined })
         setPhase('review')
         return
       }
@@ -204,22 +233,46 @@ export function KaraokePage({ t, player, output, onClose }: { t: Track; player: 
           </div>
         ) : (
           <div className="kara-go">
-            <button className="go kara-rec" onClick={() => void startPlay(true)}><Icon n="mic" s={22} />{tx("녹음하며 부르기")}</button>
-            <button className="pillbtn kara-sing" onClick={() => void startPlay(false)}><Icon n="play" s={18} />{tx("녹음 없이 부르기")}</button>
+            <button className="go kara-rec" onClick={() => void startPlay(true)} disabled={aiP >= 0}><Icon n="mic" s={22} />{tx("녹음하며 부르기")}</button>
+            <button className="pillbtn kara-sing" onClick={() => void startPlay(false)} disabled={aiP >= 0}><Icon n="play" s={18} />{tx("녹음 없이 부르기")}</button>
             {speaker && <p className="kara-note">{tx("이어폰을 끼고 부르면 반주가 녹음에 섞이지 않아 더 깨끗해요.")}</p>}
           </div>
         )}
         {err && <p className="kara-err" role="alert">{err}</p>}
-        {mono && s.vox > 0 && <p className="kara-note" role="status">{tx("이 곡은 왼쪽·오른쪽 소리가 같아서 목소리를 줄일 수 없어요.")}</p>}
+        {mono && s.vox > 0 && !useAi && <p className="kara-note" role="status">{tx("이 곡은 왼쪽·오른쪽 소리가 같아서 목소리를 줄일 수 없어요.")}</p>}
 
         {phase !== 'review' && (
           <div className="kara-set">
-            <div className="kara-row">
-              <span className="kara-k" id="kv">{tx("가수 목소리")}</span>
-              <div className="kara-seg" role="radiogroup" aria-labelledby="kv">
-                {VOX.map(([v, l]) => <button key={v} role="radio" aria-checked={s.vox === v} className={s.vox === v ? 'on' : undefined} onClick={() => change({ vox: v })} disabled={phase === 'rec'}>{tx(l)}</button>)}
+            {ai?.model && (aiUrl ? (
+              <div className="kara-row">
+                <span className="kara-k" id="ka">{tx("AI 반주")} <span className="kara-k2">{tx("· 가수 목소리를 AI로 지운 반주")}</span></span>
+                <div className="kara-seg kara-seg2" role="radiogroup" aria-labelledby="ka">
+                  <button role="radio" aria-checked={useAi} className={useAi ? 'on' : undefined} onClick={() => change({ ai: true })} disabled={busy}>{tx("AI 반주로")}</button>
+                  <button role="radio" aria-checked={!useAi} className={!useAi ? 'on' : undefined} onClick={() => change({ ai: false })} disabled={busy}>{tx("원곡으로")}</button>
+                </div>
               </div>
-            </div>
+            ) : aiP >= 0 ? (
+              <div className="kara-ai" role="status">
+                <p className="kara-ai-t">{tx("AI로 반주 만드는 중")} <b className="num">{Math.floor(aiP * 100)}%</b></p>
+                <div className="kara-bar"><i style={{ transform: `scaleX(${aiP})` }} /></div>
+                <p className="kara-note">{tx("휴대폰이 곡을 직접 계산하고 있어요. 화면을 켜 둔 채 기다려 주세요. 한 번 만들면 다음부터 바로 써요.")}</p>
+                <button className="textlink" onClick={aiCancel}>{tx("그만 만들기")}</button>
+              </div>
+            ) : (
+              <div className="kara-ai">
+                <button className="go kara-ai-go" onClick={() => void makeAi()} disabled={busy}><Icon n="mic" s={20} />{tx("AI로 가수 목소리 지우기")}</button>
+                <p className="kara-note">{tx("목소리만 떼어 낸 깨끗한 반주를 만들어요. 처음 한 번은 곡 길이에 따라 몇 분 걸려요. 노래는 휴대폰 밖으로 나가지 않아요.")}</p>
+                {aiErr && <p className="kara-err" role="alert">{aiErr}</p>}
+              </div>
+            ))}
+            {!useAi && (
+              <div className="kara-row">
+                <span className="kara-k" id="kv">{ai?.model ? tx("가수 목소리 · 빠르게 줄이기") : tx("가수 목소리")}</span>
+                <div className="kara-seg" role="radiogroup" aria-labelledby="kv">
+                  {VOX.map(([v, l]) => <button key={v} role="radio" aria-checked={s.vox === v} className={s.vox === v ? 'on' : undefined} onClick={() => change({ vox: v })} disabled={phase === 'rec' || aiP >= 0}>{tx(l)}</button>)}
+                </div>
+              </div>
+            )}
             <div className="kara-row kara-two">
               <div>
                 <span className="kara-k">{tx("키")}</span>
@@ -296,7 +349,7 @@ function Review({ t, take, el, onAgain }: { t: Track; take: Take; el: HTMLAudioE
     stopListen()
     setFail(''); setSaving(0)
     try {
-      const buf = await renderTake(t.url, take, micG, 0.9, shift, setSaving)
+      const buf = await renderTake(take.back ?? t.url, take, micG, 0.9, shift, setSaving)
       const d = new Date()
       const name = tx("{0} - 노래방 {1}", x.song, `${d.getMonth() + 1}.${d.getDate()} ${d.getHours()}${String(d.getMinutes()).padStart(2, '0')}`)
       const r = await saveTake(buf, name, setSaving)
@@ -420,7 +473,8 @@ function SyncLyrics({ t, ly, el, label, onDone }: { t: Track; ly: Lyrics; el: HT
 
 const HELP: [string, string][] = [
   ["부르기", "「녹음하며 부르기」를 누르면 반주가 나오고 내 노래를 녹음해요. 다 부르면 점수가 나와요. 녹음 없이 부를 수도 있어요."],
-  ["가수 목소리", "그대로·조금·많이·최대 중에 골라요. 왼쪽·오른쪽 한가운데 소리를 덜어 내는 방식이라 곡에 따라 효과가 달라요."],
+  ["AI로 가수 목소리 지우기", "AI가 곡에서 목소리만 떼어 내 깨끗한 반주를 만들어요. 처음 한 번은 휴대폰이 직접 계산해서 몇 분 걸리고, 다음부터는 바로 써요. 노래는 휴대폰 밖으로 나가지 않아요."],
+  ["빠르게 줄이기", "기다리기 싫을 때는 그대로·조금·많이·최대 중에 골라요. 왼쪽·오른쪽 한가운데 소리를 덜어 내는 방식이라 곡에 따라 목소리가 남을 수 있어요."],
   ["키·빠르기", "키는 반음씩 올리고 내려요. 빠르기를 바꿔도 키는 그대로예요. 곡마다 기억해요."],
   ["가사", "가사를 넣고 「톡 눌러 박자 맞추기」를 하면, 다음부터 가사가 노래를 따라가요. 곡 옆 가사 파일(.lrc)이 있으면 저절로 써요."],
   ["녹음과 저장", "들어 보고 박자와 내 목소리 크기를 맞춘 뒤 「반주와 섞어 저장」을 눌러요. 휴대폰 「음악/온음/노래방」에 저장되고 「내가 부른 노래」 목록에 모여요."],

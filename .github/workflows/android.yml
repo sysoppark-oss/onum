@@ -39,6 +39,11 @@ jobs:
           echo "WEB_SUM=$(sha256sum web.zip | cut -d' ' -f1)" >> $GITHUB_ENV
           npx cap sync android
 
+      - name: 노래방 AI 모델 넣기(지문 확인)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: sh tools/ai/fetch-model.sh android/app/src/main/assets/models/htdemucs.onnx
+
       - name: 시험판 열쇠 꺼내기(값은 찍지 않는다)
         env:
           KEYSTORE_B64: ${{ secrets.ONUM_TEST_KEYSTORE_B64 }}
@@ -66,6 +71,7 @@ jobs:
           # 시험판은 org.onum.player.test여야 한다(스토어 판 자리를 시험 열쇠로 덮을 수 없게)
           AAPT=$(ls $ANDROID_HOME/build-tools/*/aapt | tail -1)
           $AAPT dump badging ../onum-test.apk | grep -E "^package|application-label:" || true
+          unzip -l ../onum-test.apk | grep -q "assets/models/htdemucs.onnx" || { echo "::error::노래방 AI 모델이 APK에 없어요"; exit 1; }
           $AAPT dump badging ../onum-test.apk | grep -q "^package: name='org.onum.player.test' " || { echo "::error::시험판 패키지 이름이 org.onum.player.test가 아니에요"; exit 1; }
           SIGNER=$(ls $ANDROID_HOME/build-tools/*/apksigner | tail -1)
           $SIGNER verify --print-certs ../onum-test.apk | grep -E "SHA-256" || true

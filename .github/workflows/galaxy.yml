@@ -39,6 +39,8 @@ jobs:
           java-version: 21
 
       - name: '화면 만들기(스토어 판 - 앱 안 새 판 받기 끔, 받는 곳 주소)'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           # 판 번호: 시험판 번호보다 늘 크게, 실행할 때마다 하나씩 올라간다(스토어는 번호가 올라가야 업데이트로 받는다)
           echo "ONUM_VERSION_CODE=$((100000 + GITHUB_RUN_NUMBER))" >> $GITHUB_ENV
@@ -46,6 +48,7 @@ jobs:
           echo "VITE_NATIVE=$(sh tools/native-hash.sh)" >> $GITHUB_ENV
           npm run build
           npx cap sync android
+          sh tools/ai/fetch-model.sh android/app/src/main/assets/models/htdemucs.onnx
 
       - name: 정식 서명 열쇠 꺼내기
         env:
