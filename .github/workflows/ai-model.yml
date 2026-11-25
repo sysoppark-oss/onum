@@ -1,0 +1,31 @@
+name: 노래방 AI 모델 만들기
+
+# 손으로만 돌린다. 만든 모델은 「ai-model」 공개 릴리스에 올리고,
+# 앱 빌드는 tools/ai/model.json에 적힌 지문과 맞을 때만 모델을 넣는다.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: 도구 설치
+        run: |
+          pip install --index-url https://download.pytorch.org/whl/cpu "torch==2.4.1" "torchaudio==2.4.1"
+          pip install "demucs-onnx[export]==0.3.4" "onnx>=1.16" "onnxruntime>=1.18"
+      - name: 모델 만들기(원본과 맞는지 검사 포함)
+        run: python tools/ai/export.py out
+      - name: 공개 릴리스에 올리기
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view ai-model >/dev/null 2>&1 || gh release create ai-model --title "노래방 AI 모델" --notes "온음 노래방의 AI 목소리 분리 모델. Meta HTDemucs(MIT) 공식 가중치를 ONNX로 바꾼 것. 앱 빌드에 들어가며, 따로 받을 필요는 없어요." --latest=false
+          gh release upload ai-model out/htdemucs.onnx out/model.json --clobber
