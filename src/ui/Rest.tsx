@@ -10,7 +10,8 @@ import { MOODS, YEAR } from '../lib/verses365'
 import { setVer, VERS, shown, useKjv } from '../lib/kjv'
 import { LANGS, lang, setLang, tx } from '../lib/i18n'
 import { setFlag, useFlag } from '../lib/flag'
-import { Icon, nf } from './common'
+import { Icon, nf, useOutput } from './common'
+import { KaraPick, KaraokePage } from './Karaoke'
 import { EqPage, eqLabel } from './Eq'
 import { MeditatePage } from './Meditate'
 import { HymnsPage } from './Hymns'
@@ -50,6 +51,12 @@ export function RestScreen({ player, music }: { player: Player; music: Track[] }
   const [hy, setHy] = useState(false)
   const closeHy = useCallback(() => setHy(false), [])
   const closeMood = useCallback(() => setMood(false), [])
+  const karaOn = useKaraokeOn()
+  const output = useOutput(player)
+  const [karaPick, setKaraPick] = useState(false)
+  const [karaT, setKaraT] = useState<Track | null>(null)
+  const closePick = useCallback(() => setKaraPick(false), [])
+  const closeKara = useCallback(() => setKaraT(null), [])
   return (
     <div className="page rest-page">
       <div className="ph"><h1>{tx("쉼")}</h1></div>
@@ -80,6 +87,15 @@ export function RestScreen({ player, music }: { player: Player; music: Track[] }
         <Icon n="chev" s={18} />
       </button>
 
+      {karaOn && <>
+        <h2 className="sub">{tx("노래방 ")}<span>{tx("· 목소리 줄이고 따라 부르기")}</span></h2>
+        <button className="card-btn hy-open" onClick={() => setKaraPick(true)}>
+          <Icon n="mic" s={22} />
+          <span className="x"><b>{tx("노래방")}</b><span>{tx("곡을 고르면 가사·키·녹음·점수까지")}</span></span>
+          <Icon n="chev" s={18} />
+        </button>
+      </>}
+
 
       <button className="sharebtn" onClick={async () => setShared(await shareApp())}><Icon n="heart" s={20} />{tx("이 앱 알려 주기")}</button>
       {shared && <p className="done-note" role="status">{shared}</p>}
@@ -91,6 +107,8 @@ export function RestScreen({ player, music }: { player: Player; music: Track[] }
       {reading && <ReadPage onClose={closeReading} />}
       {mood && <MoodPage onClose={closeMood} />}
       {hy && <HymnsPage player={player} onClose={closeHy} />}
+      {karaPick && <KaraPick music={music} now={player.current} onPick={(t) => { setKaraPick(false); setKaraT(t) }} onClose={closePick} />}
+      {karaT && <KaraokePage t={karaT} player={player} output={output} onClose={closeKara} />}
     </div>
   )
 }

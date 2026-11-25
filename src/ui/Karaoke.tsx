@@ -1,6 +1,6 @@
 // 노래방 화면: 플레이어와 따로 연다. 목소리 줄이기·키·빠르기를 고르고 부르거나 녹음한다.
 // 가사는 사용자가 넣고 「톡」 눌러 박자를 맞춘다. 녹음은 이 휴대폰 안에만 둔다.
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Track } from '../lib/library'
 import type { Player } from '../lib/usePlayer'
 import { linesOf, setLyrics, stateAt, synced, useLyrics, findLyrics, type Lyrics } from '../lib/lyrics'
@@ -11,7 +11,8 @@ import type { Output } from '../lib/native'
 import { isNative } from '../lib/native'
 import { load, save } from '../lib/store'
 import { tx } from '../lib/i18n'
-import { Icon, Sheet, info } from './common'
+import { Icon, Sheet, VirtualList, info, whoLine } from './common'
+import { matches } from '../lib/hangul'
 import { fmt } from '../lib/library'
 import { Page } from './Sheets'
 import { LyricsPage } from './Lyrics'
@@ -432,6 +433,42 @@ function KaraHelp({ onClose }: { onClose: () => void }) {
       <h2 className="q">{tx("노래방 사용법")}</h2>
       <ol className="cue-help">{HELP.map(([h, d]) => <li key={h}><b>{tx(h)}</b><span>{tx(d)}</span></li>)}</ol>
       <button className="go" onClick={onClose}>{tx("알겠어요")}</button>
+    </Sheet>
+  )
+}
+
+/** 「쉼」에서 노래방으로 바로 들어갈 때 부를 곡 고르기 */
+export function KaraPick({ music, now, onPick, onClose }: { music: Track[]; now: Track | null; onPick: (t: Track) => void; onClose: () => void }) {
+  const [q, setQ] = useState('')
+  const found = useMemo(() => {
+    const f = music.filter((t) => { const x = info(t); return matches(x.song, q) || matches(x.singer, q) || matches(t.title, q) })
+    return !q && now && !now.talk ? [now, ...f.filter((t) => t.id !== now.id)] : f
+  }, [music, q, now])
+  return (
+    <Sheet label={tx("부를 곡 고르기")} onClose={onClose} tall>
+      <div className="sh-row">
+        <h2 className="q">{tx("부를 곡 고르기")}</h2>
+        <button className="pillbtn" onClick={onClose}>{tx("닫기")}</button>
+      </div>
+      <label className="search">
+        <Icon n="search" s={20} />
+        <span className="sr">{tx("곡, 부른 사람 찾기")}</span>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tx("곡·부른 사람 (초성도 돼요)")} autoComplete="off" enterKeyHint="search" />
+      </label>
+      {found.length === 0 && <p className="empty">{tx("맞는 곡이 없어요.")}</p>}
+      <div className="sheet-list">
+        <VirtualList items={found} className="list" render={(t) => {
+          const x = info(t)
+          return (
+            <li key={t.id}>
+              <button className="lrow" onClick={() => onPick(t)}>
+                <span className="x"><span className="x1">{!q && now && t.id === now.id && <b className="newb">{tx("듣던 곡")}</b>}{x.song}</span><span className="x2">{whoLine(x) || ' '}</span></span>
+                <span className="tag">{tx("부르기")}</span>
+              </button>
+            </li>
+          )
+        }} />
+      </div>
     </Sheet>
   )
 }
