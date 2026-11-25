@@ -107,7 +107,7 @@ export function RestScreen({ player, music }: { player: Player; music: Track[] }
       {reading && <ReadPage onClose={closeReading} />}
       {mood && <MoodPage onClose={closeMood} />}
       {hy && <HymnsPage player={player} onClose={closeHy} />}
-      {karaPick && <KaraPick music={music} now={player.current} onPick={(t) => { setKaraPick(false); setKaraT(t) }} onClose={closePick} />}
+      {karaPick && <KaraPick music={music} now={player.current ?? null} onPick={(t) => { setKaraPick(false); setKaraT(t) }} onClose={closePick} />}
       {karaT && <KaraokePage t={karaT} player={player} output={output} onClose={closeKara} />}
     </div>
   )
