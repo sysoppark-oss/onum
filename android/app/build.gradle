@@ -19,13 +19,15 @@ android {
         }
     }
     signingConfigs {
-        // 시험판 전용 공개 열쇠. 매번 같은 열쇠로 서명해야 덮어 설치가 된다.
-        // 정식 배포(플레이스토어 등)는 비공개 열쇠를 따로 만들어 GitHub Secrets에 둔다.
-        test {
-            storeFile file("onum-test.keystore")
-            storePassword "android"
-            keyAlias "onumtest"
-            keyPassword "android"
+        // 시험판 열쇠: 저장소에 두지 않는다(2026-11-25부터 비공개). GitHub Secrets(ONUM_TEST_*)에서 꺼내 파일로 만든 뒤 넘긴다.
+        // 없으면(내 PC에서 만들 때) 안드로이드 기본 디버그 열쇠로 서명된다.
+        if (System.getenv("ONUM_TEST_KEYSTORE")) {
+            test {
+                storeFile file(System.getenv("ONUM_TEST_KEYSTORE"))
+                storePassword System.getenv("ONUM_TEST_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("ONUM_TEST_KEY_ALIAS")
+                keyPassword System.getenv("ONUM_TEST_KEY_PASSWORD")
+            }
         }
         // 정식 판 열쇠: 저장소에 두지 않는다. GitHub Secrets에서 꺼내 파일로 만든 뒤 경로와 비밀번호를 넘긴다.
         if (System.getenv("ONUM_KEYSTORE")) {
@@ -40,9 +42,11 @@ android {
     buildTypes {
         debug {
             // 시험판은 스토어 판(org.onum.player)과 다른 앱으로: org.onum.player.test, 이름 「온음 시험판」(src/debug/res)
-            // 시험 열쇠가 공개되어 있으므로, 스토어 판 자리를 시험 열쇠로 덮어쓸 수 없게 한다
+            // 스토어 판 자리를 시험 열쇠로 덮어쓸 수 없게 한다
             applicationIdSuffix ".test"
-            signingConfig signingConfigs.test
+            if (System.getenv("ONUM_TEST_KEYSTORE")) signingConfig signingConfigs.test
+            // 사람들에게 나눠 주는 판이므로 디버그로 열어 두지 않는다
+            debuggable false
         }
         release {
             if (System.getenv("ONUM_KEYSTORE")) signingConfig signingConfigs.release

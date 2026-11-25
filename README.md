@@ -40,4 +40,4 @@ npm run build && npx cap sync android   # 안드로이드 프로젝트에 반영
 
 [GNU AGPLv3](LICENSE). 누구나 소스를 받아 고칠 수 있고, 고쳐서 배포하는 사람도 소스를 공개해야 합니다. "온음" 이름과 로고는 소스와 별개로 보호합니다.
 
-`android/app/onum-test.keystore`는 시험판(`org.onum.player.test`) 전용 공개 서명 열쇠입니다. 정식 배포(`org.onum.player`)에는 쓰지 않습니다. 복구 방법은 [RECOVERY.md](RECOVERY.md)를 보세요.
+시험판(`org.onum.player.test`)과 정식 판(`org.onum.player`)은 서로 다른 비공개 열쇠로 서명하며, 열쇠는 저장소에 두지 않습니다(GitHub Secrets). 내 PC에서 만들면 안드로이드 기본 디버그 열쇠로 서명됩니다. 복구 방법은 [RECOVERY.md](RECOVERY.md)를 보세요.

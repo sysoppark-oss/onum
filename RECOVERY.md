@@ -13,19 +13,21 @@
 | `ONUM_KEYSTORE_PASSWORD` | 열쇠 파일 비밀번호 | GitHub Secrets · 비밀번호 관리자 | 같음. 비밀번호 관리자에서 꺼내 다시 넣음 |
 | `ONUM_KEY_ALIAS` | 열쇠 이름 | GitHub Secrets · 비밀번호 관리자 | 같음 |
 | `ONUM_KEY_PASSWORD` | 열쇠 비밀번호 | GitHub Secrets · 비밀번호 관리자 | 같음 |
+| `ONUM_TEST_KEYSTORE_B64` · `ONUM_TEST_KEYSTORE_PASSWORD` · `ONUM_TEST_KEY_ALIAS` · `ONUM_TEST_KEY_PASSWORD` | 시험판 서명(비공개) | GitHub Secrets. 원본 `onum-test-private.p12`와 비밀번호는 PC `D:\work\onum-KEY`(동기화하지 않는 폴더) | 시험판 만들기가 멈춤. 새 열쇠를 만들어 넣고, 시험판 쓰는 사람은 한 번 지우고 다시 깔면 됨 |
 
 - GitHub Secrets는 **넣을 수만 있고 다시 꺼내 볼 수 없어요.** 그래서 열쇠 파일(USB)과 비밀번호(비밀번호 관리자)를 따로 지켜야 해요. 처음 받은 보관용 메모(`온음_정식서명열쇠_보관용.txt`)의 값은 비밀번호 관리자로 옮긴 뒤 지워요.
 - 정식 서명 열쇠의 지문(공개 정보): SHA-256 `3C:21:D9:69 … EA:38`. 다시 넣은 뒤 아래 4의 지문 확인으로 맞는 열쇠인지 봐요.
-- `android/app/onum-test.keystore`는 **시험판 전용 열쇠**로, 일부러 공개해 두었어요(누구나 시험판을 직접 만들어 볼 수 있게). 스토어 판과는 상관없어요.
+- 시험판 열쇠는 **2026-11-25부터 비공개**예요(지문 SHA-256 `dd97eb03…`). 그 전에 저장소에 있던 공개 시험 열쇠(`onum-test.keystore`, 지문 `66c66738…`)는 더 쓰지 않아요. 기록에 남아 있어도 그 열쇠로 서명한 앱은 지금 시험판으로 업데이트되지 않아요.
 
 ### 시험판과 스토어 판은 다른 앱이에요
 
 | | 패키지 이름 | 앱 이름 | 서명 |
 |---|---|---|---|
 | 스토어 판 | `org.onum.player` (절대 바꾸지 않음) | 온음 | 정식 열쇠(지문 `3c21d969…`) |
-| 시험판 | `org.onum.player.test` | 온음 시험판(아이콘에 「시험」 띠) | 공개 시험 열쇠 |
+| 시험판 | `org.onum.player.test` | 온음 시험판(아이콘에 「시험」 띠) | 비공개 시험 열쇠(지문 `dd97eb03…`) |
 
-- 시험판은 **GitHub 공식 주소(github.com/sysoppark-oss/onum의 시험판 페이지)에서 받은 것만** 설치해요. 시험 열쇠가 공개되어 있어 다른 곳의 「온음 시험판」은 가짜일 수 있어요.
+- 시험판은 **GitHub 공식 주소(github.com/sysoppark-oss/onum의 시험판 페이지)에서 받은 것만** 설치해요.
+- **2026-11-25 전에 깐 「온음 시험판」**(공개 열쇠로 서명)은 새 시험판으로 업데이트되지 않아요. 지우고 다시 깔아요.
 - **옛 시험판**(2026-11-24 전, `org.onum.player`에 시험 열쇠로 서명)을 깐 사람은 그 앱을 지우고 새 시험판이나 스토어 판을 깔아요. 옛 앱의 목록·설정은 넘어오지 않아요.
 - 시험판 이름 꼬리는 `android/app/build.gradle`의 debug `applicationIdSuffix ".test"`, 이름·아이콘은 `android/app/src/debug/res`에 있어요(`python3 tools/app-icon.py`로 다시 만듦).
 
