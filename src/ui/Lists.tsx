@@ -64,7 +64,7 @@ export function ListsScreen({ tracks, music, player, lists, edits, onPlayed, hid
     const sung = karaOn ? tracks.filter((t) => SUNG.test(where(t))).sort(newest) : []
     const down = tracks.filter((t) => !KAKAO.test(where(t)) && DOWN.test(where(t))).sort(newest)
     return [
-      ...(sung.length ? [{ id: 'sung', name: tx("내가 부른 노래"), sub: tx("노래방에서 녹음한 곡"), items: sung }] : []),
+      ...(sung.length ? [{ id: 'sung', name: tx("내가 부른 노래"), sub: tx("노래연습에서 녹음한 곡"), items: sung }] : []),
       ...(kakao.length ? [{ id: 'kakao', name: tx("카톡으로 받은 음악"), sub: tx("카카오톡에서 저장한 곡"), items: kakao }] : []),
       ...(down.length ? [{ id: 'down', name: tx("다운로드한 음악"), sub: tx("다운로드 폴더의 곡"), items: down }] : []),
       { id: 'often', name: tx("자주 들은 곡"), sub: tx("많이 들은 순서"), items: often },

@@ -88,10 +88,10 @@ export function RestScreen({ player, music }: { player: Player; music: Track[] }
       </button>
 
       {karaOn && <>
-        <h2 className="sub">{tx("노래방 ")}<span>{tx("· 목소리 줄이고 따라 부르기")}</span></h2>
+        <h2 className="sub">{tx("노래연습 ")}<span>{tx("· 목소리 줄이고 따라 부르기")}</span></h2>
         <button className="card-btn hy-open" onClick={() => setKaraPick(true)}>
           <Icon n="mic" s={22} />
-          <span className="x"><b>{tx("노래방")}</b><span>{tx("곡을 고르면 가사·키·녹음·점수까지")}</span></span>
+          <span className="x"><b>{tx("노래연습")}</b><span>{tx("곡을 고르면 가사·키·녹음·점수까지")}</span></span>
           <Icon n="chev" s={18} />
         </button>
       </>}
@@ -158,7 +158,7 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
         </li>
         <li>
           <div className="lrow">
-            <span className="x"><span className="x1" id="kara-l">{tx("노래방 쓰기")}</span><span className="x2">{tx("끄면 노래방 단추와 「내가 부른 노래」가 사라져요")}</span></span>
+            <span className="x"><span className="x1" id="kara-l">{tx("노래연습 쓰기")}</span><span className="x2">{tx("끄면 노래연습 단추와 「내가 부른 노래」가 사라져요")}</span></span>
             <button className="sw" role="switch" aria-checked={karaOn} aria-labelledby="kara-l" onClick={() => setKaraokeOn(!karaOn)} />
           </div>
         </li>

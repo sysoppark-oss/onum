@@ -30,6 +30,8 @@ class Splitter {
     static final String ASSET = "models/htdemucs.onnx";
     static final int SR = 44100, N = 343980, OV = N / 4, STRIDE = N - OV, VOCALS = 3;
     static volatile boolean cancel = false;
+    /** 단계별로 남길 가수 목소리 크기: 0 다 지우기, 1 조금 남기기, 2 많이 남기기 */
+    static final float[] KEEP = {0f, 0.15f, 0.4f};
 
     interface Progress { void on(double f); }
 
@@ -59,18 +61,20 @@ class Splitter {
         return f;
     }
 
-    /** 만든 반주가 들어갈 자리 */
-    static File outFile(Context ctx, String id) {
+    /** 만든 반주가 들어갈 자리(k: 목소리 남기기 단계, 0은 예전 이름 그대로) */
+    static File outFile(Context ctx, String id, int k) {
         File dir = new File(ctx.getFilesDir(), "kara-ai");
         dir.mkdirs();
-        return new File(dir, id.replaceAll("[^A-Za-z0-9_-]", "_") + ".m4a");
+        String b = id.replaceAll("[^A-Za-z0-9_-]", "_");
+        return new File(dir, k == 0 ? b + ".m4a" : b + ".v" + k + ".m4a");
     }
 
-    static File run(Context ctx, String src, double durSec, String id, Progress pr) throws Exception {
+    static File[] run(Context ctx, String src, double durSec, String id, Progress pr) throws Exception {
         cancel = false;
-        File out = outFile(ctx, id);
+        int K = KEEP.length;
+        File[] out = new File[K], part = new File[K];
+        for (int k = 0; k < K; k++) { out[k] = outFile(ctx, id, k); part[k] = new File(out[k].getParentFile(), out[k].getName() + ".part"); }
         File pcm = new File(ctx.getCacheDir(), "ai-mix.pcm");
-        File part = new File(out.getParentFile(), out.getName() + ".part");
         long frames;
         // 1) 곡을 44.1kHz 스테레오 16비트로 풀어 둔다
         try (PcmFile w = new PcmFile(new BufferedOutputStream(new FileOutputStream(pcm), 1 << 16))) {
@@ -95,7 +99,9 @@ class Splitter {
         int chunks = (int) Math.max(1, (frames + STRIDE - 1) / STRIDE);
         float[] in = new float[2 * N];
         float[] accL = new float[N], accR = new float[N], wgt = new float[N];
-        Exporter enc = new Exporter(part);
+        float[] vocL = new float[N], vocR = new float[N];
+        Exporter[] enc = new Exporter[K];
+        for (int k = 0; k < K; k++) enc[k] = new Exporter(part[k]);
         boolean ok = false;
         try (OrtSession sess = env.createSession(model(ctx).getAbsolutePath(), so);
              DataInputStream rd = new DataInputStream(new BufferedInputStream(new FileInputStream(pcm), 1 << 16))) {
@@ -136,10 +142,13 @@ class Splitter {
                             l += o.get((s * 2) * N + i);
                             rr += o.get((s * 2 + 1) * N + i);
                         }
+                        float vl = o.get((VOCALS * 2) * N + i), vr = o.get((VOCALS * 2 + 1) * N + i);
                         // 곡 맨 앞·맨 끝은 겹칠 상대가 없으니 줄이지 않는다
                         float w = (c == 0 && i < OV) || (last && len == N && i >= N - OV) ? 1f : win[i];
                         accL[i] += l * w;
                         accR[i] += rr * w;
+                        vocL[i] += vl * w;
+                        vocR[i] += vr * w;
                         wgt[i] += w;
                     }
                 }
@@ -147,24 +156,29 @@ class Splitter {
                 int done = last ? len : STRIDE;
                 for (int i = 0; i < done; i++) {
                     float w = Math.max(wgt[i], 1e-4f);
-                    enc.put(accL[i] / w, accR[i] / w);
+                    float bl = accL[i] / w, br = accR[i] / w, vl = vocL[i] / w, vr = vocR[i] / w;
+                    for (int k = 0; k < K; k++) enc[k].put(bl + KEEP[k] * vl, br + KEEP[k] * vr);
                 }
                 if (last) break;
                 System.arraycopy(accL, STRIDE, accL, 0, OV);
                 System.arraycopy(accR, STRIDE, accR, 0, OV);
                 System.arraycopy(wgt, STRIDE, wgt, 0, OV);
-                for (int i = OV; i < N; i++) { accL[i] = 0; accR[i] = 0; wgt[i] = 0; }
+                System.arraycopy(vocL, STRIDE, vocL, 0, OV);
+                System.arraycopy(vocR, STRIDE, vocR, 0, OV);
+                for (int i = OV; i < N; i++) { accL[i] = 0; accR[i] = 0; wgt[i] = 0; vocL[i] = 0; vocR[i] = 0; }
                 pr.on(0.05 + 0.94 * (c + 1) / (double) chunks);
             }
             ok = true;
         } finally {
-            enc.finish();
+            for (Exporter e : enc) e.finish();
             pcm.delete();
-            if (!ok) part.delete();
+            if (!ok) for (File p : part) p.delete();
             so.close();
         }
-        if (out.exists()) out.delete();
-        if (!part.renameTo(out)) throw new Exception("save_failed");
+        for (int k = 0; k < K; k++) {
+            if (out[k].exists()) out[k].delete();
+            if (!part[k].renameTo(out[k])) throw new Exception("save_failed");
+        }
         pr.on(1);
         return out;
     }

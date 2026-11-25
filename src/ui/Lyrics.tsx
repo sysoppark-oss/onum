@@ -1,4 +1,4 @@
-// 가사: 음악 파일 속 가사·곡 옆 .lrc 찾기, 붙여 넣기, 가사 파일 가져오기·보내기. 시각이 붙은 LRC면 노래방처럼 따라간다.
+// 가사: 음악 파일 속 가사·곡 옆 .lrc 찾기, 붙여 넣기, 가사 파일 가져오기·보내기. 시각이 붙은 LRC면 노래연습처럼 따라간다.
 // 인터넷에서 가사를 가져오지 않는다. 이 휴대폰 안에만 저장한다.
 import { rt } from './rich'
 import { useEffect, useRef, useState } from 'react'
@@ -171,7 +171,7 @@ export function LyricsInline({ t, player, onOpen }: { t: Track; player: Player; 
     return (
       <div className="lyi-empty">
         {looking ? <p role="status">{tx("음악 파일에 든 가사를 찾고 있어요…")}</p> : <>
-          <p>{tx("이 곡 가사를 넣어 두면 노래방처럼 지금 부르는 줄을 따라가요.")}</p>
+          <p>{tx("이 곡 가사를 넣어 두면 노래연습처럼 지금 부르는 줄을 따라가요.")}</p>
           <div className="lyi-acts">
             <button className="pillbtn" onClick={() => onOpen('edit')}><Icon n="edit" s={18} />{tx("붙여 넣기")}</button>
             <label className="pillbtn">

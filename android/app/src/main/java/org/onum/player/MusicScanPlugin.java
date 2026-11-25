@@ -384,8 +384,12 @@ public class MusicScanPlugin extends Plugin {
         String id = call.getString("id", "");
         JSObject r = new JSObject();
         r.put("model", Splitter.hasModel(getContext()));
-        java.io.File f = Splitter.outFile(getContext(), id);
-        if (!id.isEmpty() && f.exists() && f.length() > 0) r.put("file", f.getAbsolutePath());
+        com.getcapacitor.JSArray fs = new com.getcapacitor.JSArray();
+        for (int k = 0; k < Splitter.KEEP.length; k++) {
+            java.io.File f = Splitter.outFile(getContext(), id, k);
+            fs.put(!id.isEmpty() && f.exists() && f.length() > 0 ? f.getAbsolutePath() : "");
+        }
+        r.put("files", fs);
         call.resolve(r);
     }
 
@@ -400,7 +404,7 @@ public class MusicScanPlugin extends Plugin {
             long t0 = System.currentTimeMillis();
             final long[] last = {0};
             try {
-                java.io.File f = Splitter.run(getContext(), path, dur, id, x -> {
+                java.io.File[] f = Splitter.run(getContext(), path, dur, id, x -> {
                     long now = System.currentTimeMillis();
                     if (now - last[0] < 400 && x < 1) return;
                     last[0] = now;
@@ -410,7 +414,9 @@ public class MusicScanPlugin extends Plugin {
                     notifyListeners("aiProgress", p);
                 });
                 JSObject r = new JSObject();
-                r.put("file", f.getAbsolutePath());
+                com.getcapacitor.JSArray fs = new com.getcapacitor.JSArray();
+                for (java.io.File x : f) fs.put(x.getAbsolutePath());
+                r.put("files", fs);
                 r.put("ms", System.currentTimeMillis() - t0);
                 call.resolve(r);
             } catch (OutOfMemoryError e) {
@@ -430,7 +436,7 @@ public class MusicScanPlugin extends Plugin {
     @PluginMethod
     public void aiDelete(PluginCall call) {
         String id = call.getString("id", "");
-        if (!id.isEmpty()) Splitter.outFile(getContext(), id).delete();
+        if (!id.isEmpty()) for (int k = 0; k < Splitter.KEEP.length; k++) Splitter.outFile(getContext(), id, k).delete();
         call.resolve();
     }
 

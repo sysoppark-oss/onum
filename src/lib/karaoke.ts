@@ -18,9 +18,9 @@ export function setKaraokeOn(v: boolean) { on = v; save('karaoke', v); subs.forE
 export function useKaraokeOn() { return useSyncExternalStore((f) => { subs.add(f); return () => { subs.delete(f) } }, () => on) }
 
 // ── 곡마다 노래방 설정
-export interface KaraSet { vox: Vox; semi: number; rate: number; ai?: boolean }
+export interface KaraSet { vox: Vox; semi: number; rate: number; ai?: boolean; keep?: number }
 export const karaSet = (id: string): KaraSet => ({ vox: load<Vox>('karaVox', 2), semi: 0, rate: 1, ...load<Partial<KaraSet>>('kara:' + id, {}) })
-export function saveKaraSet(id: string, s: KaraSet) { save('kara:' + id, { semi: s.semi, rate: s.rate, vox: s.vox, ai: s.ai }); if (s.vox) save('karaVox', s.vox) }
+export function saveKaraSet(id: string, s: KaraSet) { save('kara:' + id, { semi: s.semi, rate: s.rate, vox: s.vox, ai: s.ai, keep: s.keep }); if (s.vox) save('karaVox', s.vox) }
 
 /** 「내가 부른 노래」: 노래방에서 저장한 곡이 들어가는 폴더 */
 export const SUNG = /(^|\/)온음\/노래방(\/|$)/
@@ -44,6 +44,7 @@ export class MicRecorder {
   private node: AudioWorkletNode | null = null
   private src: MediaStreamAudioSourceNode | null = null
   private sink: GainNode | null = null
+  private g: GainNode | null = null
   private chunks: Int16Array[] = []
   private t0 = -1
   sr = 48000
@@ -57,13 +58,19 @@ export class MicRecorder {
     micReady ??= c.audioWorklet.addModule(micUrl).catch((e) => { micReady = null; throw e })
     await micReady
     this.src = c.createMediaStreamSource(this.stream)
+    // 마이크 크기: 녹음과 음량 표시 모두 이 크기를 거친다
+    this.g = c.createGain(); this.g.gain.value = this.gain
     this.an = c.createAnalyser(); this.an.fftSize = 2048
-    this.src.connect(this.an)
+    this.src.connect(this.g); this.g.connect(this.an)
   }
+
+  private gain = 1
+  /** 마이크 크기(1이 그대로) */
+  setGain(v: number) { this.gain = v; if (this.g) this.g.gain.setTargetAtTime(v, audioCtx().currentTime, 0.02) }
 
   start() {
     const c = audioCtx()
-    if (!this.src) throw new Error('not_open')
+    if (!this.g) throw new Error('not_open')
     this.chunks = []; this.t0 = -1
     this.node = new AudioWorkletNode(c, 'onum-mic', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1, channelCountMode: 'explicit' })
     this.node.port.onmessage = (e) => {
@@ -73,7 +80,7 @@ export class MicRecorder {
     }
     // 처리가 멈추지 않게 소리 없는 길로 내보낸다
     this.sink = c.createGain(); this.sink.gain.value = 0
-    this.src.connect(this.node); this.node.connect(this.sink); this.sink.connect(c.destination)
+    this.g.connect(this.node); this.node.connect(this.sink); this.sink.connect(c.destination)
   }
 
   /** 녹음을 끝내고 모은 소리와 시작 시각(AudioContext 시각)을 돌려준다 */
@@ -101,9 +108,9 @@ export class MicRecorder {
   }
 
   close() {
-    try { this.src?.disconnect(); this.an?.disconnect() } catch { /* 이미 끊김 */ }
+    try { this.src?.disconnect(); this.g?.disconnect(); this.an?.disconnect() } catch { /* 이미 끊김 */ }
     this.stream?.getTracks().forEach((t) => t.stop())
-    this.stream = null; this.src = null; this.an = null
+    this.stream = null; this.src = null; this.g = null; this.an = null
   }
 }
 

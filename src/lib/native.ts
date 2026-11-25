@@ -37,8 +37,8 @@ interface MusicScanPlugin {
   exportClips(opts: { parts: { path: string; s: number; e: number }[]; name: string }): Promise<{ where: string }>
   pcmWrite(opts: { b64: string; first: boolean }): Promise<void>
   pcmSave(opts: { name: string; sub: string }): Promise<{ where: string }>
-  aiInfo(opts: { id: string }): Promise<{ model: boolean; file?: string }>
-  aiSplit(opts: { path: string; id: string; dur: number }): Promise<{ file: string; ms: number }>
+  aiInfo(opts: { id: string }): Promise<{ model: boolean; files?: string[] }>
+  aiSplit(opts: { path: string; id: string; dur: number }): Promise<{ files: string[]; ms: number }>
   aiCancel(): Promise<void>
   aiDelete(opts: { id: string }): Promise<void>
   addListener(event: 'aiProgress', fn: (p: { id: string; f: number }) => void): Promise<PluginListenerHandle>

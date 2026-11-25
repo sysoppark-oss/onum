@@ -400,7 +400,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
               <CardMark c={{ ...church, line: lineOf(church) }} size="bar" />
             </button>
           : <span className="mark">{tx("온음")}</span>}
-        {karaOn && cur && !talk && <button className="kara-open" onClick={() => setKaraOpen(true)}><Icon n="mic" s={18} />{tx("노래방")}</button>}
+        {karaOn && cur && !talk && <button className="kara-open" onClick={() => setKaraOpen(true)}><Icon n="mic" s={18} />{tx("노래연습")}</button>}
         {output && <span className={'out o-' + (output.kind === 'bluetooth' ? (output.car ? 'car' : 'bt') : output.kind)} role="status" aria-label={outputLabel(output)}><span className="oi"><Icon n={outputIcon(output)} s={16} /></span><span className="ot" aria-hidden="true">{output.kind === 'bluetooth' && output.name ? output.name : output.kind === 'speaker' ? tx("휴대폰") : outputLabel(output)}</span></span>}
       </div>
 

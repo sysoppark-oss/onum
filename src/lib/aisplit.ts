@@ -6,34 +6,43 @@ import { isNative, nativeAi } from './native'
 import { toWav } from './exporter'
 
 const SR = 44100, N = 343980, OV = N / 4, STRIDE = N - OV, VOCALS = 3
+/** 단계별로 남길 가수 목소리 크기(안드로이드 Splitter.KEEP과 같게): 0 다 지우기, 1 조금, 2 많이 */
+export const KEEP = [0, 0.15, 0.4]
 const BASE = import.meta.env.BASE_URL
 
-export interface AiInfo { model: boolean; url?: string }
+/** urls[k]: 목소리 남기기 단계 k의 반주 주소(아직 없으면 undefined) */
+export interface AiInfo { model: boolean; urls: (string | undefined)[] }
 
 /** 이 기기에서 AI 반주를 만들 수 있는지, 이 곡의 반주가 이미 있는지 */
 export async function aiInfo(t: Track): Promise<AiInfo> {
   if (isNative) {
     try {
       const r = await nativeAi.info(t.id)
-      return { model: r.model && !!t.path, url: r.file ? nativeAi.src(r.file) + '?v=' + Date.now() : undefined }
-    } catch { return { model: false } }
+      const v = Date.now()
+      return { model: r.model && !!t.path, urls: KEEP.map((_, k) => r.files?.[k] ? nativeAi.src(r.files[k]) + '?v=' + v : undefined) }
+    } catch { return { model: false, urls: [] } }
   }
   const model = await webModel()
-  const hit = model ? await (await cache())?.match(key(t)) : undefined
-  return { model, url: hit ? URL.createObjectURL(await hit.blob()) : undefined }
+  const c = model ? await cache() : null
+  const urls = await Promise.all(KEEP.map(async (_, k) => {
+    const hit = await c?.match(key(t, k))
+    return hit ? URL.createObjectURL(await hit.blob()) : undefined
+  }))
+  return { model, urls }
 }
 
 let cancelled = false
 export function aiCancel() { cancelled = true; if (isNative) void nativeAi.cancel().catch(() => {}) }
 
-/** 반주 만들기. onProgress(0~1). 돌려주는 값: 반주 소리 주소 */
-export async function aiSplit(t: Track, onProgress: (f: number) => void): Promise<string> {
+/** 반주 만들기(목소리 남기기 단계마다 하나씩). onProgress(0~1). 돌려주는 값: 단계별 반주 주소 */
+export async function aiSplit(t: Track, onProgress: (f: number) => void): Promise<string[]> {
   cancelled = false
   if (isNative) {
     const h = await nativeAi.onProgress((p) => { if (p.id === t.id) onProgress(p.f) })
     try {
       const r = await nativeAi.split(t.path!, t.id, t.duration || 0)
-      return nativeAi.src(r.file) + '?v=' + Date.now()
+      const v = Date.now()
+      return r.files.map((f) => nativeAi.src(f) + '?v=' + v)
     } finally { void h.remove() }
   }
   return webSplit(t, onProgress)
@@ -41,11 +50,12 @@ export async function aiSplit(t: Track, onProgress: (f: number) => void): Promis
 
 export async function aiRemove(t: Track) {
   if (isNative) { await nativeAi.remove(t.id).catch(() => {}); return }
-  await (await cache())?.delete(key(t))
+  const c = await cache()
+  await Promise.all(KEEP.map((_, k) => c?.delete(key(t, k))))
 }
 
 /* ───────── PC 웹 앱 ───────── */
-const key = (t: Track) => `${location.origin}/onum-kara-ai/${encodeURIComponent(t.id)}`
+const key = (t: Track, k: number) => `${location.origin}/onum-kara-ai/${encodeURIComponent(t.id)}${k ? '?v=' + k : ''}`
 const cache = async () => { try { return await caches.open('onum-kara-ai') } catch { return null } }
 
 let modelOk: Promise<boolean> | null = null
@@ -74,7 +84,7 @@ function loadOrt(): Promise<Ort> {
   return ortP
 }
 
-async function webSplit(t: Track, onProgress: (f: number) => void): Promise<string> {
+async function webSplit(t: Track, onProgress: (f: number) => void): Promise<string[]> {
   const ort = await loadOrt()
   onProgress(0.01)
   const raw = await (await fetch(t.url)).arrayBuffer()
@@ -93,6 +103,7 @@ async function webSplit(t: Track, onProgress: (f: number) => void): Promise<stri
   const win = new Float32Array(N).fill(1)
   for (let i = 0; i < OV; i++) { const v = i / (OV - 1); win[i] = v; win[N - 1 - i] = v }
   const oL = new Float32Array(frames), oR = new Float32Array(frames), w = new Float32Array(frames)
+  const vL = new Float32Array(frames), vR = new Float32Array(frames)
   const chunks = Math.max(1, Math.ceil(frames / STRIDE))
   try {
     for (let c = 0; c < chunks; c++) {
@@ -111,15 +122,24 @@ async function webSplit(t: Track, onProgress: (f: number) => void): Promise<stri
         for (let s = 0; s < 4; s++) { if (s === VOCALS) continue; l += o[(s * 2) * N + i]; rr += o[(s * 2 + 1) * N + i] }
         const ww = (c === 0 && i < OV) || (last && len === N && i >= N - OV) ? 1 : win[i]
         oL[start + i] += l * ww; oR[start + i] += rr * ww; w[start + i] += ww
+        vL[start + i] += o[(VOCALS * 2) * N + i] * ww; vR[start + i] += o[(VOCALS * 2 + 1) * N + i] * ww
       }
       r.stems.dispose?.()
       onProgress(0.05 + 0.93 * (c + 1) / chunks)
       if (last) break
     }
   } finally { await sess.release().catch(() => {}) }
-  for (let i = 0; i < frames; i++) { const ww = Math.max(w[i], 1e-4); oL[i] /= ww; oR[i] /= ww }
-  const blob = new Blob([toWav(oL, oR)], { type: 'audio/wav' })
-  await (await cache())?.put(key(t), new Response(blob))
+  for (let i = 0; i < frames; i++) { const ww = Math.max(w[i], 1e-4); oL[i] /= ww; oR[i] /= ww; vL[i] /= ww; vR[i] /= ww }
+  const c = await cache()
+  const urls: string[] = []
+  const xL = new Float32Array(frames), xR = new Float32Array(frames)
+  for (let k = 0; k < KEEP.length; k++) {
+    const g = KEEP[k]
+    for (let i = 0; i < frames; i++) { xL[i] = oL[i] + g * vL[i]; xR[i] = oR[i] + g * vR[i] }
+    const blob = new Blob([toWav(xL, xR)], { type: 'audio/wav' })
+    await c?.put(key(t, k), new Response(blob))
+    urls.push(URL.createObjectURL(blob))
+  }
   onProgress(1)
-  return URL.createObjectURL(blob)
+  return urls
 }

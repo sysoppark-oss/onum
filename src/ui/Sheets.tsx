@@ -310,7 +310,7 @@ function FitOpt(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return <button ref={ref} {...props} />
 }
 
-export function Page({ label, onClose, children, actions }: { label: string; onClose: () => void; children: React.ReactNode; actions?: React.ReactNode }) {
+export function Page({ label, onClose, children, actions, className }: { label: string; onClose: () => void; children: React.ReactNode; actions?: React.ReactNode; className?: string }) {
   const box = useDialog(onClose)
   useSwipeClose(box, onClose)
   // 제목이 두 줄로도 다 안 들어가면 오른쪽 단추를 아이콘만 남겨 자리를 내준다
@@ -325,7 +325,7 @@ export function Page({ label, onClose, children, actions }: { label: string; onC
   }, [label, !!actions]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <Layer>
-    <div ref={box} tabIndex={-1} className="layer" role="dialog" aria-modal="true" aria-label={label}>
+    <div ref={box} tabIndex={-1} className={className ? `layer ${className}` : "layer"} role="dialog" aria-modal="true" aria-label={label}>
       <div className="lh" ref={lh}>
         <button className="back" onClick={onClose} aria-label={tx("닫기")}><Icon n="back" s={26} /></button>
         <h2>{label}</h2>
