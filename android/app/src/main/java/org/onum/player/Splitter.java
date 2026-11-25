@@ -31,7 +31,7 @@ class Splitter {
     static final int SR = 44100, N = 343980, OV = N / 4, STRIDE = N - OV, VOCALS = 3;
     static volatile boolean cancel = false;
     /** 단계별로 남길 가수 목소리 크기: 0 다 지우기, 1 조금 남기기, 2 많이 남기기 */
-    static final float[] KEEP = {0f, 0.075f, 0.4f};
+    static final float[] KEEP = {0f, 0.015f, 0.4f};
 
     interface Progress { void on(double f); }
 
