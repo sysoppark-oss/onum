@@ -436,7 +436,12 @@ public class MusicScanPlugin extends Plugin {
     @PluginMethod
     public void aiDelete(PluginCall call) {
         String id = call.getString("id", "");
-        if (!id.isEmpty()) for (int k = 0; k < Splitter.KEEP.length; k++) Splitter.outFile(getContext(), id, k).delete();
+        if (!id.isEmpty()) {
+            for (int k = 0; k < Splitter.KEEP.length; k++) Splitter.outFile(getContext(), id, k).delete();
+            java.io.File[] old = Splitter.outFile(getContext(), id, 0).getParentFile().listFiles();
+            String b = id.replaceAll("[^A-Za-z0-9_-]", "_") + ".";
+            if (old != null) for (java.io.File o : old) if (o.getName().startsWith(b)) o.delete();
+        }
         call.resolve();
     }
 

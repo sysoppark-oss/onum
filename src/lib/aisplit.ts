@@ -7,7 +7,7 @@ import { toWav } from './exporter'
 
 const SR = 44100, N = 343980, OV = N / 4, STRIDE = N - OV, VOCALS = 3
 /** 단계별로 남길 가수 목소리 크기(안드로이드 Splitter.KEEP과 같게): 0 다 지우기, 1 조금, 2 많이 */
-export const KEEP = [0, 0.15, 0.4]
+export const KEEP = [0, 0.075, 0.4]
 const BASE = import.meta.env.BASE_URL
 
 /** urls[k]: 목소리 남기기 단계 k의 반주 주소(아직 없으면 undefined) */
@@ -55,7 +55,7 @@ export async function aiRemove(t: Track) {
 }
 
 /* ───────── PC 웹 앱 ───────── */
-const key = (t: Track, k: number) => `${location.origin}/onum-kara-ai/${encodeURIComponent(t.id)}${k ? '?v=' + k : ''}`
+const key = (t: Track, k: number) => `${location.origin}/onum-kara-ai/${encodeURIComponent(t.id)}${k ? '?k=' + Math.round(KEEP[k] * 1000) : ''}`
 const cache = async () => { try { return await caches.open('onum-kara-ai') } catch { return null } }
 
 let modelOk: Promise<boolean> | null = null
