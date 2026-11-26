@@ -66,14 +66,44 @@ export const getGlyph = () => cur
 export function setGlyph(g: Glyph) { cur = g; save('glyph', g); subs.forEach((f) => f()) }
 export const useGlyph = () => useSyncExternalStore((f) => { subs.add(f); return () => { subs.delete(f) } }, () => cur)
 
-/** 설정 칩·파형 음표에 쓰는 작은 그림 */
-export function GlyphIcon({ k, s = 18 }: { k: string; s?: number }) {
-  return <svg viewBox="0 0 24 24" width={s} height={s} aria-hidden="true" focusable="false"><path d={PATH[k]} fill="currentColor" /></svg>
+/* 떠오르는 모양의 선 색과 떠오르는 수 */
+export type NoteColor = 'red' | 'pink' | 'orange' | 'green' | 'purple' | 'ink' | 'mix'
+export const NOTE_COLORS: { id: NoteColor; name: string; v: string }[] = [
+  { id: 'red', name: '빨강', v: 'var(--nt-red)' }, { id: 'pink', name: '분홍', v: 'var(--tg-pink)' },
+  { id: 'orange', name: '주황', v: 'var(--tg-orange)' }, { id: 'green', name: '초록', v: 'var(--tg-green)' },
+  { id: 'purple', name: '보라', v: 'var(--tg-purple)' }, { id: 'ink', name: '검정(밤에는 흰색)', v: 'var(--ink)' },
+  { id: 'mix', name: '여러 색', v: '' },
+]
+export type NoteAmount = 'few' | 'mid' | 'many'
+/** 떠오르는 수: 자주 뜨는 정도(배)와 한꺼번에 떠 있는 최대 수 */
+export const NOTE_AMOUNTS: { id: NoteAmount; name: string; k: number; max: number }[] = [
+  { id: 'few', name: '적게', k: 0.5, max: 5 }, { id: 'mid', name: '보통', k: 1, max: 10 }, { id: 'many', name: '많이', k: 1.5, max: 15 },
+]
+let nc: NoteColor = load<NoteColor>('noteColor', 'red')
+if (!NOTE_COLORS.some((x) => x.id === nc)) nc = 'red'
+let na: NoteAmount = load<NoteAmount>('noteAmount', 'mid')
+if (!NOTE_AMOUNTS.some((x) => x.id === na)) na = 'mid'
+export const getNoteColor = () => nc
+export const getNoteAmount = () => na
+export function setNoteColor(c: NoteColor) { nc = c; save('noteColor', c); subs.forEach((f) => f()) }
+export function setNoteAmount(a: NoteAmount) { na = a; save('noteAmount', a); subs.forEach((f) => f()) }
+export const useNoteColor = () => useSyncExternalStore((f) => { subs.add(f); return () => { subs.delete(f) } }, () => nc)
+export const useNoteAmount = () => useSyncExternalStore((f) => { subs.add(f); return () => { subs.delete(f) } }, () => na)
+
+/** 설정 칩·파형 음표에 쓰는 작은 그림(line이면 안을 채우지 않고 선만) */
+export function GlyphIcon({ k, s = 18, line = false }: { k: string; s?: number; line?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" width={s} height={s} aria-hidden="true" focusable="false" overflow="visible">
+      {line
+        ? <path d={PATH[k]} fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        : <path d={PATH[k]} fill="currentColor" />}
+    </svg>
+  )
 }
 
 /** 고르기 칩 안의 그림: 섞어서·저절로는 작은 그림 셋 */
 export function GlyphChip({ id }: { id: Glyph }) {
-  if (id === 'mix') return <span className="gp-mix"><GlyphIcon k="heart" s={12} /><GlyphIcon k="star" s={12} /><GlyphIcon k="note" s={12} /></span>
-  if (id === 'auto') return <span className="gp-mix"><GlyphIcon k="drop" s={12} /><GlyphIcon k="spark" s={14} /><GlyphIcon k="petal" s={12} /></span>
-  return <GlyphIcon k={id} s={20} />
+  if (id === 'mix') return <span className="gp-mix"><GlyphIcon k="heart" s={12} line /><GlyphIcon k="star" s={12} line /><GlyphIcon k="note" s={12} line /></span>
+  if (id === 'auto') return <span className="gp-mix"><GlyphIcon k="drop" s={12} line /><GlyphIcon k="spark" s={14} line /><GlyphIcon k="petal" s={12} line /></span>
+  return <GlyphIcon k={id} s={20} line />
 }

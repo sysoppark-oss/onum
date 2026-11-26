@@ -29,7 +29,7 @@ import { kindOf, useCards, useChurch } from '../lib/church'
 import { live, setViz, useViz, VIZ } from '../lib/viz'
 import { ChurchCard, ChurchPage, NaverBtn } from './Church'
 import { VERSE_SPEEDS, type VerseSpeed } from './VerseStrip'
-import { GLYPHS, GlyphChip, setGlyph, useGlyph } from '../lib/glyph'
+import { GLYPHS, GlyphChip, NOTE_AMOUNTS, NOTE_COLORS, setGlyph, setNoteAmount, setNoteColor, useGlyph, useNoteAmount, useNoteColor } from '../lib/glyph'
 
 const REPO = 'https://github.com/sysoppark-oss/onum'
 const MAIL = 'sysoppark@gmail.com'
@@ -124,6 +124,8 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
   const notesOn = useFlag('notes', true)
   const seasonOn = useFlag('season', true)
   const glyph = useGlyph()
+  const noteColor = useNoteColor()
+  const noteAmount = useNoteAmount()
   const updOn = useFlag('updateCheck', true)
   const upd = useUpd()
   const [chk, setChk] = useState('')
@@ -187,6 +189,27 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
                   <span>{tx(o.name)}</span>
                 </button>
               ))}
+            </div>
+          )}
+          {notesOn && (
+            <div className="ntpick">
+              <span className="ntpick-l" id="nc-l">{tx("선 색")}</span>
+              <div className="ntcol" role="radiogroup" aria-labelledby="nc-l">
+                {NOTE_COLORS.map((c) => (
+                  <button key={c.id} role="radio" aria-checked={noteColor === c.id} aria-label={tx(c.name)} className={(noteColor === c.id ? 'on' : '') + (c.id === 'mix' ? ' mix' : '')}
+                    style={c.v ? { ['--c' as string]: c.v } : undefined} onClick={() => setNoteColor(c.id)}><i /></button>
+                ))}
+              </div>
+            </div>
+          )}
+          {notesOn && (
+            <div className="ntpick">
+              <span className="ntpick-l" id="na-l">{tx("떠오르는 수")}</span>
+              <div className="ntamt" role="radiogroup" aria-labelledby="na-l">
+                {NOTE_AMOUNTS.map((a) => (
+                  <button key={a.id} role="radio" aria-checked={noteAmount === a.id} className={noteAmount === a.id ? 'on' : undefined} onClick={() => setNoteAmount(a.id)}>{tx(a.name)}</button>
+                ))}
+              </div>
             </div>
           )}
         </li>

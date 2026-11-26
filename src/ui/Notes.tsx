@@ -2,7 +2,7 @@
 // 지금 자리의 소리 크기(미리 잰 소리 모양)가 클수록 자주, 크게 떠오른다.
 import { useEffect, useRef, useState } from 'react'
 import { BARS } from '../lib/shape'
-import { GlyphIcon, shapeFor, useGlyph } from '../lib/glyph'
+import { GlyphIcon, NOTE_AMOUNTS, NOTE_COLORS, getNoteAmount, getNoteColor, shapeFor, useGlyph } from '../lib/glyph'
 import { cardName } from '../lib/church'
 
 const TINTS = ['var(--tg-pink)', 'var(--tg-purple)', 'var(--now)', 'var(--tg-green)', 'var(--tg-orange)']
@@ -25,22 +25,23 @@ export function NoteFloat({ playing, ratio, bars }: { playing: boolean; ratio: n
       if (document.visibilityState !== 'visible') return
       const { ratio: r, bars: b } = live.current
       const loud = b ? b[Math.min(BARS - 1, Math.max(0, Math.floor(r * BARS)))] : 0.5
-      if (Math.random() > 0.18 + loud * 0.7) return
+      const am = NOTE_AMOUNTS.find((x) => x.id === getNoteAmount()) ?? NOTE_AMOUNTS[1]
+      if (Math.random() > (0.18 + loud * 0.7) * am.k) return
       const id = ++seq.current
       // 아주 가끔, 곡에서 가장 큰 자리에서 카드 이름이 은은하게 떠오른다
       const name = cardName()
       if (name && loud > 0.82 && Date.now() - lastName.current > 45000 && Math.random() < 0.25) {
         lastName.current = Date.now()
-        setNotes((old) => [...old.slice(-9), { id, x: Math.min(70, Math.max(30, r * 100)), g: '', c: 'var(--brand)', s: 15, dx: 0, r: 0, d: 4200, t: name }])
+        setNotes((old) => [...old.slice(-(am.max - 1)), { id, x: Math.min(70, Math.max(30, r * 100)), g: '', c: 'var(--brand)', s: 15, dx: 0, r: 0, d: 4200, t: name }])
         return
       }
       const n: N = {
         id, x: Math.min(86, Math.max(14, r * 100 + (Math.random() - 0.5) * 6)), // 양 끝의 시간 글자와 겹치지 않게
-        g: shapeFor(gRef.current, id), c: TINTS[Math.floor(Math.random() * TINTS.length)],
+        g: shapeFor(gRef.current, id), c: getNoteColor() === 'mix' ? TINTS[Math.floor(Math.random() * TINTS.length)] : NOTE_COLORS.find((x) => x.id === getNoteColor())!.v,
         s: 12 + loud * 8 + Math.random() * 3, dx: (Math.random() - 0.5) * 22, r: (Math.random() - 0.5) * 34,
         d: 1500 + Math.random() * 700,
       }
-      setNotes((old) => [...old.slice(-9), n])
+      setNotes((old) => [...old.slice(-(am.max - 1)), n])
     }, 280)
     return () => window.clearInterval(h)
   }, [playing])
@@ -50,7 +51,7 @@ export function NoteFloat({ playing, ratio, bars }: { playing: boolean; ratio: n
       {notes.map((n) => (
         <i key={n.id} className={n.t ? 'nm' : undefined} onAnimationEnd={() => drop(n.id)}
           style={{ left: `${n.x}%`, color: n.c, fontSize: `${n.s}px`, animationDuration: `${n.d}ms`, ['--dx' as string]: `${n.dx}px`, ['--r' as string]: `${n.r}deg` }}>
-          {n.t ? <b className="note-name">{n.t}</b> : <GlyphIcon k={n.g} s={Math.round(n.s)} />}
+          {n.t ? <b className="note-name">{n.t}</b> : <GlyphIcon k={n.g} s={Math.round(n.s)} line />}
         </i>
       ))}
     </span>
