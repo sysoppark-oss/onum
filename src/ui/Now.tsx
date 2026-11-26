@@ -395,7 +395,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
   return (
     <div className="page now">
       <div className="nl">
-      <div className="top">
+      <div className={church ? 'top has-card' : 'top'}>
         {church
           ? <button className="chbrand" onClick={() => setChOpen(true)} aria-label={tx("카드 열기: {0}", church.name)}>
               <Plate c={{ ...church, line: lineOf(church) }} size="bar" />

@@ -87,8 +87,12 @@ mark { background: none; color: var(--now-text); font-weight: 800; }
 /* 소리 나가는 곳: 동그란 그림 + 이름 */
 .now .out { --oc: var(--ink2); gap: 0.5rem; min-height: 2.25rem; padding: 0.25rem 0.875rem 0.25rem 0.25rem; background: var(--bg); border: 1px solid var(--line); border-radius: 1.25rem; }
 .now .top .chbrand { flex: 1 1 100%; min-width: 0; display: block; text-align: center; }
-.now .top:has(.chbrand) { flex-wrap: wrap; row-gap: 0.625rem; }
+.now .top.has-card { flex-wrap: wrap; row-gap: 0.625rem; }
 /* 명판: 쇠판·나무판에 새긴 것처럼. 색은 판마다 정해져 있어 낮·밤에 같게 보인다 */
+.guard { min-height: 100vh; padding: calc(var(--top, 0px) + 1.75rem) 1.25rem 1.75rem; display: flex; flex-direction: column; gap: 0.875rem; background: var(--bg); color: var(--ink); }
+.guard h1 { font-size: 1.375rem; font-weight: 800; line-height: 1.3; }
+.guard p { font-size: 1rem; line-height: 1.5; color: var(--ink2); }
+.guard pre { flex: 1; min-height: 7.5rem; max-height: 50vh; overflow: auto; padding: 0.875rem; border-radius: 0.875rem; background: var(--sf); font-size: 0.8125rem; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; user-select: text; }
 .nplate { position: relative; display: block; width: 100%; padding: 0.8125rem 1.5rem; border-radius: 0.625rem; text-align: center; font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; background: var(--p-bg); box-shadow: inset 0 1px 0 var(--p-hi), inset 0 -1px 0 var(--p-lo), 0 1px 2px rgba(0, 0, 0, .25); }
 .nplate b { display: block; font-size: 1.0625rem; font-weight: 600; letter-spacing: .03em; line-height: 1.35; color: var(--p-ink); text-shadow: var(--p-cut); overflow-wrap: anywhere; text-wrap: balance; }
 .nplate .nplate-b { display: block; margin-top: 0.25rem; font-size: 0.8125rem; font-weight: 500; letter-spacing: .1em; line-height: 1.4; color: var(--p-ink2); text-shadow: var(--p-cut2); overflow-wrap: anywhere; }
