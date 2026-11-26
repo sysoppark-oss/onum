@@ -1,6 +1,7 @@
 // 「지금」 아래 탭 바로 위: 오늘의 말씀이 끊기지 않고 오른쪽에서 왼쪽으로 천천히 흘러간다.
 // 같은 글을 두 번 이어 붙여 한 바퀴가 이음매 없이 돌아간다. 누르고 있으면 멈추고, 누르면 크게 본다.
 // 흘려 보내기를 끄거나(쉼 › 보기) 휴대폰의 움직임 줄이기가 켜져 있으면 멈춘 채 전체를 보여 준다.
+import { jred } from './JRed'
 import { tx } from "../lib/i18n";
 import { useEffect, useRef, useState } from 'react'
 import { today } from '../lib/verses'
@@ -32,7 +33,7 @@ export function VerseStrip({ moving, speed = 'mid', onOpen }: { moving: boolean;
 
   const piece = (
     <>
-      {v.text}<span className="vs-r"> · {v.ref}</span><span className="vs-gap" aria-hidden="true">✦</span>
+      {jred(v.text)}<span className="vs-r"> · {v.ref}</span><span className="vs-gap" aria-hidden="true">✦</span>
     </>
   )
   return (
@@ -47,7 +48,7 @@ export function VerseStrip({ moving, speed = 'mid', onOpen }: { moving: boolean;
           <span className="vs-one" lang={v.lang}>{piece}</span>
         </span>
       ) : (
-        <span className="vs-t still" aria-hidden="true">{v.text}<span className="vs-r"> · {v.ref}</span></span>
+        <span className="vs-t still" aria-hidden="true">{jred(v.text)}<span className="vs-r"> · {v.ref}</span></span>
       )}
     </button>
   )

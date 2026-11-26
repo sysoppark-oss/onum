@@ -90,6 +90,35 @@ export function setNoteAmount(a: NoteAmount) { na = a; save('noteAmount', a); su
 export const useNoteColor = () => useSyncExternalStore((f) => { subs.add(f); return () => { subs.delete(f) } }, () => nc)
 export const useNoteAmount = () => useSyncExternalStore((f) => { subs.add(f); return () => { subs.delete(f) } }, () => na)
 
+/* 떠오르는 글자: 모양 대신(또는 섞어서) 낱말이 떠오른다. 낱말은 묶음에서 고르고, 직접 넣을 수도 있다 */
+export type NoteText = 'off' | 'only' | 'mix'
+export const NOTE_TEXTS: { id: NoteText; name: string }[] = [{ id: 'off', name: '모양만' }, { id: 'only', name: '글자만' }, { id: 'mix', name: '모양과 글자' }]
+export const WORD_GROUPS: { id: string; name: string; words: string[] }[] = [
+  { id: 'love', name: '사랑', words: ['사랑', '은혜', '긍휼', '자비', '용서', '위로'] },
+  { id: 'faith', name: '믿음', words: ['믿음', '순종', '신뢰', '고백', '기도', '말씀'] },
+  { id: 'hope', name: '소망', words: ['소망', '희망', '천국', '약속', '영광', '부활'] },
+  { id: 'joy', name: '기쁨', words: ['기쁨', '감사', '찬양', '평안', '축복', '행복'] },
+  { id: 'day', name: '일상', words: ['오늘', '햇살', '바람', '웃음', '친구', '가족'] },
+]
+export const MY_WORDS_MAX = 20, MY_WORD_LEN = 4
+interface Words { text: NoteText; groups: string[]; mine: string[]; mineOn: boolean; big: boolean }
+let wd: Words = { text: 'off', groups: ['love', 'faith', 'hope', 'joy'], mine: [], mineOn: true, big: true, ...load<Partial<Words>>('noteWords', {}) }
+if (!NOTE_TEXTS.some((x) => x.id === wd.text)) wd.text = 'off'
+if (!Array.isArray(wd.groups)) wd.groups = []
+wd.mine = Array.isArray(wd.mine) ? wd.mine.filter((x) => typeof x === 'string').slice(0, MY_WORDS_MAX) : []
+export const getWords = () => wd
+export function setWords(p: Partial<Words>) { wd = { ...wd, ...p }; save('noteWords', wd); subs.forEach((f) => f()) }
+export const useWords = () => useSyncExternalStore((f) => { subs.add(f); return () => { subs.delete(f) } }, () => wd)
+/** 이번에 글자를 띄울 차례면 낱말을, 모양 차례면 null을 준다. tr: 화면 언어로 옮기는 함수(직접 넣은 낱말은 그대로) */
+export function wordFor(i: number, tr: (s: string) => string): string | null {
+  if (wd.text === 'off' || (wd.text === 'mix' && i % 3 !== 0)) return null
+  const pool = WORD_GROUPS.filter((g) => wd.groups.includes(g.id)).flatMap((g) => g.words)
+  const all = pool.length + (wd.mineOn ? wd.mine.length : 0)
+  if (!all) return null
+  const k = Math.floor(Math.random() * all)
+  return k < pool.length ? tr(pool[k]) : wd.mine[k - pool.length]
+}
+
 /** 설정 칩·파형 음표에 쓰는 작은 그림(line이면 안을 채우지 않고 선만) */
 export function GlyphIcon({ k, s = 18, line = false }: { k: string; s?: number; line?: boolean }) {
   return (

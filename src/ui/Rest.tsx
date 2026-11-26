@@ -29,7 +29,8 @@ import { kindOf, useCards, useChurch } from '../lib/church'
 import { live, setViz, useViz, VIZ } from '../lib/viz'
 import { ChurchCard, ChurchPage, NaverBtn } from './Church'
 import { VERSE_SPEEDS, type VerseSpeed } from './VerseStrip'
-import { GLYPHS, GlyphChip, NOTE_AMOUNTS, NOTE_COLORS, setGlyph, setNoteAmount, setNoteColor, useGlyph, useNoteAmount, useNoteColor } from '../lib/glyph'
+import { GLYPHS, GlyphChip, MY_WORDS_MAX, MY_WORD_LEN, NOTE_AMOUNTS, NOTE_COLORS, NOTE_TEXTS, WORD_GROUPS, setGlyph, setNoteAmount, setNoteColor, setWords, useGlyph, useNoteAmount, useNoteColor, useWords } from '../lib/glyph'
+import { jred } from './JRed'
 
 const REPO = 'https://github.com/sysoppark-oss/onum'
 const MAIL = 'sysoppark@gmail.com'
@@ -62,7 +63,7 @@ export function RestScreen({ player, music }: { player: Player; music: Track[] }
       <div className="ph"><h1>{tx("쉼")}</h1></div>
       <section className="rest" aria-labelledby="rest-h">
         <h2 className="wl" id="rest-h">{tx("오늘의 한 구절")}</h2>
-        <p className="rest-w" lang={v.lang}>{v.text}</p>
+        <p className="rest-w" lang={v.lang}>{jred(v.text)}</p>
         <p className="wr">{v.ref} · {v.ver}</p>
         <button className="go rest-go" onClick={() => setReading(true)}>{tx("말씀 천천히 보기")}</button>
         <button className="ghost rest-mood" onClick={() => setMood(true)}>{tx("지금 내 마음에 맞는 말씀")}</button>
@@ -126,6 +127,13 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
   const glyph = useGlyph()
   const noteColor = useNoteColor()
   const noteAmount = useNoteAmount()
+  const words = useWords()
+  const [newWord, setNewWord] = useState('')
+  const addWord = () => {
+    const w = newWord.trim().slice(0, MY_WORD_LEN)
+    if (!w || words.mine.includes(w) || words.mine.length >= MY_WORDS_MAX) return
+    setWords({ mine: [...words.mine, w], mineOn: true }); setNewWord('')
+  }
   const updOn = useFlag('updateCheck', true)
   const upd = useUpd()
   const [chk, setChk] = useState('')
@@ -210,6 +218,46 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
                   <button key={a.id} role="radio" aria-checked={noteAmount === a.id} className={noteAmount === a.id ? 'on' : undefined} onClick={() => setNoteAmount(a.id)}>{tx(a.name)}</button>
                 ))}
               </div>
+            </div>
+          )}
+          {notesOn && (
+            <div className="ntpick">
+              <span className="ntpick-l" id="nw-l">{tx("글자도 떠오르기")}</span>
+              <div className="ntamt" role="radiogroup" aria-labelledby="nw-l">
+                {NOTE_TEXTS.map((a) => (
+                  <button key={a.id} role="radio" aria-checked={words.text === a.id} className={words.text === a.id ? 'on' : undefined} onClick={() => setWords({ text: a.id })}>{tx(a.name)}</button>
+                ))}
+              </div>
+            </div>
+          )}
+          {notesOn && words.text !== 'off' && (
+            <div className="ntpick">
+              <span className="ntpick-l" id="ng-l">{tx("낱말 묶음 · 여러 개 고를 수 있어요")}</span>
+              <div className="wdgroups" role="group" aria-labelledby="ng-l">
+                {WORD_GROUPS.map((g) => {
+                  const on = words.groups.includes(g.id)
+                  return <button key={g.id} aria-pressed={on} onClick={() => setWords({ groups: on ? words.groups.filter((x) => x !== g.id) : [...words.groups, g.id] })}>{tx(g.name)}</button>
+                })}
+                <button aria-pressed={words.mineOn} onClick={() => setWords({ mineOn: !words.mineOn })}>{tx("내 낱말")}</button>
+              </div>
+              <p className="wdlist">{WORD_GROUPS.filter((g) => words.groups.includes(g.id)).flatMap((g) => g.words.map((w) => tx(w))).join(' · ') || tx("고른 묶음이 없어요.")}</p>
+              {words.mineOn && (<>
+                <form className="wdadd" onSubmit={(e) => { e.preventDefault(); addWord() }}>
+                  <input value={newWord} maxLength={MY_WORD_LEN} onChange={(e) => setNewWord(e.target.value)} placeholder={tx("내 낱말 (네 글자까지)")} aria-label={tx("내 낱말 넣기")} enterKeyHint="done" />
+                  <button type="submit" disabled={!newWord.trim() || words.mine.length >= MY_WORDS_MAX}>{tx("넣기")}</button>
+                </form>
+                {words.mine.length > 0 && (
+                  <div className="wdmine">
+                    {words.mine.map((w) => <button key={w} onClick={() => setWords({ mine: words.mine.filter((x) => x !== w) })} aria-label={tx("{0} 지우기", w)}>{w}<Icon n="x" s={18} /></button>)}
+                  </div>
+                )}
+              </>)}
+            </div>
+          )}
+          {notesOn && (
+            <div className="lrow ntbig">
+              <span className="x"><span className="x1" id="nb-l">{tx("소리가 세질 때 큰 것 하나")}</span><span className="x2">{tx("여러 개 대신 다섯 배 큰 것 하나가 떠올라요")}</span></span>
+              <button className="sw" role="switch" aria-checked={words.big} aria-labelledby="nb-l" onClick={() => setWords({ big: !words.big })} />
             </div>
           )}
         </li>
@@ -329,7 +377,7 @@ export function ReadPage({ onClose, list, title = tx("말씀 천천히 보기"),
     <Page label={title} onClose={onClose}>
       <div className="read">
         {!list && <p className="read-m">{i === dayIndex() ? tx("오늘") : tx("{0}번째", i + 1)} · {moodName(v0.m)}</p>}
-        <p className="read-w" aria-live="polite" lang={v.lang}>{v.text}</p>
+        <p className="read-w" aria-live="polite" lang={v.lang}>{jred(v.text)}</p>
         <p className="wr">{v.ref} · {v.ver}</p>
       </div>
       <div className="nb">

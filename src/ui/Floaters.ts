@@ -2,7 +2,8 @@
 //  · 세기 → 크기, 곡 빠르기 → 떠오르는 속도, 고음 → 살랑살랑 흔들림, 저음 → 묵직하게 솟음
 //  · 몇 개는 그림 바로 위에 남아 맴돌다가, 곡이 끝나는 순간 한꺼번에 흩어진다
 //  · 누르면 톡 터진다(재생에는 영향 없음)
-import { NOTE_AMOUNTS, NOTE_COLORS, PATH, getNoteAmount, getNoteColor, shapeFor, type Glyph } from '../lib/glyph'
+import { NOTE_AMOUNTS, NOTE_COLORS, PATH, getNoteAmount, getNoteColor, getWords, shapeFor, wordFor, type Glyph } from '../lib/glyph'
+import { tx } from '../lib/i18n'
 
 /** 설정에서 고른 선 색(여러 색이면 null: 그림이 준 색을 그대로) */
 function pickColor(): [number, number, number] | null {
@@ -18,7 +19,7 @@ type RGB = [number, number, number]
 export interface Burst { x: number; y: number; col: RGB; power: number; side: number; bright: number; tempo: number }
 interface P {
   k: string; x: number; y: number; vx: number; vy: number; s: number; rot: number; vr: number; col: RGB
-  age: number; life: number; sway: number; w: number; ph: number; kind: 'fly' | 'keep' | 'bit' | 'text'; tx: number; ty: number; t?: string
+  age: number; life: number; sway: number; w: number; ph: number; kind: 'fly' | 'keep' | 'bit' | 'text'; tx: number; ty: number; t?: string; wd?: string
 }
 const paths = new Map<string, Path2D>()
 const pathOf = (k: string) => { let p = paths.get(k); if (!p) { p = new Path2D(PATH[k]); paths.set(k, p) } return p }
@@ -29,6 +30,7 @@ export class Floaters {
   private H = 0
   private ps: P[] = []
   private n = 0
+  private lastBig = 0
   readonly reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
   private cv: HTMLCanvasElement
   readonly up: number
@@ -54,16 +56,21 @@ export class Floaters {
     const flying = this.ps.reduce((a, p) => a + (p.kind === 'fly' ? 1 : 0), 0)
     if (flying >= Math.round((this.small ? 12 : 22) * am.max / 10)) return
     const col = pickColor() ?? b.col
-    const count = (!this.reduce && b.power > 0.75 ? 2 : 1) + (am.k > 1 && Math.random() < am.k - 1 ? 1 : 0)
+    // 소리가 아주 세지거나 고음이 확 올라온 순간: 여러 개 대신 다섯 배쯤 큰 것 하나(몇 초에 한 번만)
+    const strong = b.power > 0.8 || (b.bright > 0.75 && b.power > 0.6)
+    const big = getWords().big && !this.reduce && strong && performance.now() - this.lastBig > 6000
+    if (big) this.lastBig = performance.now()
+    const count = big ? 1 : (!this.reduce && b.power > 0.75 ? 2 : 1) + (am.k > 1 && Math.random() < am.k - 1 ? 1 : 0)
     for (let c = 0; c < count; c++) {
       const heavy = 1 - b.bright
       const base = this.small ? 9 : 13
-      const s = base + b.power * (this.small ? 9 : 15) + heavy * 3 + Math.random() * 2
+      const s = (base + b.power * (this.small ? 9 : 15) + heavy * 3 + Math.random() * 2) * (big ? 5 : 1)
+      const wd = wordFor(this.n, tx) ?? undefined
       const t = b.tempo
       this.ps.push({
-        k: shapeFor(g, this.n++, b), x: b.x + (Math.random() - 0.5) * 8, y: b.y + this.up, s, col,
+        k: shapeFor(g, this.n++, b), wd, x: big ? Math.max(this.W * 0.25, Math.min(this.W * 0.75, b.x)) : b.x + (Math.random() - 0.5) * 8, y: b.y + this.up, s, col,
         vx: b.side * 14 + (Math.random() - 0.5) * 12, vy: -(24 + 26 * b.power + 18 * heavy) * t,
-        rot: (Math.random() - 0.5) * 0.5, vr: this.reduce ? 0 : (Math.random() - 0.5) * (0.6 + b.bright * 2.4),
+        rot: (Math.random() - 0.5) * (big || wd ? 0.15 : 0.5), vr: this.reduce || big || wd ? 0 : (Math.random() - 0.5) * (0.6 + b.bright * 2.4),
         age: 0, life: (2.6 + Math.random() * 0.9) / Math.sqrt(t), sway: this.reduce ? 0 : 3 + b.bright * 14,
         w: 1.6 + b.bright * 2.6, ph: Math.random() * 6.28, kind: 'fly', tx: 0, ty: 0,
       })
@@ -89,7 +96,7 @@ export class Floaters {
     if (this.reduce) return
     for (let i = 0; i < n; i++) {
       const a = (i / n) * Math.PI * 2 + Math.random() * 0.5, v = 70 + Math.random() * 70
-      this.ps.push({ ...p, s: Math.max(4, p.s * 0.42), vx: Math.cos(a) * v, vy: Math.sin(a) * v - 20, vr: (Math.random() - 0.5) * 6, age: 0, life: 0.8 + Math.random() * 0.3, sway: 0, kind: 'bit' })
+      this.ps.push({ ...p, wd: undefined, k: p.wd ? 'spark' : p.k, s: Math.min(14, Math.max(4, p.s * 0.42)), vx: Math.cos(a) * v, vy: Math.sin(a) * v - 20, vr: (Math.random() - 0.5) * 6, age: 0, life: 0.8 + Math.random() * 0.3, sway: 0, kind: 'bit' })
     }
   }
 
@@ -155,10 +162,20 @@ export class Floaters {
       const sx = p.kind === 'keep' ? Math.sin(p.ph + p.age * 1.2) * 3 : Math.sin(p.ph + p.age * p.w) * p.sway * Math.min(1, p.age * 3)
       const sy = p.kind === 'keep' ? Math.cos(p.ph + p.age * 0.9) * 2 : 0
       const grow = p.kind === 'fly' ? 0.5 + 0.5 * Math.min(1, p.age / 0.18) : 1
+      const [r, g, b] = p.col
+      if (p.wd) {
+        // 낱말: 또렷하게 읽히도록 채운 글자로(13px보다 작게 그리지 않는다)
+        x.save(); x.globalAlpha = a
+        x.translate(p.x + sx, p.y + sy); x.rotate(p.rot)
+        x.font = `800 ${Math.max(13, Math.round(p.s * grow * 0.7))}px 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif`
+        x.textAlign = 'center'; x.textBaseline = 'middle'
+        x.fillStyle = `rgb(${r},${g},${b})`; x.fillText(p.wd, 0, 0)
+        x.restore()
+        continue
+      }
       x.save()
       x.globalAlpha = a
       x.translate(p.x + sx, p.y + sy); x.rotate(p.rot); x.scale((p.s * grow) / 24, (p.s * grow) / 24); x.translate(-12, -12)
-      const [r, g, b] = p.col
       // 선으로만 그린다(안은 비운다). 크기와 상관없이 같은 굵기로 보이게 배율만큼 나눈다
       x.strokeStyle = `rgb(${r},${g},${b})`
       x.lineWidth = (p.kind === 'bit' ? 1.6 : 2) * 24 / (p.s * grow)

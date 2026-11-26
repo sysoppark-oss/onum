@@ -1092,6 +1092,21 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .ntamt button { min-height: 44px; border-radius: 12px; font-size: 15px; font-weight: 600; color: var(--ink2); display: flex; align-items: center; justify-content: center; text-align: center; }
 .ntamt button.on { background: var(--bg); color: var(--ink); font-weight: 800; box-shadow: 0 0 0 1px var(--line); }
 .notes i svg { display: block; }
+.notes i.big { animation-name: note-up-big; animation-timing-function: ease-out; }
+@keyframes note-up-big { 0% { transform: translate(-50%, 10px) scale(.6); opacity: 0; } 15% { opacity: .9; } 70% { opacity: .9; } 100% { transform: translate(calc(-50% + var(--dx, 0px)), -70px) scale(1) rotate(var(--r, 0deg)); opacity: 0; } }
+.note-word { display: block; white-space: nowrap; font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; font-weight: 800; letter-spacing: -0.01em; }
+.wdgroups { display: flex; flex-wrap: wrap; gap: 6px; }
+.wdgroups button { min-height: 44px; padding: 0 16px; border-radius: 22px; background: var(--sf); font-size: 15px; font-weight: 700; color: var(--ink2); }
+.wdgroups button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
+.wdlist { margin-top: 6px; font-size: 14px; color: var(--ink2); line-height: 1.5; }
+.wdadd { display: flex; gap: 8px; margin-top: 10px; }
+.wdadd input { flex: 1; min-width: 0; height: 48px; padding: 0 14px; border-radius: 14px; background: var(--sf); font-size: 16px; color: var(--ink); }
+.wdadd input:focus-visible { outline: 2px solid var(--ink); outline-offset: 1px; }
+.wdadd button { display: flex; align-items: center; justify-content: center; flex-shrink: 0; min-width: 72px; height: 48px; border-radius: 14px; background: var(--ink); color: var(--on-ink); font-size: 15px; font-weight: 700; }
+.wdadd button:disabled { opacity: .4; }
+.wdmine { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.wdmine button { display: inline-flex; align-items: center; gap: 4px; min-height: 44px; padding: 0 8px 0 14px; border-radius: 22px; box-shadow: inset 0 0 0 1.5px var(--line); font-size: 15px; font-weight: 700; color: var(--ink); }
+.jred { color: var(--nt-red); }
 .notes i.nm { animation-name: name-up; animation-timing-function: ease-out; }
 .note-name { display: block; white-space: nowrap; font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; font-size: 15px; font-weight: 800; letter-spacing: -0.01em; }
 @keyframes name-up { 0% { transform: translate(-50%, 4px); opacity: 0; } 20%, 70% { opacity: .8; } 100% { transform: translate(-50%, -46px); opacity: 0; } }
