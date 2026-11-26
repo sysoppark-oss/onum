@@ -86,7 +86,29 @@ mark { background: none; color: var(--now-text); font-weight: 800; }
 .out svg { color: var(--ink); flex-shrink: 0; }
 /* 소리 나가는 곳: 동그란 그림 + 이름 */
 .now .out { --oc: var(--ink2); gap: 0.5rem; min-height: 2.25rem; padding: 0.25rem 0.875rem 0.25rem 0.25rem; background: var(--bg); border: 1px solid var(--line); border-radius: 1.25rem; }
-.now .top .chbrand { flex: 0 1 auto; }
+.now .top .chbrand { flex: 1 1 100%; min-width: 0; display: block; text-align: center; }
+.now .top:has(.chbrand) { flex-wrap: wrap; row-gap: 0.625rem; }
+/* 명판: 쇠판·나무판에 새긴 것처럼. 색은 판마다 정해져 있어 낮·밤에 같게 보인다 */
+.nplate { position: relative; display: block; width: 100%; padding: 0.8125rem 1.5rem; border-radius: 0.625rem; text-align: center; font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; background: var(--p-bg); box-shadow: inset 0 1px 0 var(--p-hi), inset 0 -1px 0 var(--p-lo), 0 1px 2px rgba(0, 0, 0, .25); }
+.nplate b { display: block; font-size: 1.0625rem; font-weight: 600; letter-spacing: .03em; line-height: 1.35; color: var(--p-ink); text-shadow: var(--p-cut); overflow-wrap: anywhere; text-wrap: balance; }
+.nplate .nplate-b { display: block; margin-top: 0.25rem; font-size: 0.8125rem; font-weight: 500; letter-spacing: .1em; line-height: 1.4; color: var(--p-ink2); text-shadow: var(--p-cut2); overflow-wrap: anywhere; }
+.nplate.np-big { padding: 1.125rem 1.625rem; }
+.nplate.np-big b { font-size: 1.25rem; }
+.nplate.np-big .nplate-b { font-size: 0.875rem; margin-top: 0.375rem; }
+.nplate i { position: absolute; top: 50%; width: 0.4375rem; height: 0.4375rem; margin-top: -0.25rem; border-radius: 50%; background: var(--p-screw); box-shadow: inset 0 1px 1px var(--p-lo), 0 1px 0 var(--p-hi); }
+.nplate i.l { left: 0.5625rem; }
+.nplate i.r { right: 0.5625rem; }
+.nplate-steel { --p-bg: linear-gradient(180deg, #f4f5f6 0%, #d5d8dc 45%, #bfc3c8 55%, #e3e5e8 100%); --p-hi: #ffffff; --p-lo: #8e9298; --p-screw: #9da1a7; --p-ink: #33363b; --p-ink2: #3f4348; --p-cut: 0 1px 0 rgba(255, 255, 255, .85), 0 -1px 0 rgba(0, 0, 0, .25); --p-cut2: 0 1px 0 rgba(255, 255, 255, .8); }
+.nplate-brass { --p-bg: linear-gradient(180deg, #f0dfae 0%, #d4b56a 45%, #bb9a4c 55%, #e2cb8c 100%); --p-hi: #fff3cf; --p-lo: #8a6d2c; --p-screw: #a8873d; --p-ink: #43300c; --p-ink2: #43300c; --p-cut: 0 1px 0 rgba(255, 244, 208, .9), 0 -1px 0 rgba(60, 40, 0, .3); --p-cut2: 0 1px 0 rgba(255, 244, 208, .85); }
+.nplate-gun { --p-bg: linear-gradient(180deg, #4a4d52 0%, #2f3135 45%, #232528 55%, #3b3e43 100%); --p-hi: #6d7077; --p-lo: #0e0f10; --p-screw: #1b1c1e; --p-ink: #dcc88f; --p-ink2: #dcc88f; --p-cut: 0 -1px 0 rgba(0, 0, 0, .7), 0 1px 0 rgba(255, 255, 255, .12); --p-cut2: 0 -1px 0 rgba(0, 0, 0, .7); }
+/* 나무: 결을 가는 줄무늬로, 글자는 불로 지진 것처럼 짙게 */
+.nplate-wood { --p-bg: repeating-linear-gradient(92deg, rgba(90, 52, 18, .09) 0 2px, rgba(255, 220, 170, .06) 2px 0.3125rem, rgba(90, 52, 18, .05) 0.3125rem 0.5625rem), linear-gradient(180deg, #d9a56c 0%, #c48d54 50%, #b57d46 100%); --p-hi: #f0c693; --p-lo: #6e4520; --p-screw: #7a4f26; --p-ink: #2f1a06; --p-ink2: #2f1a06; --p-cut: 0 1px 0 rgba(255, 224, 180, .55), 0 -1px 0 rgba(40, 20, 0, .25); --p-cut2: 0 1px 0 rgba(255, 224, 180, .5); }
+.nplate.chip { width: 100%; height: 1.875rem; padding: 0; border-radius: 0.4375rem; }
+.platepick { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+.platepick button { display: flex; flex-direction: column; gap: 0.375rem; padding: 0.625rem 0.625rem 0.5rem; min-height: 2.75rem; border-radius: 0.875rem; background: var(--sf); font-size: 0.875rem; font-weight: 700; color: var(--ink2); }
+.platepick button.on { box-shadow: inset 0 0 0 2.5px var(--ink); color: var(--ink); }
+.chf-date { margin-top: 0.375rem; }
+.chc .nplate { margin-top: 0.625rem; }
 .now .top .chbrand .cm-names { flex-shrink: 0; }
 .now .top .out { flex: 0 1 auto; min-width: 7.5em; }
 .now .out .ot { max-width: 9em; }
@@ -919,7 +941,7 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .gift-ch { font-size: 0.875rem; font-weight: 600; letter-spacing: -0.01em; color: var(--ink2); }
 
 .chc { position: relative; padding: 1.375rem 1.25rem 1.25rem; border-radius: 1.375rem; background: var(--sf); overflow: hidden; text-align: left; }
-.chc::after { content: ''; position: absolute; right: -2.125rem; top: -2.125rem; width: 6.5rem; height: 6.5rem; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--line), 0 0 0 1.375rem var(--sf), 0 0 0 1.4375rem var(--line); pointer-events: none; }
+.chc-off::after { content: ''; position: absolute; right: -2.125rem; top: -2.125rem; width: 6.5rem; height: 6.5rem; border-radius: 50%; box-shadow: inset 0 0 0 1px var(--line), 0 0 0 1.375rem var(--sf), 0 0 0 1.4375rem var(--line); pointer-events: none; }
 .chc > * { position: relative; z-index: 1; }
 .chc-k { font-size: 0.8125rem; font-weight: 700; letter-spacing: 0.08em; color: var(--ink2); }
 .chc-n { margin-top: 0.375rem; font-size: 1.75rem; font-weight: 800; line-height: 1.2; letter-spacing: -0.035em; color: var(--ink); overflow-wrap: anywhere; text-wrap: balance; }
@@ -1002,8 +1024,8 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .gift .cm.cm-big b { font-size: 1.5rem; }
 .chc-n { margin-top: 0.375rem; }
 /* 카드 종류 고르기 + 미리 보기 */
-.chf-kinds { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.375rem; margin: 0.25rem 0 0.375rem; }
-.chf-kinds button { display: inline-flex; align-items: center; justify-content: center; gap: 0.1875rem; min-height: 2.75rem; padding: 0 0.25rem; white-space: nowrap; border-radius: 1.375rem; background: var(--sf); font-size: 0.9375rem; font-weight: 700; color: var(--ink2); }
+.chf-kinds { display: flex; flex-wrap: wrap; gap: 0.375rem; margin: 0.25rem 0 0.375rem; }
+.chf-kinds button { display: inline-flex; align-items: center; justify-content: center; gap: 0.1875rem; min-height: 2.75rem; padding: 0 1rem; white-space: nowrap; border-radius: 1.375rem; background: var(--sf); font-size: 0.9375rem; font-weight: 700; color: var(--ink2); }
 .chf-kinds button.on { background: var(--ink); color: var(--on-ink); }
 .chf-kinds button svg { color: var(--tg-pink); fill: currentColor; }
 .chf-prev { display: flex; flex-direction: column; gap: 0.375rem; padding: 0.875rem 1rem; border-radius: 1rem; box-shadow: inset 0 0 0 1px var(--line); }

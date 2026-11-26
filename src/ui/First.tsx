@@ -11,7 +11,7 @@ import { Icon, nf } from './common'
 import { LANGS, lang, setLang, tx, type Lang } from "../lib/i18n";
 import { Page } from './Sheets'
 import { appLink, lineOf, link, useChurch } from '../lib/church'
-import { CardMark } from './Church'
+import { Plate } from './Church'
 import { getUrl, TEST_APK_URL } from '../lib/channel'
 
 // 마우스를 쓰는 넓은 화면이면 PC로 본다
@@ -161,7 +161,7 @@ export function FirstScreen({ onDone }: { onDone: (r: ScanResult, hidden: string
     const android = !isNative && /Android/i.test(navigator.userAgent)
     return (
       <div className="page first wp">
-        <div className="wp-top"><CardMark c={{ ...church, line: lineOf(church) }} size="bar" /></div>
+        <div className="wp-top"><Plate c={{ ...church, line: lineOf(church) }} size="bar" /></div>
         <div className="wp-art" aria-hidden="true"><Icon n="note" s={56} /></div>
         <h1 className="wp-t">{tx("음악을 불러오면 바로 들을 수 있어요")}</h1>
         <p className="wp-s">{isNative ? tx("휴대폰 속 음악을 찾아 담아 둘게요. 음악 파일은 휴대폰 밖으로 나가지 않아요.") : tx("광고도, 회원 가입도 없어요. 음악 파일은 이 기기 밖으로 나가지 않아요.")}</p>
@@ -229,7 +229,7 @@ export function FoldersPage({ tracks, hidden, setHidden, onClose }: { tracks: Tr
 function Mark() {
   const ch = useChurch()
   return ch
-    ? <p className="gift"><CardMark c={{ ...ch, line: lineOf(ch) }} /></p>
+    ? <p className="gift"><Plate c={{ ...ch, line: lineOf(ch) }} /></p>
     : <p className="mark">{tx("온음")}</p>
 }
 

@@ -17,7 +17,7 @@ import type { Edits } from '../lib/edits'
 import { lineOf, useChurch } from '../lib/church'
 import { VIZ, live, setViz, useViz, type Viz } from '../lib/viz'
 import { ConsoleOpen, ConsolePage, ConsoleViz, type ConsoleKind } from './Viz'
-import { CardMark, ChurchPage } from './Church'
+import { ChurchPage, Plate } from './Church'
 import { tx } from "../lib/i18n";
 import { useFlag } from '../lib/flag'
 import { useKaraokeOn } from '../lib/karaoke'
@@ -398,7 +398,7 @@ export function NowScreen({ tracks, player, vol, loud, output, lists, edits, onS
       <div className="top">
         {church
           ? <button className="chbrand" onClick={() => setChOpen(true)} aria-label={tx("카드 열기: {0}", church.name)}>
-              <CardMark c={{ ...church, line: lineOf(church) }} size="bar" />
+              <Plate c={{ ...church, line: lineOf(church) }} size="bar" />
             </button>
           : <span className="mark">{tx("온음")}</span>}
         {karaOn && cur && !talk && <button className="kara-open" onClick={() => setKaraOpen(true)}><Icon n="mic" s={18} />{tx("노래연습")}</button>}

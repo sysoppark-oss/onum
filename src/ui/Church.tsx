@@ -5,7 +5,7 @@ import { load, save } from '../lib/store'
 import { GLYPHS, GlyphChip, type Glyph } from '../lib/glyph'
 import QRCode from 'qrcode'
 import { Share } from '@capacitor/share'
-import { addCard, answer, appLink, bad, cardKey, cardText, code, create, edit, joint, kindOf, LIMIT, lineOf, link, markMine, naverUrl, pickCard, removeCard, unlock, useCards, type Entry, useChurch, useIncoming, type CardInput, type Church, type Kind } from '../lib/church'
+import { addCard, dateText, josa, PLATES, plateOf, type Plate as PlateKind, type Tpl, answer, appLink, bad, cardKey, code, create, edit, joint, kindOf, LIMIT, lineOf, link, markMine, naverUrl, pickCard, removeCard, unlock, useCards, type Entry, useChurch, useIncoming, type CardInput, type Church, type Kind } from '../lib/church'
 import { isNative, openWeb } from '../lib/native'
 import { tx } from '../lib/i18n'
 import { Icon, Sheet } from './common'
@@ -13,8 +13,33 @@ import { Page } from './Sheets'
 
 
 
-/** 이름 서명: bar = 지금 화면 맨 위 한 줄, big = 카드·첫 화면 */
-export function CardMark({ c, size = 'big' }: { c: Pick<Church, 'name' | 'line' | 'kind' | 'q'>; size?: 'bar' | 'big' | 'row' }) {
+type Face = Pick<Church, 'name' | 'line' | 'kind' | 'q' | 'tpl' | 'from' | 'd' | 'plate'>
+/** 명판 윗줄 글: 문구 틀이 있으면 받는 분 이름으로 완성하고, 없으면 이름+이어지는 말 */
+export function topText(c: Face): string {
+  if (c.tpl === 'of') return tx("{0}의 온음 플레이어", c.name)
+  if (c.tpl === 'only') return josa(c.name) === '을' ? tx("오직 {0}을 위한 온음 플레이어", c.name) : tx("오직 {0}를 위한 온음 플레이어", c.name)
+  const kind = c.kind ?? 'church'
+  const line = c.line ?? (kind === 'church' ? '에서 드리는 온음' : '')
+  return (kind === 'couple' ? `${c.name} ♥ ${c.q ?? ''} ${line}` : c.name + joint(line) + line).trim()
+}
+/** 명판 아랫줄 글: 「2026. 11. 26. 박정근 드림」(없으면 빈 글) */
+export const bottomText = (c: Face) => [dateText(c.d), c.from ? tx("{0} 드림", c.from) : ''].filter(Boolean).join(' ')
+
+/** 명판: 쇠판·나무판에 새긴 것처럼. bar = 지금 화면 맨 위, big = 카드·첫 화면 */
+export function Plate({ c, size = 'big' }: { c: Face; size?: 'bar' | 'big' }) {
+  const bottom = bottomText(c)
+  return (
+    <span className={`nplate nplate-${plateOf(c)} np-${size}`}>
+      <i className="l" aria-hidden="true" /><i className="r" aria-hidden="true" />
+      <b>{topText(c)}</b>
+      {bottom && <span className="nplate-b">{bottom}</span>}
+    </span>
+  )
+}
+
+/** 이름 서명(목록 한 줄) */
+export function CardMark({ c, size = 'big' }: { c: Face; size?: 'bar' | 'big' | 'row' }) {
+  if (c.tpl) return <span className={'cm cm-' + size}><span className="cm-names"><b>{topText(c)}</b></span></span>
   const kind = c.kind ?? 'church'
   const line = c.line ?? (kind === 'church' ? '에서 드리는 온음' : '')
   const partner = kind === 'couple' ? c.q ?? '' : ''
@@ -108,8 +133,8 @@ function CardHome({ onOpen, onMake }: { onOpen: (k: string) => void; onMake: () 
 }
 
 const CARD_HELP: [string, string][] = [
-  ["카드가 뭐예요", "교회 이름, 선물·축하 말, 커플 이름을 온음 화면 맨 위에 크게 띄워 주는 카드예요. 소리 따라 고른 모양이 떠올라요."],
-  ["만들기", "「새 카드 만들기」에서 카드 종류를 고르고, 크게 보일 이름과 이어지는 말을 적어요. 떠오르는 모양도 골라요."],
+  ["카드가 뭐예요", "받는 분의 온음 화면 맨 위에 명판을 붙여 주는 카드예요. 「○○의 온음 플레이어」처럼 새겨져요. 교회 이름이나 커플 이름도 새길 수 있어요."],
+  ["만들기", "「새 카드 만들기」에서 종류를 고르고 받는 분과 보내는 분을 적어요. 명판 재질과 떠오르는 모양도 골라요."],
   ["비밀번호", "만들 때 정한 비밀번호가 있어야 나중에 고칠 수 있어요. 잊으면 아무도 고칠 수 없으니 꼭 적어 두세요."],
   ["보내기", "보낸 카드에서 카드를 열고 QR을 보여 주거나 「링크 보내기」를 눌러요. 휴대폰 카메라로 QR을 찍어도 열려요."],
   ["받기", "받은 링크나 QR을 열면 「지금 쓰기」나 「받은 카드에 담아 두기」를 골라요. 보낸 분을 아실 때만 넣어 주세요."],
@@ -131,13 +156,13 @@ function CardHelp({ onClose }: { onClose: () => void }) {
   )
 }
 
-/** 카드 겉모습: 이름이 주인공 */
+/** 카드 겉모습: 명판 */
 export function ChurchCard({ c, foot }: { c: Church; foot?: React.ReactNode }) {
   const kind = kindOf(c)
   return (
     <div className={'chc ' + kind}>
       <p className="chc-k">{tx(KIND_LAB[kind])}</p>
-      <h3 className="chc-n"><CardMark c={{ ...c, line: lineOf(c) }} /></h3>
+      <Plate c={{ ...c, line: lineOf(c) }} />
       {foot}
     </div>
   )
@@ -154,7 +179,7 @@ function ChurchView({ e, on, onEdit, onList }: { e: Entry; on: boolean; onEdit: 
   useEffect(() => {
     QRCode.toString(url, { type: 'svg', errorCorrectionLevel: 'M', margin: 0, color: { dark: '#111111', light: '#ffffff' } }).then(setQr).catch(() => setQr(''))
   }, [url])
-  const words = cardText(c)
+  const words = topText({ ...c, line: lineOf(c) })
   const share = async () => {
     const text = tx("「{0}」 — 무료 음악 앱 「온음」에 담았어요. 누르면 열려요.", words) + '\n' + url
     try {
@@ -197,25 +222,26 @@ function ChurchView({ e, on, onEdit, onList }: { e: Entry; on: boolean; onEdit: 
   )
 }
 
-// 고르는 모양: 종류마다 이어지는 말을 미리 채워 둔다(고쳐 쓸 수 있음)
-const PRESETS: { id: string; label: string; kind: Kind; name: string; line: string; q?: string; g: Glyph }[] = [
+// 고르는 모양: 선물은 문구 틀(받는 분 이름만 넣으면 완성), 나머지는 이름+이어지는 말(고쳐 쓸 수 있음)
+const PRESETS: { id: string; label: string; kind: Kind; tpl?: Tpl; name: string; line: string; q?: string; g: Glyph }[] = [
+  { id: 'of', label: "선물", kind: 'gift', tpl: 'of', name: "예) 김은혜 님", line: '', g: 'heart' },
+  { id: 'only', label: "오직 한 분", kind: 'gift', tpl: 'only', name: "예) 김은혜 님", line: '', g: 'star' },
+  { id: 'free', label: "직접 쓰기", kind: 'gift', name: "예) 사랑하는 어머니", line: "의 온음 플레이어", g: 'spark' },
   { id: 'church', label: "교회", kind: 'church', name: "예) 맑은물속교회", line: "에서 드리는 온음", q: "예) 맑은물속교회 평창", g: 'note' },
-  { id: 'gift', label: "선물", kind: 'gift', name: "예) 주빛", line: "에게 보내는 선물", g: 'star' },
-  { id: 'heart', label: "마음", kind: 'gift', name: "예) 강빛이가", line: "주빛을 사랑하며", g: 'heart' },
-  { id: 'cheer', label: "축하", kind: 'gift', name: "예) 주빛", line: "의 생일을 축하해요", g: 'spark' },
   { id: 'couple', label: "커플", kind: 'couple', name: "예) 강빛", line: "함께 듣는 온음", q: "예) 주빛", g: 'heart' },
 ]
 type Preset = typeof PRESETS[number]
 const presetOf = (c?: Church): Preset => {
   if (!c) return PRESETS[0]
   const k = kindOf(c)
-  return PRESETS.find((p) => p.kind === k && tx(p.line) === lineOf(c)) ?? PRESETS.find((p) => p.kind === k)!
+  return PRESETS.find((p) => p.kind === k && p.tpl === c.tpl) ?? PRESETS.find((p) => p.kind === k && !p.tpl)!
 }
 const sample = (s?: string) => (s ? tx(s).replace(/^예\)\s*|^e\.g\.\s*|^例\)\s*/, '') : '')
 
 function ChurchForm({ init, onDone }: { init?: Church; onDone: (v: CardInput, pw?: string) => Promise<void> }) {
   const [pre, setPre] = useState<Preset>(presetOf(init))
-  const [v, setV] = useState<CardInput>({ kind: init ? kindOf(init) : 'church', name: init?.name ?? '', line: init ? lineOf(init) : tx(PRESETS[0].line), q: init?.q ?? '', g: init?.g ?? presetOf(init).g })
+  const [v, setV] = useState<CardInput>({ kind: init ? kindOf(init) : PRESETS[0].kind, tpl: init ? init.tpl : PRESETS[0].tpl, name: init?.name ?? '', line: init ? lineOf(init) : tx(PRESETS[0].line), q: init?.q ?? '', g: init?.g ?? presetOf(init).g,
+    from: init?.from ?? '', date: init ? !!init.d : true, plate: init ? plateOf(init) : 'brass' })
   const gTouched = useRef(!!init?.g)
   const [pw, setPw] = useState(''), [pw2, setPw2] = useState('')
   const [err, setErr] = useState<'' | 'name' | 'q' | 'lure' | 'pw' | 'pw2'>('')
@@ -223,16 +249,16 @@ function ChurchForm({ init, onDone }: { init?: Church; onDone: (v: CardInput, pw
   const first = useRef<HTMLInputElement>(null)
   const pick = (p: Preset) => {
     // 이어지는 말을 손대지 않았으면 새 종류의 말로 바꾼다
-    const touched = v.line.trim() && !PRESETS.some((x) => tx(x.line) === v.line)
+    const touched = v.line.trim() && !PRESETS.some((x) => x.line && tx(x.line) === v.line)
     setPre(p)
-    setV({ ...v, kind: p.kind, line: touched ? v.line : tx(p.line), q: p.kind === v.kind ? v.q : '', g: gTouched.current ? v.g : p.g })
+    setV({ ...v, kind: p.kind, tpl: p.tpl, line: p.tpl ? '' : touched ? v.line : tx(p.line), q: p.kind === v.kind ? v.q : '', g: gTouched.current ? v.g : p.g })
     setErr('')
   }
   const submit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!v.name.trim()) { setErr('name'); first.current?.focus(); return }
     if (v.kind === 'couple' && !v.q.trim()) { setErr('q'); return }
-    if ([v.name, v.line, v.q].some(bad)) { setErr('lure'); return }
+    if ([v.name, v.line, v.q, v.from ?? ''].some(bad)) { setErr('lure'); return }
     if (!init) {
       if (pw.length < 4) { setErr('pw'); return }
       if (pw !== pw2) { setErr('pw2'); return }
@@ -241,10 +267,11 @@ function ChurchForm({ init, onDone }: { init?: Church; onDone: (v: CardInput, pw
     try { await onDone(v, pw) } finally { setBusy(false) }
   }
   const f = (k: keyof CardInput) => (e: React.ChangeEvent<HTMLInputElement>) => { setV({ ...v, [k]: e.target.value }); setErr('') }
-  const nameLabel = v.kind === 'church' ? tx("교회 이름") : v.kind === 'couple' ? tx("내 이름") : tx("크게 보일 이름")
+  const nameLabel = v.kind === 'church' ? tx("교회 이름") : v.kind === 'couple' ? tx("내 이름") : v.tpl ? tx("받는 분") : tx("크게 보일 이름")
+  const today = (() => { const n = new Date(); return `${n.getFullYear()}${String(n.getMonth() + 1).padStart(2, '0')}${String(n.getDate()).padStart(2, '0')}` })()
   return (
     <form className="form chf" onSubmit={submit} noValidate>
-      {!init && <p className="chf-lead">{tx("넣은 이름과 말이 온음 화면 맨 위에 크게 보여요. 만든 카드는 QR이나 링크로 보낼 수 있어요.")}</p>}
+      {!init && <p className="chf-lead">{tx("받는 분의 온음 화면 맨 위에 이 명판이 늘 붙어 있어요. 만든 카드는 QR이나 링크로 보낼 수 있어요.")}</p>}
 
       <div className="chf-kinds" role="radiogroup" aria-label={tx("카드 종류")}>
         {PRESETS.map((p) => (
@@ -256,7 +283,7 @@ function ChurchForm({ init, onDone }: { init?: Church; onDone: (v: CardInput, pw
 
       <div className="chf-prev" aria-hidden="true">
         <span className="chf-prev-k">{tx("이렇게 보여요")}</span>
-        <CardMark c={{ kind: v.kind, name: v.name.trim() || sample(pre.name), line: v.line, q: v.q.trim() || sample(pre.q) }} size="bar" />
+        <Plate c={{ kind: v.kind, tpl: v.tpl, name: v.name.trim() || sample(pre.name), line: v.line, q: v.q.trim() || sample(pre.q), from: v.kind === 'gift' ? v.from?.trim() || undefined : undefined, d: v.kind === 'gift' && v.date ? init?.d || today : undefined, plate: v.plate }} size="bar" />
       </div>
 
       <label className="flabel" htmlFor="ch-n">{nameLabel}</label>
@@ -270,8 +297,28 @@ function ChurchForm({ init, onDone }: { init?: Church; onDone: (v: CardInput, pw
         {err === 'q' && <p className="ferr" role="alert">{tx("짝 이름을 적어 주세요.")}</p>}
       </>}
 
-      <label className="flabel" htmlFor="ch-l">{tx("이어지는 말")}</label>
-      <input id="ch-l" className="field" value={v.line} maxLength={LIMIT.line} autoComplete="off" enterKeyHint="next" onChange={f('line')} />
+      {!v.tpl && <>
+        <label className="flabel" htmlFor="ch-l">{tx("이어지는 말")}</label>
+        <input id="ch-l" className="field" value={v.line} maxLength={LIMIT.line} autoComplete="off" enterKeyHint="next" onChange={f('line')} />
+      </>}
+
+      {v.kind === 'gift' && <>
+        <label className="flabel" htmlFor="ch-f">{tx("보내는 분")} <span className="opt-l">{tx("(아랫줄에 「○○ 드림」)")}</span></label>
+        <input id="ch-f" className="field" value={v.from ?? ''} maxLength={LIMIT.from} autoComplete="off" enterKeyHint="next" placeholder={tx("예) 박정근")} onChange={f('from')} />
+        <div className="lrow chf-date">
+          <span className="x"><span className="x1" id="ch-d">{tx("새긴 날 넣기")}</span><span className="x2">{tx("카드를 만든 날이 아랫줄에 새겨져요")}</span></span>
+          <button type="button" className="sw" role="switch" aria-checked={!!v.date} aria-labelledby="ch-d" onClick={() => setV({ ...v, date: !v.date })} />
+        </div>
+      </>}
+
+      <span className="flabel" id="ch-p">{tx("명판 재질")}</span>
+      <div className="platepick" role="radiogroup" aria-labelledby="ch-p">
+        {PLATES.map((p) => (
+          <button key={p.id} type="button" role="radio" aria-checked={v.plate === p.id} className={v.plate === p.id ? 'on' : undefined} onClick={() => setV({ ...v, plate: p.id as PlateKind })}>
+            <span className={`nplate nplate-${p.id} chip`} aria-hidden="true" /><span>{tx(p.name)}</span>
+          </button>
+        ))}
+      </div>
 
       {v.kind === 'church' && <>
         <label className="flabel" htmlFor="ch-q">{tx("네이버 검색어")} <span className="opt-l">{tx("(비우면 교회 이름)")}</span></label>
