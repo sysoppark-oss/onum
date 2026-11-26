@@ -138,7 +138,8 @@ export function useDialog<T extends HTMLElement = HTMLDivElement>(onClose: () =>
 }
 
 /** 손가락으로 아래로 끌어내리면 닫힌다(창 맨 위에 있을 때만). 빠르게 튕기면 짧게 끌어도 닫힌다. */
-export function useSwipeClose(box: React.RefObject<HTMLElement | null>, onClose: () => void) {
+/** handle: 이 자리에서 시작한 끌기만 닫기로 친다(전체 화면 창은 제목 줄에서만: 맨 위에서 살짝 튕겨도 닫히던 것을 막는다) */
+export function useSwipeClose(box: React.RefObject<HTMLElement | null>, onClose: () => void, handle?: string) {
   const close = useRef(onClose)
   close.current = onClose
   useEffect(() => {
@@ -151,6 +152,7 @@ export function useSwipeClose(box: React.RefObject<HTMLElement | null>, onClose:
       const tg = e.target as HTMLElement
       // 재생 위치·음량 막대, 글자 칸에서는 끌지 않는다
       if (tg.closest('input, textarea, .shape, .track')) return
+      if (handle && !tg.closest(handle)) return
       const inner = tg.closest('.sheet-list') as HTMLElement | null
       if (el.scrollTop > 0 || (inner && inner.scrollTop > 0)) return
       armed = true; on = false; dy = 0
@@ -176,7 +178,12 @@ export function useSwipeClose(box: React.RefObject<HTMLElement | null>, onClose:
       el.style.transition = 'transform 220ms cubic-bezier(0.32, 0.72, 0, 1)'
       if (dy > Math.min(el.offsetHeight * 0.25, 160) || (v > 0.11 && dy > 48)) {
         el.style.transform = 'translateY(100%)'
-        setTimeout(() => close.current(), 200)
+        setTimeout(() => {
+          close.current()
+          // 닫는 함수가 창을 없애지 않고 앞 화면으로만 돌아가는 때가 있다(카드 보기 → 카드 목록).
+          // 그때 창이 화면 밖에 밀린 채 남으면 보이지 않는 창이 떠 있게 되므로 제자리로 돌린다.
+          requestAnimationFrame(() => { if (el.isConnected) { el.style.transition = 'none'; el.style.transform = '' } })
+        }, 200)
       } else el.style.transform = ''
     }
     el.addEventListener('touchstart', start, { passive: true })

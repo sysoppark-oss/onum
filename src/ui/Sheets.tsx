@@ -312,7 +312,7 @@ function FitOpt(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
 
 export function Page({ label, onClose, children, actions, className }: { label: string; onClose: () => void; children: React.ReactNode; actions?: React.ReactNode; className?: string }) {
   const box = useDialog(onClose)
-  useSwipeClose(box, onClose)
+  useSwipeClose(box, onClose, '.lh')
   // 제목이 두 줄로도 다 안 들어가면 오른쪽 단추를 아이콘만 남겨 자리를 내준다
   const lh = useRef<HTMLDivElement>(null)
   useLayoutEffect(() => {
