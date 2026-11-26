@@ -348,7 +348,19 @@ export function ConsoleViz({ kind, el, playing, className }: { kind: ConsoleKind
     const vis = () => { if (document.hidden) { cancelAnimationFrame(raf); raf = 0; last = 0 } else start() }
     document.addEventListener('visibilitychange', vis)
     start()
-    const kick = window.setInterval(() => { if (playRef.current) start() }, 400)
+    // 떠오르는 칸을 화면 맨 위까지 늘린다(모양이 제목·「온음」 위를 지나 상태 표시줄 앞에서 사라지게). 스크롤하면 다시 맞춘다
+    let upNow = UP
+    const syncUp = () => {
+      const f = fxc.current
+      if (!f || !fx) return
+      const top = Math.max(UP, Math.round(c.getBoundingClientRect().top))
+      if (Math.abs(top - upNow) < 6) return
+      upNow = top
+      f.style.top = `${-top}px`; f.style.height = `calc(100% + ${top}px)`
+      fx.setUp(top); fx.fit()
+    }
+    syncUp()
+    const kick = window.setInterval(() => { syncUp(); if (playRef.current) start() }, 400)
     return () => { cancelAnimationFrame(raf); clearInterval(kick); ro.disconnect(); document.removeEventListener('visibilitychange', vis); document.removeEventListener('pointerdown', down, true); document.removeEventListener('click', click, true) }
   }, [kind, el, UP])
 

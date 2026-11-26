@@ -655,12 +655,12 @@ label.pick:focus-within { outline: 3px solid var(--now); outline-offset: 2px; }
 /* 음표 띄우기 */
 .times > span:not(.notes) { position: relative; z-index: 1; }
 .notes { position: absolute; left: 0; right: 0; top: -4px; height: 26px; pointer-events: none; }
-.notes i { position: absolute; bottom: 0; font-style: normal; line-height: 1; font-weight: 700; transform: translateX(-50%); animation: note-up 1.8s cubic-bezier(.22,.8,.3,1) forwards; }
+.notes i { position: absolute; bottom: 0; font-style: normal; line-height: 1; font-weight: 700; transform: translateX(-50%); animation: note-up 1.8s linear forwards; }
 @keyframes note-up {
   0% { transform: translate(-50%, 6px) scale(.4) rotate(0deg); opacity: 0; }
-  18% { opacity: .95; }
-  50% { transform: translate(calc(-50% + var(--dx) * .5), -10px) scale(1.05) rotate(calc(var(--r) * -.6)); }
-  100% { transform: translate(calc(-50% + var(--dx)), -22px) scale(.9) rotate(var(--r)); opacity: 0; }
+  6% { opacity: .95; transform: translate(-50%, -6px) scale(1) rotate(0deg); }
+  88% { opacity: .9; }
+  100% { transform: translate(calc(-50% + var(--dx)), calc(-1 * var(--rise, 200px))) scale(.95) rotate(var(--r)); opacity: 0; }
 }
 
 /* 내 편집곡 */
@@ -1092,9 +1092,9 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .ntamt button { min-height: 44px; border-radius: 12px; font-size: 15px; font-weight: 600; color: var(--ink2); display: flex; align-items: center; justify-content: center; text-align: center; }
 .ntamt button.on { background: var(--bg); color: var(--ink); font-weight: 800; box-shadow: 0 0 0 1px var(--line); }
 .notes i svg { display: block; }
-.notes i.big { animation-name: note-up-big; animation-timing-function: ease-out; }
-@keyframes note-up-big { 0% { transform: translate(-50%, 10px) scale(.6); opacity: 0; } 15% { opacity: .9; } 70% { opacity: .9; } 100% { transform: translate(calc(-50% + var(--dx, 0px)), -70px) scale(1) rotate(var(--r, 0deg)); opacity: 0; } }
-.note-word { display: block; white-space: nowrap; font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; font-weight: 800; letter-spacing: -0.01em; }
+.notes i.big { animation-name: note-up-big; }
+@keyframes note-up-big { 0% { transform: translate(-50%, 10px) scale(.6); opacity: 0; } 6% { opacity: .9; transform: translate(-50%, -8px) scale(1); } 88% { opacity: .85; } 100% { transform: translate(calc(-50% + var(--dx, 0px)), calc(-1 * var(--rise, 200px))) scale(1) rotate(var(--r, 0deg)); opacity: 0; } }
+.note-word { display: block; white-space: nowrap; font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; font-weight: 500; letter-spacing: -0.01em; }
 .wdgroups { display: flex; flex-wrap: wrap; gap: 6px; }
 .wdgroups button { min-height: 44px; padding: 0 16px; border-radius: 22px; background: var(--sf); font-size: 15px; font-weight: 700; color: var(--ink2); }
 .wdgroups button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }

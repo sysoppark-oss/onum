@@ -124,7 +124,7 @@ export function GlyphIcon({ k, s = 18, line = false }: { k: string; s?: number; 
   return (
     <svg viewBox="0 0 24 24" width={s} height={s} aria-hidden="true" focusable="false" overflow="visible">
       {line
-        ? <path d={PATH[k]} fill="none" stroke="currentColor" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+        ? <path d={PATH[k]} fill="none" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
         : <path d={PATH[k]} fill="currentColor" />}
     </svg>
   )

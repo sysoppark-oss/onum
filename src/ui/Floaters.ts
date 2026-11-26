@@ -19,7 +19,7 @@ type RGB = [number, number, number]
 export interface Burst { x: number; y: number; col: RGB; power: number; side: number; bright: number; tempo: number }
 interface P {
   k: string; x: number; y: number; vx: number; vy: number; s: number; rot: number; vr: number; col: RGB
-  age: number; life: number; sway: number; w: number; ph: number; kind: 'fly' | 'keep' | 'bit' | 'text'; tx: number; ty: number; t?: string; wd?: string
+  age: number; life: number; sway: number; w: number; ph: number; kind: 'fly' | 'keep' | 'bit' | 'text'; tx: number; ty: number; t?: string; wd?: string; rise?: boolean
 }
 const paths = new Map<string, Path2D>()
 const pathOf = (k: string) => { let p = paths.get(k); if (!p) { p = new Path2D(PATH[k]); paths.set(k, p) } return p }
@@ -33,7 +33,9 @@ export class Floaters {
   private lastBig = 0
   readonly reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
   private cv: HTMLCanvasElement
-  readonly up: number
+  up: number
+  /** 그림 위 여유를 바꾼다(화면 맨 위까지 떠오르게 맞출 때). 떠 있는 것들은 제자리에 보이게 옮긴다 */
+  setUp(up: number) { const d = up - this.up; for (const p of this.ps) { p.y += d; p.ty += d } this.up = up }
   private small: boolean
   constructor(cv: HTMLCanvasElement, up: number, small: boolean) {
     this.cv = cv; this.up = up; this.small = small
@@ -64,16 +66,23 @@ export class Floaters {
     for (let c = 0; c < count; c++) {
       const heavy = 1 - b.bright
       const base = this.small ? 9 : 13
-      const s = (base + b.power * (this.small ? 9 : 15) + heavy * 3 + Math.random() * 2) * (big ? 5 : 1)
+      const s = (base + b.power * (this.small ? 9 : 15) + heavy * 3 + Math.random() * 2) * (big ? 3.3 : 1)
       const wd = wordFor(this.n, tx) ?? undefined
       const t = b.tempo
-      this.ps.push({
+      const p: P = {
         k: shapeFor(g, this.n++, b), wd, x: big ? Math.max(this.W * 0.25, Math.min(this.W * 0.75, b.x)) : b.x + (Math.random() - 0.5) * 8, y: b.y + this.up, s, col,
         vx: b.side * 14 + (Math.random() - 0.5) * 12, vy: -(24 + 26 * b.power + 18 * heavy) * t,
         rot: (Math.random() - 0.5) * (big || wd ? 0.15 : 0.5), vr: this.reduce || big || wd ? 0 : (Math.random() - 0.5) * (0.6 + b.bright * 2.4),
         age: 0, life: (2.6 + Math.random() * 0.9) / Math.sqrt(t), sway: this.reduce ? 0 : 3 + b.bright * 14,
         w: 1.6 + b.bright * 2.6, ph: Math.random() * 6.28, kind: 'fly', tx: 0, ty: 0,
-      })
+      }
+      // 대부분은 화면 맨 위(상태 표시줄)까지 쭉 올라가 사라진다. 몇 개만 그림 바로 위에 머문다(곡 끝에 흩어질 것들)
+      const stay = !big && !this.reduce && Math.random() < 0.25
+      if (!stay) {
+        const dist = Math.max(40, p.y - 6), v = (70 + 40 * b.power) * Math.max(0.8, Math.min(1.4, t))
+        p.rise = true; p.vy = -v; p.life = dist / v
+      }
+      this.ps.push(p)
     }
   }
 
@@ -125,12 +134,12 @@ export class Floaters {
     for (const p of this.ps) {
       p.age += dt
       if (p.kind === 'fly') {
-        p.vy *= Math.exp(-dt * 0.6); p.vy -= 6 * dt // 천천히 둥실
+        if (!p.rise) { p.vy *= Math.exp(-dt * 0.6); p.vy -= 6 * dt } // 머무는 것만 천천히 둥실, 나머지는 같은 빠르기로 쭉
         p.vx *= Math.exp(-dt * 1.2)
         p.x += p.vx * dt; p.y += p.vy * dt; p.rot += p.vr * dt
         if (p.age >= p.life) {
           // 몇 개는 그림 바로 위에 남아 맴돈다(곡 끝에 흩어질 것들)
-          if (!this.reduce && keepers + next.filter((q) => q.kind === 'keep').length < (this.small ? 8 : 12) && Math.random() < 0.3) {
+          if (!p.rise && !this.reduce && keepers + next.filter((q) => q.kind === 'keep').length < (this.small ? 8 : 12)) {
             next.push({ ...p, kind: 'keep', age: 0, life: 1e9, s: Math.max(8, p.s * 0.6), tx: 14 + Math.random() * (W - 28), ty: this.up - (this.small ? 8 + Math.random() * 14 : 10 + Math.random() * 30) })
           }
           continue
@@ -146,7 +155,7 @@ export class Floaters {
       }
       next.push(p)
       const t = p.age / p.life
-      let a = p.kind === 'keep' ? Math.min(0.5, p.age * 1.5) : t < 0.12 ? t / 0.12 : t > 0.6 ? Math.max(0, (1 - t) / 0.4) : 1
+      let a = p.kind === 'keep' ? Math.min(0.5, p.age * 1.5) : p.rise ? (t < 0.06 ? t / 0.06 : t > 0.88 ? Math.max(0, (1 - t) / 0.12) : 1) : t < 0.12 ? t / 0.12 : t > 0.6 ? Math.max(0, (1 - t) / 0.4) : 1
       if (p.kind === 'bit') a = 1 - t
       if (p.kind === 'text') {
         const ta = t < 0.2 ? t / 0.2 : t > 0.7 ? Math.max(0, (1 - t) / 0.3) : 1
@@ -167,7 +176,7 @@ export class Floaters {
         // 낱말: 또렷하게 읽히도록 채운 글자로(13px보다 작게 그리지 않는다)
         x.save(); x.globalAlpha = a
         x.translate(p.x + sx, p.y + sy); x.rotate(p.rot)
-        x.font = `800 ${Math.max(13, Math.round(p.s * grow * 0.7))}px 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif`
+        x.font = `500 ${Math.max(13, Math.round(p.s * grow * 0.7))}px 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif`
         x.textAlign = 'center'; x.textBaseline = 'middle'
         x.fillStyle = `rgb(${r},${g},${b})`; x.fillText(p.wd, 0, 0)
         x.restore()
@@ -178,9 +187,9 @@ export class Floaters {
       x.translate(p.x + sx, p.y + sy); x.rotate(p.rot); x.scale((p.s * grow) / 24, (p.s * grow) / 24); x.translate(-12, -12)
       // 선으로만 그린다(안은 비운다). 크기와 상관없이 같은 굵기로 보이게 배율만큼 나눈다
       x.strokeStyle = `rgb(${r},${g},${b})`
-      x.lineWidth = (p.kind === 'bit' ? 1.6 : 2) * 24 / (p.s * grow)
+      x.lineWidth = (p.kind === 'bit' ? 1 : 1.2) * 24 / (p.s * grow)
       x.lineJoin = 'round'; x.lineCap = 'round'
-      if (p.kind === 'fly') { x.shadowColor = `rgba(${r},${g},${b},.6)`; x.shadowBlur = 6 }
+      if (p.kind === 'fly') { x.shadowColor = `rgba(${r},${g},${b},.5)`; x.shadowBlur = 3 }
       x.stroke(pathOf(p.k))
       x.restore()
     }
