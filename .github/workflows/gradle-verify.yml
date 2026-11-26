@@ -1,0 +1,57 @@
+name: 안드로이드 라이브러리 지문 다시 만들기
+
+# 손으로만 돌린다. 안드로이드 쪽 라이브러리(Gradle·Capacitor 등)를 올렸을 때 돌려서,
+# 나온 verification-metadata.xml을 android/gradle/ 에 넣는다. 그 파일이 있으면 빌드는
+# 받은 라이브러리의 지문(SHA-256)이 적힌 것과 다를 때 멈춘다.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  metadata:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: 화면 만들고 안드로이드에 넣기
+        run: |
+          npm ci
+          npm run build
+          npx cap sync android
+      - name: 지문 목록 만들기(시험판·정식 판 만들 때 쓰는 일 모두)
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          rm -f gradle/verification-metadata.xml
+          ./gradlew --write-verification-metadata sha256 assembleDebug assembleRelease bundleRelease --no-daemon
+          test -s gradle/verification-metadata.xml
+      - name: 만든 목록으로 다시 만들어 보기(지문 확인이 켜진 채로 통과하는지)
+        working-directory: android
+        run: ./gradlew clean assembleDebug assembleRelease bundleRelease --no-daemon
+      - name: Gradle 배포판 지문
+        run: |
+          url=$(sed -n 's/^distributionUrl=//p' android/gradle/wrapper/gradle-wrapper.properties | sed 's/\\:/:/')
+          curl -fsSL "$url.sha256" > gradle-dist.sha256
+          echo "GRADLE_DIST_SHA256=$(cat gradle-dist.sha256)"
+      - name: 기록에 남기기(꾸러미를 못 받을 때 여기서 꺼낸다)
+        run: |
+          echo "META_BEGIN"
+          gzip -9c android/gradle/verification-metadata.xml | base64 -w76
+          echo "META_END"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: gradle-verification
+          path: |
+            android/gradle/verification-metadata.xml
+            gradle-dist.sha256
+          retention-days: 7

@@ -23,7 +23,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      # ONUM_CSP: PC 웹 앱에만 CSP(우리 스크립트만 실행)를 넣는다
       - run: npm ci && npm run build
+        env:
+          ONUM_CSP: '1'
       - name: '노래방 AI(PC) - 모델과 계산기(onnxruntime-web) 넣기'
         env:
           GH_TOKEN: ${{ github.token }}

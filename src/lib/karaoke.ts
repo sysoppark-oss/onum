@@ -3,7 +3,8 @@
 import { useSyncExternalStore } from 'react'
 import { SoundTouchNode } from '@soundtouchjs/audio-worklet'
 import processorUrl from '@soundtouchjs/audio-worklet/processor?url'
-import micUrl from './micWorklet.js?url'
+// no-inline: 파일로 따로 둔다(data: 주소로 묻히면 PC 웹 앱의 CSP가 막는다)
+import micUrl from './micWorklet.js?url&no-inline'
 import { audioCtx, makeVox, tuneVox, type Vox } from './monofix'
 import { load, save } from './store'
 import { toWav } from './exporter'
