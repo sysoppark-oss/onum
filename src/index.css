@@ -790,15 +790,15 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 @media (prefers-reduced-motion: reduce) { .med-v { animation: none; } .med-bar i { transition: none; } }
 .med-dim { position: fixed; inset: 0; z-index: 2; background: var(--dim); animation: fade-in 200ms ease; }
 .chiprow { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.625rem; }
-.keyrow { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.75rem; }
-.keyrow > button { width: 3rem; height: 3rem; border-radius: 1.5rem; background: var(--sf); color: var(--ink); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.keyrow { display: grid; grid-template-columns: 3rem minmax(0, 1fr) 3rem; align-items: center; gap: 0.25rem; width: 100%; max-width: 18.75rem; margin: 0.875rem auto 0; padding: 0.25rem; border-radius: 1.75rem; background: var(--sf); }
+.keyrow > button { width: 3rem; height: 3rem; border-radius: 1.5rem; background: var(--bg); color: var(--ink); display: flex; align-items: center; justify-content: center; }
 .keyrow > button:disabled { opacity: .35; }
 .keyrow > button:active:not(:disabled) { transform: scale(.95); }
-.keyrow > .keyrow-mid { width: auto; min-width: 8rem; padding: 0 1rem; gap: 0.5rem; background: transparent; box-shadow: inset 0 0 0 1.5px var(--line); }
+.keyrow > .keyrow-mid { width: auto; height: 3rem; background: transparent; gap: 0.5rem; min-width: 0; }
 .keyrow > .keyrow-mid:disabled { opacity: 1; }
-.keyrow > .keyrow-mid.on { background: var(--ink); color: var(--on-ink); box-shadow: none; }
-.keyrow-l { font-size: 0.875rem; font-weight: 700; color: inherit; opacity: .7; }
-.keyrow-mid b { font-size: 1.0625rem; font-weight: 800; }
+.keyrow-l { font-size: 0.875rem; font-weight: 700; color: var(--ink2); }
+.keyrow-mid b { font-size: 1.125rem; font-weight: 800; color: var(--ink); }
+.keyrow-mid.on .keyrow-x { font-size: 0.8125rem; font-weight: 700; color: var(--ink2); }
 
 /* ───────── 가사 ───────── */
 .ly-edit { display: flex; flex-direction: column; gap: 0.875rem; }

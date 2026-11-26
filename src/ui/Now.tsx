@@ -561,7 +561,7 @@ function KeyRow({ player, id }: { player: Player; id: string }) {
     <div className="keyrow" role="group" aria-label={tx("키")}>
       <button onClick={() => set(k - 1)} disabled={k <= -6} aria-label={tx("키 반음 낮추기")}><Icon n="minus" s={22} /></button>
       <button className={'keyrow-mid' + (k ? ' on' : '')} onClick={() => set(0)} disabled={!k} aria-label={k ? tx("원래 키로 돌리기 · 지금 {0}", k > 0 ? tx("{0} 높게", k) : tx("{0} 낮게", -k)) : tx("원래 키")}>
-        <span className="keyrow-l">{tx("키")}</span><b className="num">{k === 0 ? tx("원래 키") : `${k > 0 ? '+' : '−'}${Math.abs(k)}`}</b>
+        <span className="keyrow-l">{tx("키")}</span><b className="num">{k === 0 ? tx("원래 키") : `${k > 0 ? '+' : '−'}${Math.abs(k)}`}</b>{k !== 0 && <span className="keyrow-x" aria-hidden="true">{tx("· 되돌리기")}</span>}
       </button>
       <button onClick={() => set(k + 1)} disabled={k >= 6} aria-label={tx("키 반음 올리기")}><Icon n="plus" s={22} /></button>
     </div>
