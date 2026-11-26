@@ -19,7 +19,7 @@ import { IncomingSheet } from './ui/Church'
 import { load, save } from './lib/store'
 import { useDayNight } from './lib/theme'
 import { Icon, SAFE_VOLUME, closers, info, useOutput, useVolume } from './ui/common'
-import { onAiJob } from './lib/aisplit'
+import { AiBar, KaraokePage } from './ui/Karaoke'
 import { NowScreen } from './ui/Now'
 import { MusicScreen } from './ui/Music'
 import { ListsScreen } from './ui/Lists'
@@ -37,16 +37,9 @@ type Tab = 'now' | 'music' | 'lists' | 'rest' | 'set'
 const TABS: [Tab, string, string][] = [['now', tx("지금"), 'clock'], ['music', tx("음악"), 'search'], ['lists', tx("내 목록"), 'list'], ['rest', tx("쉼"), 'heart'], ['set', tx("설정"), 'gear']]
 
 export default function App() {
-  // 노래연습 AI 반주를 다 만들면 어느 화면에서든 잠깐 알려 준다
-  const [aiDone, setAiDone] = useState('')
-  useEffect(() => {
-    let t = 0
-    const off = onAiJob((j) => {
-      if (j?.state !== 'done') return
-      setAiDone(j.song); clearTimeout(t); t = window.setTimeout(() => setAiDone(''), 5000)
-    })
-    return () => { off(); clearTimeout(t) }
-  }, [])
+  // 노래연습 AI 반주 띠를 누르면 그 곡의 노래연습 화면을 연다(어느 탭에서든)
+  const [aiT, setAiT] = useState<Track | null>(null)
+  const closeAiT = useCallback(() => setAiT(null), [])
   useDayNight()
   const [raw, setRaw] = useState<ScanResult | null>(null)
   const rawRef = useRef(raw)
@@ -239,7 +232,8 @@ export default function App() {
       {vol.flash && (tab !== 'now' || easy) && (
         <p className={'toast' + (loud ? ' over' : '')} role="status">{tx("음량 ")}<span className="num">{vol.percent}%</span>{loud && tx(" · 권장 음량을 넘었어요")}</p>
       )}
-      {aiDone && !vol.flash && <p className="toast toast-wrap" role="status">{tx("AI 반주를 다 만들었어요 · {0}", aiDone)}</p>}
+      <AiBar hidden={!!aiT} lift={!easy && tab === 'now'} wide={!(player.current && tab !== 'now' && !easy)} onOpen={(id) => { const t = raw.tracks.find((x) => x.id === id); if (t) setAiT(t) }} />
+      {aiT && <KaraokePage t={aiT} player={player} output={output} onClose={closeAiT} />}
       {sleeping && <SleepSheet player={player} onClose={closeSleep} />}
       {folders && <FoldersPage tracks={raw.tracks} hidden={hidden} setHidden={setHidden} onClose={closeFolders} />}
       {news && !batteryOpen && <WhatsNew onClose={closeNews} />}

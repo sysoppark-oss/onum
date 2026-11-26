@@ -615,3 +615,28 @@ export function KaraPick({ music, now, onPick, onClose }: { music: Track[]; now:
     </Sheet>
   )
 }
+
+/* 어느 화면에서든 보이는 AI 반주 띠: 만드는 중이면 진행률, 다 되면 「다 만들었어요」. 누르면 그 곡의 노래연습 화면으로 */
+export function AiBar({ onOpen, lift, hidden, wide }: { onOpen: (id: string) => void; lift: boolean; hidden: boolean; wide: boolean }) {
+  const [j, setJ] = useState(() => aiJob())
+  const [hide, setHide] = useState('')
+  useEffect(() => onAiJob(setJ), [])
+  if (hidden || !j || (j.state !== 'run' && j.state !== 'done') || hide === j.id + j.state) return null
+  const run = j.state === 'run'
+  const pct = Math.floor(j.p * 100)
+  return (
+    <div className={'aibar' + (lift ? ' lift' : '') + (wide ? ' wide' : '') + (run ? '' : ' done')} role="status">
+      <button className="aibar-go" onClick={() => { if (!run) setHide(j.id + j.state); onOpen(j.id) }}
+        aria-label={run ? tx("AI 반주 만드는 중 {0}%, {1}. 노래연습 화면 열기", pct, j.song) : tx("AI 반주를 다 만들었어요, {0}. 노래연습 화면 열기", j.song)}>
+        <Icon n="mic" s={20} />
+        <span className="aibar-t">
+          <b>{run ? <>{tx("AI 반주 만드는 중")} <span className="num">{pct}%</span></> : tx("AI 반주 다 됐어요")}</b>
+          <small>{j.song}</small>
+        </span>
+        <span className="aibar-open">{tx("열기")}</span>
+        {run && <i className="aibar-bar" style={{ transform: `scaleX(${j.p})` }} />}
+      </button>
+      {!run && <button className="aibar-x" onClick={() => setHide(j.id + j.state)} aria-label={tx("닫기")}><Icon n="x" s={20} /></button>}
+    </div>
+  )
+}
