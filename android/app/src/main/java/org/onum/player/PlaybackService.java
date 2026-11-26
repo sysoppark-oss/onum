@@ -6,9 +6,6 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
-import android.media.AudioAttributes;
-import android.media.AudioFocusRequest;
-import android.media.AudioManager;
 import android.content.pm.ServiceInfo;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -40,64 +37,6 @@ public class PlaybackService extends Service {
     private boolean foreground = false;
     private String artKey = "";
     private Bitmap art;
-
-    /* ───────── 오디오 포커스 ─────────
-       화면(WebView)은 스스로 포커스를 잡지 않는다. 그래서 여기서 잡는다.
-       - 문자·카톡 같은 알림 소리(줄여도 되는 잠깐): 음악을 줄이지 않는다(setWillPauseWhenDucked + 무시)
-       - 전화·알람·길 안내처럼 잠깐 소리를 가져가면: 멈췄다가 끝나면 다시 튼다
-       - 다른 음악 앱이 재생을 시작하면: 멈춘다(안드로이드 12부터는 시스템이 어차피 소리를 줄여 버린다) */
-    private AudioManager am;
-    private AudioFocusRequest focusReq;
-    private boolean hasFocus = false;
-    private boolean pausedByFocus = false;
-    private final AudioManager.OnAudioFocusChangeListener focusListener = change -> {
-        switch (change) {
-            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-                break; // 알림 소리: 그대로 둔다
-            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-                pausedByFocus = true;
-                MusicScanPlugin.emit("pause");
-                break;
-            case AudioManager.AUDIOFOCUS_LOSS:
-                pausedByFocus = false;
-                MusicScanPlugin.emit("pause");
-                abandonFocus();
-                break;
-            case AudioManager.AUDIOFOCUS_GAIN:
-                if (pausedByFocus) { pausedByFocus = false; MusicScanPlugin.emit("play"); }
-                break;
-        }
-    };
-
-    @SuppressWarnings("deprecation")
-    private void requestFocus() {
-        if (hasFocus) return;
-        if (am == null) am = (AudioManager) getSystemService(AUDIO_SERVICE);
-        int r;
-        if (Build.VERSION.SDK_INT >= 26) {
-            if (focusReq == null) {
-                focusReq = new AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-                    .setAudioAttributes(new AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_MEDIA)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC).build())
-                    .setWillPauseWhenDucked(true) // 시스템이 알아서 줄이지 않게(우리가 무시한다)
-                    .setOnAudioFocusChangeListener(focusListener)
-                    .build();
-            }
-            r = am.requestAudioFocus(focusReq);
-        } else {
-            r = am.requestAudioFocus(focusListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN);
-        }
-        hasFocus = r == AudioManager.AUDIOFOCUS_REQUEST_GRANTED;
-    }
-
-    @SuppressWarnings("deprecation")
-    private void abandonFocus() {
-        if (!hasFocus || am == null) return;
-        if (Build.VERSION.SDK_INT >= 26 && focusReq != null) am.abandonAudioFocusRequest(focusReq);
-        else am.abandonAudioFocus(focusListener);
-        hasFocus = false;
-    }
 
     @Override
     public void onCreate() {
@@ -147,9 +86,6 @@ public class PlaybackService extends Service {
         if (artist == null) artist = "";
         if (brand == null) brand = "";
         NowWidget.save(this, title, artist, brand, playing);
-        // 재생하면 포커스를 잡고, 사람이 멈추면 놓는다(전화 등으로 잠깐 멈춘 때는 끝나고 다시 틀도록 붙잡아 둔다)
-        if (playing) { pausedByFocus = false; requestFocus(); }
-        else if (!pausedByFocus) abandonFocus();
 
         session.setMetadata(new MediaMetadata.Builder()
             .putString(MediaMetadata.METADATA_KEY_TITLE, title)
@@ -259,8 +195,6 @@ public class PlaybackService extends Service {
 
     @Override
     public void onDestroy() {
-        pausedByFocus = false;
-        abandonFocus();
         NowWidget.stopped(this);
         if (lock != null && lock.isHeld()) lock.release();
         if (session != null) { session.setActive(false); session.release(); }
