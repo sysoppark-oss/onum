@@ -105,7 +105,12 @@ const FOCUSABLE = 'button:not([disabled]), a[href], input:not([type=hidden]), [t
 
 export function useDialog<T extends HTMLElement = HTMLDivElement>(onClose: () => void) {
   const box = useRef<T>(null)
+  // 닫는 함수는 그릴 때마다 새것이 올 수 있다(음악이 나오는 동안 화면은 계속 다시 그려진다).
+  // 그때마다 이 효과가 다시 돌면 창이 초점을 도로 가져가 입력 칸의 키보드가 내려간다. 그래서 처음 한 번만 돈다.
+  const latest = useRef(onClose)
+  latest.current = onClose
   useEffect(() => {
+    const onClose = () => latest.current()
     const before = document.activeElement as HTMLElement | null
     closers.push(onClose)
     box.current?.focus()
@@ -128,7 +133,7 @@ export function useDialog<T extends HTMLElement = HTMLDivElement>(onClose: () =>
       if (i >= 0) closers.splice(i, 1)
       before?.focus?.()
     }
-  }, [onClose])
+  }, [])
   return box
 }
 
