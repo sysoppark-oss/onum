@@ -172,7 +172,7 @@ export function FirstScreen({ onDone }: { onDone: (r: ScanResult, hidden: string
             ? <button className="go" onClick={() => findOnDevice()}>{tx("음악 불러오기")}</button>
             : android
               ? <>
-                  <a className="go" href={`intent://c/${appLink(church).slice(9)}#Intent;scheme=onum;package=org.onum.player;S.browser_fallback_url=${encodeURIComponent(APK)};end`}>{tx("온음 앱 받기 · 열기")}</a>
+                  <a className="go" href={`intent://c/${appLink(church).slice(9)}#Intent;scheme=onum;S.browser_fallback_url=${encodeURIComponent(APK)};end`}>{tx("온음 앱 받기 · 열기")}</a>
                   <p className="wp-note">{tx("앱은 휴대폰 속 음악을 저절로 찾아요. 앱을 설치한 뒤 이 버튼을 한 번 더 누르면 카드와 함께 열려요.")}</p>
                   {kakao
                     ? <a className="ghost" href={'kakaotalk://web/openExternal?url=' + encodeURIComponent(link(church))}>{tx("크롬에서 열어 웹으로 듣기")}</a>

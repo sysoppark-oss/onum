@@ -205,7 +205,7 @@ function ChurchView({ e, on, onEdit, onList }: { e: Entry; on: boolean; onEdit: 
       </figure>
       <button className="ghost" onClick={share}><Icon n="share" s={20} />{tx("링크 보내기")}</button>
       {sent && <p className="chv-note" role="status">{sent}</p>}
-      {android && <a className="ghost" href={`intent://c/${appLink(c).slice(9)}#Intent;scheme=onum;package=org.onum.player;end`}>{tx("휴대폰 앱에 넣기")}</a>}
+      {android && <a className="ghost" href={`intent://c/${appLink(c).slice(9)}#Intent;scheme=onum;end`}>{tx("휴대폰 앱에 넣기")}</a>}
 
       <div className="chv-foot">
         <p className="chv-code">{tx("확인 번호")} <span className="num">{code(c)}</span></p>
