@@ -2,7 +2,17 @@
 //  · 세기 → 크기, 곡 빠르기 → 떠오르는 속도, 고음 → 살랑살랑 흔들림, 저음 → 묵직하게 솟음
 //  · 몇 개는 그림 바로 위에 남아 맴돌다가, 곡이 끝나는 순간 한꺼번에 흩어진다
 //  · 누르면 톡 터진다(재생에는 영향 없음)
-import { PATH, shapeFor, type Glyph } from '../lib/glyph'
+import { NOTE_AMOUNTS, NOTE_COLORS, PATH, getNoteAmount, getNoteColor, shapeFor, type Glyph } from '../lib/glyph'
+
+/** 설정에서 고른 선 색(여러 색이면 null: 그림이 준 색을 그대로) */
+function pickColor(): [number, number, number] | null {
+  const c = NOTE_COLORS.find((x) => x.id === getNoteColor())
+  if (!c || !c.v) return null
+  const name = c.v.slice(4, -1) // var(--x) → --x
+  const h = getComputedStyle(document.documentElement).getPropertyValue(name).trim().replace('#', '')
+  if (!/^[0-9a-f]{6}$/i.test(h)) return null
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)]
+}
 
 type RGB = [number, number, number]
 export interface Burst { x: number; y: number; col: RGB; power: number; side: number; bright: number; tempo: number }
@@ -38,16 +48,20 @@ export class Floaters {
   /** 박자 하나: 그림 칸 기준 좌표(b.x, b.y) */
   emit(b: Burst, g: Glyph) {
     if (this.reduce && Math.random() > 0.35) return
+    // 떠오르는 수: 적게·보통·많이(보통이 예전과 같다)
+    const am = NOTE_AMOUNTS.find((x) => x.id === getNoteAmount()) ?? NOTE_AMOUNTS[1]
+    if (am.k < 1 && Math.random() > am.k) return
     const flying = this.ps.reduce((a, p) => a + (p.kind === 'fly' ? 1 : 0), 0)
-    if (flying >= (this.small ? 12 : 22)) return
-    const count = !this.reduce && b.power > 0.75 ? 2 : 1
+    if (flying >= Math.round((this.small ? 12 : 22) * am.max / 10)) return
+    const col = pickColor() ?? b.col
+    const count = (!this.reduce && b.power > 0.75 ? 2 : 1) + (am.k > 1 && Math.random() < am.k - 1 ? 1 : 0)
     for (let c = 0; c < count; c++) {
       const heavy = 1 - b.bright
       const base = this.small ? 9 : 13
       const s = base + b.power * (this.small ? 9 : 15) + heavy * 3 + Math.random() * 2
       const t = b.tempo
       this.ps.push({
-        k: shapeFor(g, this.n++, b), x: b.x + (Math.random() - 0.5) * 8, y: b.y + this.up, s, col: b.col,
+        k: shapeFor(g, this.n++, b), x: b.x + (Math.random() - 0.5) * 8, y: b.y + this.up, s, col,
         vx: b.side * 14 + (Math.random() - 0.5) * 12, vy: -(24 + 26 * b.power + 18 * heavy) * t,
         rot: (Math.random() - 0.5) * 0.5, vr: this.reduce ? 0 : (Math.random() - 0.5) * (0.6 + b.bright * 2.4),
         age: 0, life: (2.6 + Math.random() * 0.9) / Math.sqrt(t), sway: this.reduce ? 0 : 3 + b.bright * 14,
@@ -145,9 +159,12 @@ export class Floaters {
       x.globalAlpha = a
       x.translate(p.x + sx, p.y + sy); x.rotate(p.rot); x.scale((p.s * grow) / 24, (p.s * grow) / 24); x.translate(-12, -12)
       const [r, g, b] = p.col
-      x.fillStyle = `rgb(${r},${g},${b})`
-      if (p.kind === 'fly') { x.shadowColor = `rgba(${r},${g},${b},.8)`; x.shadowBlur = 10 }
-      x.fill(pathOf(p.k))
+      // 선으로만 그린다(안은 비운다). 크기와 상관없이 같은 굵기로 보이게 배율만큼 나눈다
+      x.strokeStyle = `rgb(${r},${g},${b})`
+      x.lineWidth = (p.kind === 'bit' ? 1.6 : 2) * 24 / (p.s * grow)
+      x.lineJoin = 'round'; x.lineCap = 'round'
+      if (p.kind === 'fly') { x.shadowColor = `rgba(${r},${g},${b},.6)`; x.shadowBlur = 6 }
+      x.stroke(pathOf(p.k))
       x.restore()
     }
     this.ps = next
