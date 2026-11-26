@@ -26,14 +26,14 @@ jobs:
       ONUM_VERSION_NAME: ${{ inputs.version_name }}
       VITE_STORE: ${{ inputs.store }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 22
           cache: npm
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4.9.1
         with:
           distribution: temurin
           java-version: 21
@@ -50,36 +50,30 @@ jobs:
           npx cap sync android
           sh tools/ai/fetch-model.sh android/app/src/main/assets/models/htdemucs.onnx
 
-      - name: 정식 서명 열쇠 꺼내기
+      # 비밀번호는 이 단계 안에서만 쓴다(다음 단계의 환경 변수에 남기지 않는다). 열쇠 파일은 단계가 끝나면 지운다.
+      - name: APK·AAB 만들기(정식 서명 열쇠는 이 단계에서만)
         env:
           KEYSTORE_B64: ${{ secrets.ONUM_KEYSTORE_B64 }}
           KS_PASS: ${{ secrets.ONUM_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ONUM_KEY_ALIAS }}
           KEY_PASS: ${{ secrets.ONUM_KEY_PASSWORD }}
         run: |
+          KS="$RUNNER_TEMP/onum-release.keystore"
+          trap 'rm -f "$KS"' EXIT
           if [ -z "$KEYSTORE_B64" ]; then
             echo "::warning::정식 서명 열쇠(ONUM_KEYSTORE_B64)가 없어 서명하지 않은 점검용 파일만 만듭니다. 스토어에는 올릴 수 없어요."
-            exit 0
-          fi
-          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/onum-release.keystore"
-          {
-            echo "ONUM_KEYSTORE=$RUNNER_TEMP/onum-release.keystore"
-            echo "ONUM_KEYSTORE_PASSWORD=$KS_PASS"
-            echo "ONUM_KEY_ALIAS=$KEY_ALIAS"
-            echo "ONUM_KEY_PASSWORD=$KEY_PASS"
-          } >> $GITHUB_ENV
-
-      - name: APK·AAB 만들기
-        working-directory: android
-        run: |
-          chmod +x gradlew
-          ./gradlew assembleRelease bundleRelease --no-daemon
-          mkdir -p ../out
-          if [ -n "$ONUM_KEYSTORE" ]; then
-            cp app/build/outputs/apk/release/app-release.apk "../out/onum-${VITE_STORE}-${ONUM_VERSION_NAME}.apk"
-            cp app/build/outputs/bundle/release/app-release.aab "../out/onum-${VITE_STORE}-${ONUM_VERSION_NAME}.aab"
           else
-            cp app/build/outputs/apk/release/app-release-unsigned.apk "../out/onum-${ONUM_VERSION_NAME}-unsigned-check-only.apk"
+            echo "$KEYSTORE_B64" | base64 -d > "$KS"
+            export ONUM_KEYSTORE="$KS" ONUM_KEYSTORE_PASSWORD="$KS_PASS" ONUM_KEY_ALIAS="$KEY_ALIAS" ONUM_KEY_PASSWORD="$KEY_PASS"
+          fi
+          chmod +x android/gradlew
+          (cd android && ./gradlew assembleRelease bundleRelease --no-daemon)
+          mkdir -p out
+          if [ -n "$ONUM_KEYSTORE" ]; then
+            cp android/app/build/outputs/apk/release/app-release.apk "out/onum-${VITE_STORE}-${ONUM_VERSION_NAME}.apk"
+            cp android/app/build/outputs/bundle/release/app-release.aab "out/onum-${VITE_STORE}-${ONUM_VERSION_NAME}.aab"
+          else
+            cp android/app/build/outputs/apk/release/app-release-unsigned.apk "out/onum-${ONUM_VERSION_NAME}-unsigned-check-only.apk"
           fi
 
       - name: 디버깅이 꺼져 있는지 확인
@@ -94,11 +88,7 @@ jobs:
           SIGNER=$(ls $ANDROID_HOME/build-tools/*/apksigner | tail -1)
           $SIGNER verify --print-certs "$f" | grep -E "SHA-256|DN" || true
 
-      - name: 열쇠 파일 지우기
-        if: always()
-        run: rm -f "$RUNNER_TEMP/onum-release.keystore"
-
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: onum-${{ inputs.store }}-${{ inputs.version_name }}-${{ github.run_number }}
           path: out/
