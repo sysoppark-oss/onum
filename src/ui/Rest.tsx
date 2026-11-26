@@ -232,6 +232,18 @@ export function SettingsScreen({ easy, setEasy, onFolders, battery, onBattery, v
           )}
           {notesOn && words.text !== 'off' && (
             <div className="ntpick">
+              <span className="ntpick-l" id="wc-l">{tx("글자 색")}</span>
+              <div className="ntcol wc" role="radiogroup" aria-labelledby="wc-l">
+                <button role="radio" aria-checked={words.color === 'same'} className={'same' + (words.color === 'same' ? ' on' : '')} onClick={() => setWords({ color: 'same' })}>{tx("선 색과 같게")}</button>
+                {NOTE_COLORS.map((c) => (
+                  <button key={c.id} role="radio" aria-checked={words.color === c.id} aria-label={tx(c.name)} className={(words.color === c.id ? 'on' : '') + (c.id === 'mix' ? ' mix' : '')}
+                    style={c.v ? { ['--c' as string]: c.v } : undefined} onClick={() => setWords({ color: c.id })}><i /></button>
+                ))}
+              </div>
+            </div>
+          )}
+          {notesOn && words.text !== 'off' && (
+            <div className="ntpick">
               <span className="ntpick-l" id="ng-l">{tx("낱말 묶음 · 여러 개 고를 수 있어요")}</span>
               <div className="wdgroups" role="group" aria-labelledby="ng-l">
                 {WORD_GROUPS.map((g) => {

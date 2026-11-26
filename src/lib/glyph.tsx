@@ -101,12 +101,16 @@ export const WORD_GROUPS: { id: string; name: string; words: string[] }[] = [
   { id: 'day', name: '일상', words: ['오늘', '햇살', '바람', '웃음', '친구', '가족'] },
 ]
 export const MY_WORDS_MAX = 20, MY_WORD_LEN = 4
-interface Words { text: NoteText; groups: string[]; mine: string[]; mineOn: boolean; big: boolean }
-let wd: Words = { text: 'off', groups: ['love', 'faith', 'hope', 'joy'], mine: [], mineOn: true, big: true, ...load<Partial<Words>>('noteWords', {}) }
+/** color: 글자 색. 'same'이면 선 색과 같게 */
+interface Words { text: NoteText; groups: string[]; mine: string[]; mineOn: boolean; big: boolean; color: NoteColor | 'same' }
+let wd: Words = { text: 'off', groups: ['love', 'faith', 'hope', 'joy'], mine: [], mineOn: true, big: true, color: 'same', ...load<Partial<Words>>('noteWords', {}) }
 if (!NOTE_TEXTS.some((x) => x.id === wd.text)) wd.text = 'off'
 if (!Array.isArray(wd.groups)) wd.groups = []
+if (wd.color !== 'same' && !NOTE_COLORS.some((x) => x.id === wd.color)) wd.color = 'same'
 wd.mine = Array.isArray(wd.mine) ? wd.mine.filter((x) => typeof x === 'string').slice(0, MY_WORDS_MAX) : []
 export const getWords = () => wd
+/** 글자에 쓸 색 고르기 값(선 색과 같게면 선 색) */
+export const getWordColor = (): NoteColor => (wd.color === 'same' ? nc : wd.color)
 export function setWords(p: Partial<Words>) { wd = { ...wd, ...p }; save('noteWords', wd); subs.forEach((f) => f()) }
 export const useWords = () => useSyncExternalStore((f) => { subs.add(f); return () => { subs.delete(f) } }, () => wd)
 /** 이번에 글자를 띄울 차례면 낱말을, 모양 차례면 null을 준다. tr: 화면 언어로 옮기는 함수(직접 넣은 낱말은 그대로) */

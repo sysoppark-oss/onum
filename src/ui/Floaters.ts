@@ -2,12 +2,12 @@
 //  · 세기 → 크기, 곡 빠르기 → 떠오르는 속도, 고음 → 살랑살랑 흔들림, 저음 → 묵직하게 솟음
 //  · 몇 개는 그림 바로 위에 남아 맴돌다가, 곡이 끝나는 순간 한꺼번에 흩어진다
 //  · 누르면 톡 터진다(재생에는 영향 없음)
-import { NOTE_AMOUNTS, NOTE_COLORS, PATH, getNoteAmount, getNoteColor, getWords, shapeFor, wordFor, type Glyph } from '../lib/glyph'
+import { NOTE_AMOUNTS, NOTE_COLORS, PATH, getNoteAmount, getNoteColor, getWordColor, getWords, shapeFor, wordFor, type Glyph, type NoteColor } from '../lib/glyph'
 import { tx } from '../lib/i18n'
 
 /** 설정에서 고른 선 색(여러 색이면 null: 그림이 준 색을 그대로) */
-function pickColor(): [number, number, number] | null {
-  const c = NOTE_COLORS.find((x) => x.id === getNoteColor())
+function pickColor(id: NoteColor = getNoteColor()): [number, number, number] | null {
+  const c = NOTE_COLORS.find((x) => x.id === id)
   if (!c || !c.v) return null
   const name = c.v.slice(4, -1) // var(--x) → --x
   const h = getComputedStyle(document.documentElement).getPropertyValue(name).trim().replace('#', '')
@@ -31,6 +31,7 @@ export class Floaters {
   private ps: P[] = []
   private n = 0
   private lastBig = 0
+  private lastEmit = 0
   readonly reduce = matchMedia('(prefers-reduced-motion: reduce)').matches
   private cv: HTMLCanvasElement
   up: number
@@ -56,7 +57,12 @@ export class Floaters {
     const am = NOTE_AMOUNTS.find((x) => x.id === getNoteAmount()) ?? NOTE_AMOUNTS[1]
     if (am.k < 1 && Math.random() > am.k) return
     const flying = this.ps.reduce((a, p) => a + (p.kind === 'fly' ? 1 : 0), 0)
-    if (flying >= Math.round((this.small ? 12 : 22) * am.max / 10)) return
+    const cap = Math.round((this.small ? 12 : 22) * am.max / 10)
+    if (flying >= cap) return
+    // 천천히 올라가므로 고르게 띄운다(한꺼번에 몰리지 않게)
+    const now = performance.now()
+    if (now - this.lastEmit < (this.up + 60) / 34 * 1000 / cap) return
+    this.lastEmit = now
     const col = pickColor() ?? b.col
     // 소리가 아주 세지거나 고음이 확 올라온 순간: 여러 개 대신 다섯 배쯤 큰 것 하나(몇 초에 한 번만)
     const strong = b.power > 0.8 || (b.bright > 0.75 && b.power > 0.6)
@@ -66,11 +72,11 @@ export class Floaters {
     for (let c = 0; c < count; c++) {
       const heavy = 1 - b.bright
       const base = this.small ? 9 : 13
-      const s = (base + b.power * (this.small ? 9 : 15) + heavy * 3 + Math.random() * 2) * (big ? 3.3 : 1)
+      const s = (base + b.power * (this.small ? 9 : 15) + heavy * 3 + Math.random() * 2) * (big ? 1.65 : 1)
       const wd = wordFor(this.n, tx) ?? undefined
       const t = b.tempo
       const p: P = {
-        k: shapeFor(g, this.n++, b), wd, x: big ? Math.max(this.W * 0.25, Math.min(this.W * 0.75, b.x)) : b.x + (Math.random() - 0.5) * 8, y: b.y + this.up, s, col,
+        k: shapeFor(g, this.n++, b), wd, x: big ? Math.max(this.W * 0.25, Math.min(this.W * 0.75, b.x)) : b.x + (Math.random() - 0.5) * 8, y: b.y + this.up, s, col: wd ? pickColor(getWordColor()) ?? b.col : col,
         vx: b.side * 14 + (Math.random() - 0.5) * 12, vy: -(24 + 26 * b.power + 18 * heavy) * t,
         rot: (Math.random() - 0.5) * (big || wd ? 0.15 : 0.5), vr: this.reduce || big || wd ? 0 : (Math.random() - 0.5) * (0.6 + b.bright * 2.4),
         age: 0, life: (2.6 + Math.random() * 0.9) / Math.sqrt(t), sway: this.reduce ? 0 : 3 + b.bright * 14,
@@ -79,8 +85,10 @@ export class Floaters {
       // 대부분은 화면 맨 위(상태 표시줄)까지 쭉 올라가 사라진다. 몇 개만 그림 바로 위에 머문다(곡 끝에 흩어질 것들)
       const stay = !big && !this.reduce && Math.random() < 0.25
       if (!stay) {
-        const dist = Math.max(40, p.y - 6), v = (70 + 40 * b.power) * Math.max(0.8, Math.min(1.4, t))
-        p.rise = true; p.vy = -v; p.life = dist / v
+        // 아지랑이 피어오르듯: 느리게, 좌우로 살랑이며, 은은하게
+        const dist = Math.max(40, p.y - 6), v = 26 + 12 * b.power + Math.random() * 6
+        p.rise = true; p.vy = -v; p.life = dist / v; p.vx = 0
+        p.sway = 4 + Math.random() * 5; p.w = 0.8 + Math.random() * 0.7
       }
       this.ps.push(p)
     }
@@ -155,7 +163,7 @@ export class Floaters {
       }
       next.push(p)
       const t = p.age / p.life
-      let a = p.kind === 'keep' ? Math.min(0.5, p.age * 1.5) : p.rise ? (t < 0.06 ? t / 0.06 : t > 0.88 ? Math.max(0, (1 - t) / 0.12) : 1) : t < 0.12 ? t / 0.12 : t > 0.6 ? Math.max(0, (1 - t) / 0.4) : 1
+      let a = p.kind === 'keep' ? Math.min(0.5, p.age * 1.5) : p.rise ? 0.8 * (t < 0.08 ? t / 0.08 : t > 0.8 ? Math.max(0, (1 - t) / 0.2) : 1) : t < 0.12 ? t / 0.12 : t > 0.6 ? Math.max(0, (1 - t) / 0.4) : 1
       if (p.kind === 'bit') a = 1 - t
       if (p.kind === 'text') {
         const ta = t < 0.2 ? t / 0.2 : t > 0.7 ? Math.max(0, (1 - t) / 0.3) : 1

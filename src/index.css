@@ -658,11 +658,15 @@ label.pick:focus-within { outline: 0.1875rem solid var(--now); outline-offset: 2
 .notes { position: absolute; left: 0; right: 0; top: -0.25rem; height: 1.625rem; pointer-events: none; }
 .notes i { position: absolute; bottom: 0; font-style: normal; line-height: 1; font-weight: 700; transform: translateX(-50%); animation: note-up 1.8s linear forwards; }
 @keyframes note-up {
-  0% { transform: translate(-50%, 0.375rem) scale(.4) rotate(0deg); opacity: 0; }
-  6% { opacity: .95; transform: translate(-50%, -0.375rem) scale(1) rotate(0deg); }
-  88% { opacity: .9; }
-  100% { transform: translate(calc(-50% + var(--dx)), calc(-1 * var(--rise, 12.5rem))) scale(.95) rotate(var(--r)); opacity: 0; }
+  0% { transform: translate(-50%, 0.375rem) scale(.7); opacity: 0; }
+  8% { opacity: .8; transform: translate(-50%, calc(-.08 * var(--rise, 12.5rem))) scale(1); }
+  80% { opacity: .75; }
+  100% { transform: translate(calc(-50% + var(--dx)), calc(-1 * var(--rise, 12.5rem))) scale(1) rotate(var(--r)); opacity: 0; }
 }
+/* 아지랑이처럼 좌우로 살랑인다 */
+@keyframes note-haze { from { transform: translateX(-0.3125rem); } to { transform: translateX(0.3125rem); } }
+.notes i > * { animation: note-haze 2.8s ease-in-out infinite alternate; }
+.notes i.nm > * { animation: none; }
 
 /* 내 편집곡 */
 .sub-row { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
@@ -1089,12 +1093,15 @@ a.go { display: inline-flex; align-items: center; justify-content: center; text-
 .ntcol button i { width: 1.75rem; height: 1.75rem; border-radius: 0.875rem; background: var(--c); }
 .ntcol button.mix i { background: conic-gradient(var(--tg-pink), var(--tg-orange), var(--tg-green), var(--tg-purple), var(--tg-pink)); }
 .ntcol button.on { box-shadow: inset 0 0 0 2.5px var(--ink); }
+.ntcol.wc { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 0.25rem; }
+.ntcol.wc button.same { width: auto; padding: 0 0.875rem; font-size: 0.875rem; font-weight: 700; color: var(--ink2); background: var(--sf); }
+.ntcol.wc button.same.on { color: var(--ink); }
 .ntamt { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.25rem; padding: 0.25rem; border-radius: 1rem; background: var(--sf); }
 .ntamt button { min-height: 2.75rem; border-radius: 0.75rem; font-size: 0.9375rem; font-weight: 600; color: var(--ink2); display: flex; align-items: center; justify-content: center; text-align: center; }
 .ntamt button.on { background: var(--bg); color: var(--ink); font-weight: 800; box-shadow: 0 0 0 1px var(--line); }
 .notes i svg { display: block; }
 .notes i.big { animation-name: note-up-big; }
-@keyframes note-up-big { 0% { transform: translate(-50%, 0.625rem) scale(.6); opacity: 0; } 6% { opacity: .9; transform: translate(-50%, -0.5rem) scale(1); } 88% { opacity: .85; } 100% { transform: translate(calc(-50% + var(--dx, 0px)), calc(-1 * var(--rise, 12.5rem))) scale(1) rotate(var(--r, 0deg)); opacity: 0; } }
+@keyframes note-up-big { 0% { transform: translate(-50%, 0.625rem) scale(.7); opacity: 0; } 8% { opacity: .8; transform: translate(-50%, calc(-.08 * var(--rise, 12.5rem))) scale(1); } 80% { opacity: .75; } 100% { transform: translate(calc(-50% + var(--dx, 0px)), calc(-1 * var(--rise, 12.5rem))) scale(1) rotate(var(--r, 0deg)); opacity: 0; } }
 .note-word { display: block; white-space: nowrap; font-family: 'Pretendard Variable', Pretendard, -apple-system, 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif; font-weight: 500; letter-spacing: -0.01em; }
 .wdgroups { display: flex; flex-wrap: wrap; gap: 0.375rem; }
 .wdgroups button { min-height: 2.75rem; padding: 0 1rem; border-radius: 1.375rem; background: var(--sf); font-size: 0.9375rem; font-weight: 700; color: var(--ink2); }
